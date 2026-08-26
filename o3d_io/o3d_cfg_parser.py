@@ -7,8 +7,11 @@ import os
 import mathutils
 
 import bpy
-if bpy.app.version > (2, 80):
+if bpy.app.version >= (4, 0):
+    from bpy_extras import node_shader_utils as o3d_node_shader_utils
+else:
     from . import o3d_node_shader_utils
+from . import blender_compat
 
 
 def log(*args):
@@ -66,7 +69,7 @@ def read_generic_cfg_file(cfg_path):
 
 
 def read_cfg(filepath, override_text_encoding):
-    """
+    r"""
     Reads the CFG file for a mesh and parses relevant information such as materials.
 
     The `cfg_data` dictionary returned is of the following form:
@@ -610,7 +613,7 @@ def write_cfg_materials(f, obj):
             else:
                 if mat.alpha_texture.image is not None:
                     alpha_mode = 2
-                    if mat_blender.blend_method == "CLIP":
+                    if blender_compat.get_material_alpha_mode(mat_blender) == "CLIP":
                         alpha_mode = 1
 
                     if mat.alpha_texture.image.filepath != mat.base_color_texture.image.filepath:

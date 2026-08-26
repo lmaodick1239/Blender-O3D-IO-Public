@@ -1,0 +1,26 @@
+schema_version = "1.0.0"
+id = "blender_o3d_io"
+version = "1.3.0"
+name = "Blender O3D IO"
+tagline = "Import and export OMSI map, CFG, SCO, and O3D files"
+maintainer = "Adam and Thomas Mathieson"
+type = "add-on"
+website = "https://github.com/space928/Blender-O3D-IO-Public"
+tags = ["Import-Export"]
+blender_version_min = "4.2.0"
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+files = "Import and export OMSI assets and load referenced textures"
+
+[build]
+paths_exclude_pattern = [
+    "__pycache__/",
+    ".*",
+    "/.git/",
+    "/.github/",
+    "/dist/",
+    "/tests/",
+    "*.pyc",
+    "*.zip",
+]

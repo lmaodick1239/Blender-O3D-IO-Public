@@ -4,7 +4,11 @@
 import os
 
 import bpy
-from . import o3d_node_shader_utils
+if bpy.app.version >= (4, 0):
+    from bpy_extras import node_shader_utils as o3d_node_shader_utils
+else:
+    from . import o3d_node_shader_utils
+from . import blender_compat
 from .blender_texture_io import load_texture_into_new_slot, find_image_path
 from .o3d_cfg_parser import read_generic_cfg_file
 from mathutils import Vector
@@ -498,8 +502,7 @@ def generate_materials(mesh, sli_path, matls):
             pass
         else:
             mat_blender.use_backface_culling = True
-            mat_blender.blend_method = "HASHED"
-            mat_blender.shadow_method = "HASHED"
+            blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
 
         mesh.materials.append(mat_blender)
 
@@ -647,7 +650,7 @@ def import_map_preview_splines(filepath, map_file, spline_tess_dist, parent_coll
 
         spline_bdata.update(calc_edges=True)
 
-        spline_bdata.materials.append(o3d_node_shader_utils.generate_solid_material((0.8, 0.8, 0.8, 1.)))
+        spline_bdata.materials.append(blender_compat.create_solid_material((0.8, 0.8, 0.8, 1.0)))
 
     return objs, spline_defs
 

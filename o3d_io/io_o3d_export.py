@@ -10,7 +10,7 @@ import numpy as np
 import bmesh
 import bpy
 from mathutils import Matrix
-from . import o3d_cfg_parser, o3dconvert
+from . import blender_compat, o3d_cfg_parser, o3dconvert
 
 if not (bpy.app.version[0] < 3 and bpy.app.version[1] < 80):
     from bpy_extras import node_shader_utils
@@ -76,13 +76,7 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
                 if face_len >= 4:
                     tris.append((face_inds[1], face_inds[3], face_inds[2], face.material_index))
         else:
-            mesh.calc_loop_triangles()
-            if export_custom_normals and mesh.has_custom_normals:
-                # mesh.polygons.foreach_set("use_smooth", [False] * len(mesh.polygons))
-                mesh.use_auto_smooth = True
-            else:
-                mesh.free_normals_split()
-            mesh.calc_normals_split()
+            blender_compat.prepare_export_mesh(mesh, export_custom_normals)
             for tri_loop in mesh.loop_triangles:
                 tri = []
                 tris.append(tri)
@@ -90,7 +84,7 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
                 for tri_vert, loop, normal in zip(tri_loop.vertices, tri_loop.loops, tri_loop.split_normals):
                     vert = mesh.vertices[tri_vert]
                     v_co = vert.co[:]
-                    v_nrm = mesh.loops[loop].normal[:]
+                    v_nrm = normal[:]
                     if uv_layer is not None:
                         v_uv = uv_layer[loop].uv[:2]
                     else:
@@ -138,7 +132,10 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
                 mat = node_shader_utils.PrincipledBSDFWrapper(mat.material, is_readonly=True)
                 o3d_mat.extend(mat.base_color[:3])
                 o3d_mat.append(mat.alpha)
-                o3d_mat.extend([mat.specular, mat.specular, mat.specular])
+                if bpy.app.version >= (4, 0):
+                    o3d_mat.extend(np.array(mat.specular_tint[:3]) * mat.specular)
+                else:
+                    o3d_mat.extend([mat.specular, mat.specular, mat.specular])
                 o3d_mat.extend(mat.emission_color[:3])
                 o3d_mat.append(1 - mat.roughness)
                 if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
@@ -254,8 +251,6 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
 
         bm.to_mesh(me)
         bm.free()
-
-        me.calc_normals_split()
 
         # Export individual model
         if "export_path" in ob:

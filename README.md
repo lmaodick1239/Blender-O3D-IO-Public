@@ -2,7 +2,13 @@
 
 [En Français](README-FR.md) (Merci a [@boingtheboeing](https://github.com/boingtheboeing) pour la traduction)
 
-A plugin supporting blender 2.79-3.x for importing and exporting OMSI .sco, .cfg, and .o3d files.
+An OMSI import and export add-on for Blender supporting `.map`, `.cfg`, `.sco`, and `.o3d` files.
+
+## Blender 4.x and 5.x support
+
+Version 1.3.0 supports Blender 4.0 through Blender 5.1. It uses Blender's current custom-normal, Principled BSDF, and material transparency APIs while retaining the legacy compatibility paths for older source installations.
+
+For Blender 4.2 through 5.1, install the extension ZIP from `Edit > Preferences > Get Extensions > Install from Disk`. Blender 4.0 and 4.1 can use the repository ZIP through the legacy add-on installer.
 
 ![Blender-O3D-IO-Screenshot](https://user-images.githubusercontent.com/15130114/208222029-5f9c2eb7-1007-4c38-a06a-0f3214d0a2f6.png)
 

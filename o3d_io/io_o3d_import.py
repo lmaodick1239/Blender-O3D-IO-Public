@@ -10,10 +10,11 @@ import numpy as np
 import bpy
 import os
 
-if bpy.app.version >= (2, 80):
-    # from bpy_extras import node_shader_utils
+if bpy.app.version >= (4, 0):
+    from bpy_extras import node_shader_utils as o3d_node_shader_utils
+elif bpy.app.version >= (2, 80):
     from . import o3d_node_shader_utils
-from . import o3dconvert
+from . import blender_compat, o3dconvert
 
 # from . import log
 from mathutils import Matrix, Vector
@@ -481,21 +482,7 @@ def load_o3d(object_directory, path_to_file, split_normals):
     # log("Inverted matrix: \n{0}".format(i_o3d_transform_matrix))
     # log("Mesh matrix: \n{0}".format(mesh_matrix))
 
-    if split_normals:
-        mesh.create_normals_split()
-        mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
-        mesh.normals_split_custom_set_from_vertices(normals)
-        mesh.use_auto_smooth = True
-    else:
-        mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
-
-    if bpy.app.version < (2, 80):
-        mesh.update(calc_tessface=True)
-        mesh.calc_normals_split()
-    else:
-        mesh.update()
-        mesh.calc_loop_triangles()
-        mesh.calc_normals_split()
+    blender_compat.prepare_import_mesh(mesh, normals, split_normals)
 
     mesh.validate(verbose=False, clean_customdata=True)
 
@@ -549,14 +536,23 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
             mat_blender.use_nodes = True
             mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=False)
             mat.base_color = (diffuse_r, diffuse_g, diffuse_b)
-            mat.specular = spec_r * 0
             mat.roughness = 1 - spec_h
-            # TODO: Specular tint doesn't support colour, find a solution
-            mat.specular_tint = 0  # (spec_r, spec_g, spec_b)
+            if bpy.app.version >= (4, 0):
+                specular_strength = max(spec_r, spec_g, spec_b)
+                mat.specular = specular_strength
+                if specular_strength > 0:
+                    mat.specular_tint = tuple(
+                        channel / specular_strength
+                        for channel in (spec_r, spec_g, spec_b)
+                    )
+                else:
+                    mat.specular_tint = (0, 0, 0)
+            else:
+                mat.specular = spec_r
+                mat.specular_tint = 0
 
             mat_blender.use_backface_culling = True
-            mat_blender.blend_method = "HASHED"
-            mat_blender.shadow_method = "HASHED"
+            blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
 
         # Load the diffuse texture and assign it to a new texture slot
         diff_tex = load_texture_into_new_slot(cfg_file_path, matl[4], mat)
@@ -581,11 +577,9 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
                     else:
                         mat.alpha_texture.image = diff_tex.texture.image
                         if cfg_materials[key]["alpha"][0] == 1:
-                            mat_blender.blend_method = "CLIP"
-                            mat_blender.shadow_method = "CLIP"
+                            blender_compat.set_material_alpha_mode(mat_blender, "CLIP")
                         else:
-                            mat_blender.blend_method = "HASHED"
-                            mat_blender.shadow_method = "HASHED"
+                            blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
 
                     mat.alpha = 0
 
@@ -606,8 +600,7 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
                             trans_map.use_map_color_diffuse = False
                         else:
                             mat.alpha_texture.image = trans_map.texture.image
-                            mat_blender.blend_method = "HASHED"
-                            mat_blender.shadow_method = "HASHED"
+                            blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
                     else:
                         mat.alpha = 1
 
