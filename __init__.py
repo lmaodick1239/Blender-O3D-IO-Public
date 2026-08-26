@@ -24,7 +24,7 @@
 bl_info = {
     "name": "Import OMSI map/cfg/sco/o3d files",
     "author": "Adam/Thomas Mathieson",
-    "version": (1, 3, 0),
+    "version": (1, 3, 1),
     "blender": (4, 0, 0),
     "location": "File > Import-Export",
     "description": "Import OMSI model .map, .cfg, .sco, and .o3d files along with their meshes, UVs, and materials",
@@ -34,6 +34,8 @@ bl_info = {
                    "+triage&template=bug_report.md&title=",
     "category": "Import-Export"
 }
+
+ADDON_VERSION = (1, 3, 1)
 
 from .o3d_io import io_o3d_import, io_o3d_export, io_omsi_tile, io_omsi_map_panel
 import bpy
@@ -335,7 +337,7 @@ classes = [
 def register():
     all_classes = classes[:]
     all_classes.extend(io_omsi_map_panel.get_classes())
-    log("Registering Blender-O3D-IO version: {0}...".format(bl_info["version"]))
+    log("Registering Blender-O3D-IO version: {0}...".format(ADDON_VERSION))
     for cls in all_classes:
         try:
             cls = make_annotations(cls)

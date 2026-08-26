@@ -120,8 +120,11 @@ def assert_round_trip(addon: ModuleType) -> None:
 
 def run() -> None:
     addon = load_addon()
+    metadata = addon.bl_info.copy()
+    del addon.bl_info
     addon.register()
-    assert addon.bl_info["blender"] == (4, 0, 0)
+    assert metadata["blender"] == (4, 0, 0)
+    assert addon.ADDON_VERSION == (1, 3, 1)
     assert hasattr(bpy.ops.import_scene, "omsi_model_cfg")
     assert hasattr(bpy.ops.export_scene, "omsi_model_cfg")
     assert hasattr(bpy.ops.import_scene, "omsi_tile")
