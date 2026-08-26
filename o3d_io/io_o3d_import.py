@@ -35,6 +35,22 @@ def platform_related_path(path):
     return path.replace("/", os.sep).replace("\\", os.sep)
 
 
+def resolve_import_filepaths(filepath, directory, filenames):
+    supported_extensions = {".cfg", ".sco", ".o3d", ".rdy"}
+    base_directory = os.path.abspath(directory or os.path.dirname(filepath))
+    selected_names = filenames or [os.path.basename(filepath)]
+    resolved = []
+    for filename in selected_names:
+        candidate = os.path.abspath(os.path.join(base_directory, filename))
+        if os.path.normcase(os.path.dirname(candidate)) != os.path.normcase(base_directory):
+            continue
+        if os.path.splitext(candidate)[1].lower() not in supported_extensions:
+            continue
+        if os.path.isfile(candidate):
+            resolved.append(candidate)
+    return resolved
+
+
 def do_import(filepath, context, import_x, override_text_encoding, hide_lods, import_lods=True, parent_collection=None,
               split_normals=True):
     """
@@ -50,7 +66,7 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
     """
     obj_root = os.path.dirname(filepath)
     start_time = time.time()
-    if filepath[-3:] == "o3d" or filepath[-3:] == "rdy":
+    if os.path.splitext(filepath)[1].lower() in {".o3d", ".rdy"}:
         cfg_data = {
             -1: {
                 "meshes": {

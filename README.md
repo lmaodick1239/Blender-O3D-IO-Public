@@ -6,7 +6,7 @@ An OMSI import and export add-on for Blender supporting `.map`, `.cfg`, `.sco`, 
 
 ## Blender 4.x and 5.x support
 
-Version 1.3.2 supports Blender 4.0 through Blender 5.1. It uses Blender's current custom-normal, Principled BSDF, and material transparency APIs while retaining the legacy compatibility paths for older source installations.
+Version 1.3.3 supports Blender 4.0 through Blender 5.1. It uses Blender's current custom-normal, Principled BSDF, material transparency, and multi-file selection APIs while retaining the legacy compatibility paths for older source installations.
 
 For Blender 4.2 through 5.1, install the extension ZIP from `Edit > Preferences > Get Extensions > Install from Disk`. Select the ZIP file itself instead of its containing folder. Blender 4.0 and 4.1 can use the repository ZIP through the legacy add-on installer.
 

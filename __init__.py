@@ -24,7 +24,7 @@
 bl_info = {
     "name": "Import OMSI map/cfg/sco/o3d files",
     "author": "Adam/Thomas Mathieson",
-    "version": (1, 3, 2),
+    "version": (1, 3, 3),
     "blender": (4, 0, 0),
     "location": "File > Import-Export",
     "description": "Import OMSI model .map, .cfg, .sco, and .o3d files along with their meshes, UVs, and materials",
@@ -35,7 +35,7 @@ bl_info = {
     "category": "Import-Export"
 }
 
-ADDON_VERSION = (1, 3, 2)
+ADDON_VERSION = (1, 3, 3)
 
 from .o3d_io import io_o3d_import, io_o3d_export, io_omsi_tile, io_omsi_map_panel
 import bpy
@@ -137,7 +137,15 @@ class ImportModelCFG(bpy.types.Operator, ImportHelper):
     )
 
     # Selected files
-    files = CollectionProperty(type=bpy.types.PropertyGroup)
+    files = CollectionProperty(
+        type=bpy.types.OperatorFileListElement,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+    directory = StringProperty(
+        subtype='DIR_PATH',
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
 
     def execute(self, context):
         """
@@ -162,10 +170,30 @@ class ImportModelCFG(bpy.types.Operator, ImportHelper):
                 else:
                     parent_collection = bpy.data.collections[self.parent_collection]
 
-        io_o3d_import.do_import(self.filepath, context, self.import_x, self.override_text_encoding, self.hide_lods,
-                                import_lods=True, parent_collection=parent_collection,
-                                split_normals=self.import_custom_normals)
-        context.window.cursor_set('DEFAULT')
+        selected_paths = io_o3d_import.resolve_import_filepaths(
+            self.filepath,
+            self.directory,
+            [selected_file.name for selected_file in self.files],
+        )
+        if not selected_paths:
+            context.window.cursor_set('DEFAULT')
+            self.report({'ERROR'}, "No supported OMSI model files were selected")
+            return {'CANCELLED'}
+
+        imported_count = 0
+        try:
+            for selected_path in selected_paths:
+                imported_count += len(io_o3d_import.do_import(
+                    selected_path, context, self.import_x, self.override_text_encoding, self.hide_lods,
+                    import_lods=True, parent_collection=parent_collection,
+                    split_normals=self.import_custom_normals))
+        finally:
+            context.window.cursor_set('DEFAULT')
+
+        self.report({'INFO'}, "Imported {0} object(s) from {1} file(s)".format(
+            imported_count,
+            len(selected_paths),
+        ))
 
         return {'FINISHED'}
 

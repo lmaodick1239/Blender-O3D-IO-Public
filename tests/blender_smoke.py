@@ -1,4 +1,5 @@
 import importlib
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -86,6 +87,31 @@ def assert_invalid_topology_guard(addon: ModuleType) -> None:
     assert len(mesh.polygons) == 0
 
 
+def assert_bulk_import(addon: ModuleType) -> None:
+    source = create_source_object(addon)
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-bulk-") as temporary:
+        directory = Path(temporary)
+        first = directory / "first.o3d"
+        second = directory / "second.o3d"
+        addon.o3d_io.io_o3d_export.do_export(
+            str(first), bpy.context, Matrix.Identity(4), True, 7, True
+        )
+        shutil.copyfile(first, second)
+        bpy.data.objects.remove(source, do_unlink=True)
+        existing = set(bpy.data.objects)
+        result = bpy.ops.import_scene.omsi_model_cfg(
+            filepath=str(first),
+            directory=str(directory),
+            files=[{"name": first.name}, {"name": second.name}],
+            import_x=False,
+        )
+        imported = set(bpy.data.objects) - existing
+        assert result == {"FINISHED"}
+        assert len(imported) == 2
+        for imported_object in imported:
+            bpy.data.objects.remove(imported_object, do_unlink=True)
+
+
 def assert_round_trip(addon: ModuleType) -> None:
     source = create_source_object(addon)
     with tempfile.TemporaryDirectory(prefix="blender-o3d-io-") as temporary:
@@ -136,13 +162,14 @@ def run() -> None:
     del addon.bl_info
     addon.register()
     assert metadata["blender"] == (4, 0, 0)
-    assert addon.ADDON_VERSION == (1, 3, 2)
+    assert addon.ADDON_VERSION == (1, 3, 3)
     assert hasattr(bpy.ops.import_scene, "omsi_model_cfg")
     assert hasattr(bpy.ops.export_scene, "omsi_model_cfg")
     assert hasattr(bpy.ops.import_scene, "omsi_tile")
     assert_material_compatibility(addon)
     assert_spline_material_compatibility(addon)
     assert_invalid_topology_guard(addon)
+    assert_bulk_import(addon)
     assert_round_trip(addon)
     addon.unregister()
     print("BLENDER_O3D_IO_SMOKE_OK", bpy.app.version_string)
