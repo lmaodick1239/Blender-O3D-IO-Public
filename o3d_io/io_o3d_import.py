@@ -484,8 +484,6 @@ def load_o3d(object_directory, path_to_file, split_normals):
 
     blender_compat.prepare_import_mesh(mesh, normals, split_normals)
 
-    mesh.validate(verbose=False, clean_customdata=True)
-
     mesh.transform(mesh_matrix)
     if mesh_matrix.is_negative:
         mesh.flip_normals()

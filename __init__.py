@@ -24,7 +24,7 @@
 bl_info = {
     "name": "Import OMSI map/cfg/sco/o3d files",
     "author": "Adam/Thomas Mathieson",
-    "version": (1, 3, 1),
+    "version": (1, 3, 2),
     "blender": (4, 0, 0),
     "location": "File > Import-Export",
     "description": "Import OMSI model .map, .cfg, .sco, and .o3d files along with their meshes, UVs, and materials",
@@ -35,7 +35,7 @@ bl_info = {
     "category": "Import-Export"
 }
 
-ADDON_VERSION = (1, 3, 1)
+ADDON_VERSION = (1, 3, 2)
 
 from .o3d_io import io_o3d_import, io_o3d_export, io_omsi_tile, io_omsi_map_panel
 import bpy

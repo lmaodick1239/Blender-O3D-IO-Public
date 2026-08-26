@@ -12,8 +12,9 @@ def prepare_import_mesh(
     normals: Sequence[Sequence[float]],
     use_custom_normals: bool,
 ) -> None:
+    mesh.validate(verbose=False, clean_customdata=True)
     mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
-    if use_custom_normals:
+    if use_custom_normals and len(normals) == len(mesh.vertices):
         create_normals = getattr(mesh, "create_normals_split", None)
         if create_normals is not None:
             create_normals()

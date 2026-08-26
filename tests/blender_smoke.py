@@ -74,6 +74,18 @@ def assert_spline_material_compatibility(addon: ModuleType) -> None:
     assert solid.surface_render_method == "DITHERED"
 
 
+def assert_invalid_topology_guard(addon: ModuleType) -> None:
+    mesh = bpy.data.meshes.new("O3D Invalid Topology Mesh")
+    mesh.from_pydata([(0.0, 0.0, 0.0)], [], [(0, 1, 2)])
+    addon.o3d_io.blender_compat.prepare_import_mesh(
+        mesh,
+        [(0.0, 0.0, 1.0)],
+        True,
+    )
+    assert len(mesh.vertices) == 1
+    assert len(mesh.polygons) == 0
+
+
 def assert_round_trip(addon: ModuleType) -> None:
     source = create_source_object(addon)
     with tempfile.TemporaryDirectory(prefix="blender-o3d-io-") as temporary:
@@ -124,12 +136,13 @@ def run() -> None:
     del addon.bl_info
     addon.register()
     assert metadata["blender"] == (4, 0, 0)
-    assert addon.ADDON_VERSION == (1, 3, 1)
+    assert addon.ADDON_VERSION == (1, 3, 2)
     assert hasattr(bpy.ops.import_scene, "omsi_model_cfg")
     assert hasattr(bpy.ops.export_scene, "omsi_model_cfg")
     assert hasattr(bpy.ops.import_scene, "omsi_tile")
     assert_material_compatibility(addon)
     assert_spline_material_compatibility(addon)
+    assert_invalid_topology_guard(addon)
     assert_round_trip(addon)
     addon.unregister()
     print("BLENDER_O3D_IO_SMOKE_OK", bpy.app.version_string)
