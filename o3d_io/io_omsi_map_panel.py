@@ -17,12 +17,35 @@ from bpy.props import (BoolProperty,
                        )
 
 import mathutils
-from . import io_omsi_spline, o3d_node_shader_utils
+from . import io_omsi_spline, blender_compat
 from .o3d_cfg_parser import read_generic_cfg_file
 
 
 def log(*args):
     print("[OMSI_Spline_Import]", *args)
+
+
+ROADMAP_FONT_CANDIDATES = (
+    "C:/Windows/Fonts/GOTHICB.TTF",
+    "C:/Windows/Fonts/arialbd.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+)
+
+
+def load_roadmap_font():
+    """
+    Loads the first bold font available on this system, or None to keep Blender's built-in font.
+    """
+    for candidate in ROADMAP_FONT_CANDIDATES:
+        if not os.path.isfile(candidate):
+            continue
+        try:
+            return bpy.data.fonts.load(filepath=candidate, check_existing=True)
+        except RuntimeError as e:
+            log("WARNING: Couldn't load font {0}: {1}".format(candidate, e))
+    log("WARNING: No roadmap font found, falling back to the default font")
+    return None
 
 
 class OMSIMapProps(bpy.types.PropertyGroup):
@@ -138,22 +161,13 @@ class GenerateMapPreviewOp(bpy.types.Operator):
             [0, 3, 2]
         ]
         new_mesh.from_pydata(verts, [], faces)
-        if bpy.app.version[0] < 3 and bpy.app.version[1] < 80:
-            new_mesh.uv_textures.new("UV Map")
-        else:
-            new_mesh.uv_layers.new(name="UV Map")
+        new_mesh.uv_layers.new(name="UV Map")
         new_mesh.update(calc_edges=True)
 
         o = bpy.data.objects.new("terrain-" + os.path.basename(map_path), new_mesh)
 
-        if bpy.app.version < (2, 80):
-            bpy.context.scene.objects.link(o)
-            parent_collection.objects.link(o)
-
-            o.select = True
-        else:
-            parent_collection.objects.link(o)
-            o.select_set(True)
+        parent_collection.objects.link(o)
+        o.select_set(True)
 
         return o
 
@@ -163,7 +177,7 @@ class GenerateMapPreviewOp(bpy.types.Operator):
 
         objs = [self.generate_terrain_mesh(map_path, collection)]
         objs[0].color = (.25, 0.65, 0.15, 1.)
-        objs[0].data.materials.append(o3d_node_shader_utils.generate_solid_material((.15, 0.5, 0.15, 1.)))
+        objs[0].data.materials.append(blender_compat.create_solid_material((.15, 0.5, 0.15, 1.)))
 
         if import_splines:
             objs.extend(io_omsi_spline.import_map_preview_splines(map_path, map_file, spline_tess_dist, collection,
@@ -181,12 +195,7 @@ class GenerateMapPreviewOp(bpy.types.Operator):
             camera.clip_start = 1
             camera.clip_end = 10000
             camera_obj.location = mathutils.Vector((tile_coord[0] * 300+150, tile_coord[1] * 300+150, 500))
-            if bpy.app.version < (2, 80):
-                bpy.context.scene.objects.link(camera_obj)
-                if collection is not None:
-                    collection.objects.link(camera_obj)
-            else:
-                collection.objects.link(camera_obj)
+            collection.objects.link(camera_obj)
 
             cams.append(camera_obj)
 
@@ -198,43 +207,27 @@ class GenerateMapPreviewOp(bpy.types.Operator):
     def execute(self, context):
         context.window.cursor_set('WAIT')
         if self.clear:
-            if bpy.app.version < (2, 80):
-                if "Blender-O3D-IO-Map-Preview" not in bpy.data.groups:
-                    context.window.cursor_set('DEFAULT')
-                    return {"FINISHED"}
+            if "Blender-O3D-IO-Map-Preview" not in bpy.data.collections:
+                context.window.cursor_set('DEFAULT')
+                return {"FINISHED"}
 
-                col = bpy.data.groups["Blender-O3D-IO-Map-Preview"]
-                bpy.context.window_manager.progress_begin(0, len(col.objects))
-                i = 0
-                for obj in col.objects:
-                    bpy.data.objects.remove(obj, do_unlink=True)
-                    bpy.context.window_manager.progress_update(i)
-                    i += 1
-                bpy.data.groups.remove(col)
-            else:
-                if "Blender-O3D-IO-Map-Preview" not in bpy.data.collections:
-                    context.window.cursor_set('DEFAULT')
-                    return {"FINISHED"}
+            col = bpy.data.collections["Blender-O3D-IO-Map-Preview"]
+            bpy.context.window_manager.progress_begin(0, len(col.objects))
+            i = 0
+            for obj in col.objects:
+                bpy.data.objects.remove(obj, do_unlink=True)
+                bpy.context.window_manager.progress_update(i)
+                i += 1
+            bpy.data.collections.remove(col)
 
-                col = bpy.data.collections["Blender-O3D-IO-Map-Preview"]
-                bpy.context.window_manager.progress_begin(0, len(col.objects))
-                i = 0
-                for obj in col.objects:
-                    bpy.data.objects.remove(obj, do_unlink=True)
-                    bpy.context.window_manager.progress_update(i)
-                    i += 1
-                bpy.data.collections.remove(col)
-
+            bpy.context.window_manager.progress_end()
             context.window.cursor_set('DEFAULT')
             return {"FINISHED"}
 
         start_time = time.time()
 
-        if bpy.app.version < (2, 80):
-            collection = bpy.data.groups.new("Blender-O3D-IO-Map-Preview")
-        else:
-            collection = bpy.data.collections.new("Blender-O3D-IO-Map-Preview")
-            bpy.context.scene.collection.children.link(collection)
+        collection = bpy.data.collections.new("Blender-O3D-IO-Map-Preview")
+        bpy.context.scene.collection.children.link(collection)
 
         global_cfg = read_generic_cfg_file(os.path.join(os.path.dirname(self.filepath), "global.cfg"))
 
@@ -258,15 +251,6 @@ class GenerateMapPreviewOp(bpy.types.Operator):
             tile_objs = self.import_tile(collection, os.path.join(working_dir, path), self.import_scos, global_cfg,
                                          self.import_splines, 1/self.spline_preview_quality, self.roadmap_mode)
 
-            # bpy.ops.object.select_all(action='DESELECT')
-            # if bpy.app.version < (2, 80):
-            #     for o in tile_objs:
-            #         if o.parent is None:
-            #             o.select = True
-            # else:
-            #     for o in tile_objs:
-            #         if o.parent is None:
-            #             o.select_set(True)
 
             bpy.ops.transform.translate(value=(x * 300, y * 300, 0))
 
@@ -308,18 +292,10 @@ class GenerateMapPreviewOp(bpy.types.Operator):
 
                 entrypoint_name = "::entrypoint_{0}".format(entrypoint["name"])
                 entry_obj = bpy.data.objects.new(entrypoint_name, None)
-                if bpy.app.version < (2, 80):
-                    bpy.context.scene.objects.link(entry_obj)
-                    if collection is not None:
-                        collection.objects.link(entry_obj)
+                collection.objects.link(entry_obj)
 
-                    entry_obj.empty_draw_type = "SINGLE_ARROW"
-                    entry_obj.empty_draw_size = 200 if self.roadmap_mode else 500
-                else:
-                    collection.objects.link(entry_obj)
-
-                    entry_obj.empty_display_type = "SINGLE_ARROW"
-                    entry_obj.empty_display_size = 200 if self.roadmap_mode else 500
+                entry_obj.empty_display_type = "SINGLE_ARROW"
+                entry_obj.empty_display_size = 200 if self.roadmap_mode else 500
 
                 location = mathutils.Vector((entrypoint['pos_x'], entrypoint['pos_z'], 0 if self.roadmap_mode else entrypoint['pos_y']))
                 map_coord = map_coords[entrypoint['map_tile']]
@@ -333,35 +309,25 @@ class GenerateMapPreviewOp(bpy.types.Operator):
                     dot_obj = bpy.data.objects.new(entrypoint_name + "_dot", dot_mesh)
                     bm = bmesh.new()
                     bm.from_mesh(dot_mesh)
-                    if bpy.app.version < (2, 80):
-                        geom = bmesh.ops.create_circle(bm,
-                                                       cap_ends=True,
-                                                       segments=16,
-                                                       diameter=8)
-                    else:
-                        geom = bmesh.ops.create_circle(bm,
-                                                       cap_ends=True,
-                                                       segments=16,
-                                                       radius=4)
+                    geom = bmesh.ops.create_circle(bm,
+                                                   cap_ends=True,
+                                                   segments=16,
+                                                   radius=4)
                     bm.to_mesh(dot_mesh)
                     dot_obj.location = location+mathutils.Vector((0, 0, 2))
 
                     dot_mesh.materials.append(
-                        o3d_node_shader_utils.generate_solid_material((0, 0, 0, 1)))
-                    if bpy.app.version < (2, 80):
-                        bpy.context.scene.objects.link(dot_obj)
-                        if collection is not None:
-                            collection.objects.link(dot_obj)
-                    else:
-                        collection.objects.link(dot_obj)
+                        blender_compat.create_solid_material((0, 0, 0, 1)))
+                    collection.objects.link(dot_obj)
 
                 entry_text = bpy.data.curves.new(type="FONT", name=entrypoint_name + "_text")
                 entry_text.body = entrypoint["name"]
                 if self.roadmap_mode:
                     entry_text.size = 20
                     entry_text.extrude = 0
-                    if os.name == "nt":
-                        entry_text.font = bpy.data.fonts.load(filepath="C:/Windows/Fonts/GOTHICB.TTF")
+                    roadmap_font = load_roadmap_font()
+                    if roadmap_font is not None:
+                        entry_text.font = roadmap_font
                 else:
                     entry_text.size = 200
                     entry_text.extrude = 8
@@ -370,12 +336,8 @@ class GenerateMapPreviewOp(bpy.types.Operator):
                 entry_text_obj = bpy.data.objects.new(entrypoint_name + "_text", entry_text)
                 entry_text_obj.color = (0.01, 0.02, 0.6, 1.)
                 entry_text_obj.data.materials.append(
-                    o3d_node_shader_utils.generate_solid_material((0.0025, 0.005, 0.3, 1.)))
-                if bpy.app.version < (2, 80):
-                    bpy.context.scene.objects.link(entry_text_obj)
-                    collection.objects.link(entry_text_obj)
-                else:
-                    collection.objects.link(entry_text_obj)
+                    blender_compat.create_solid_material((0.0025, 0.005, 0.3, 1.)))
+                collection.objects.link(entry_text_obj)
                 entry_text_obj.location = location + mathutils.Vector((0, 0, 2.5 if self.roadmap_mode else 500))
                 if not self.roadmap_mode:
                     entry_text_obj.rotation_euler = (math.radians(90), 0, 0)
@@ -387,6 +349,7 @@ class GenerateMapPreviewOp(bpy.types.Operator):
             bpy.context.scene.render.resolution_x = 1024
             bpy.context.scene.render.resolution_y = 1024
 
+        bpy.context.window_manager.progress_end()
         context.window.cursor_set('DEFAULT')
         return {"FINISHED"}
 

@@ -10,9 +10,11 @@ import bpy
 import struct
 
 import mathutils
-from . import o3d_node_shader_utils, io_omsi_spline, io_o3d_import
+from . import blender_compat, io_omsi_spline, io_o3d_import
+from .layered_shader import LayeredBSDFWrapper
 from .blender_texture_io import load_texture_into_new_slot
 from .o3d_cfg_parser import read_generic_cfg_file
+from .omsi_paths import join_omsi_path
 
 
 def log(*args):
@@ -49,14 +51,9 @@ def do_import(context, filepath, import_scos, import_splines, spline_tess_dist, 
                                     spline_tess_dist, spline_tess_angle, import_x, loaded_objs_cache)
 
             bpy.ops.object.select_all(action='DESELECT')
-            if bpy.app.version < (2, 80):
-                for o in tile_objs:
-                    if o.parent is None:
-                        o.select = True
-            else:
-                for o in tile_objs:
-                    if o.parent is None:
-                        o.select_set(True)
+            for o in tile_objs:
+                if o.parent is None:
+                    o.select_set(True)
 
             bpy.ops.transform.translate(value=(x * 300, y * 300, 0))
 
@@ -72,11 +69,8 @@ def import_tile(context, filepath, import_scos, global_cfg, import_splines, spli
                 import_x, loaded_objs_cache=None):
     start_time = time.time()
 
-    if bpy.app.version < (2, 80):
-        collection = bpy.data.groups.new(os.path.basename(filepath[:-4]))
-    else:
-        collection = bpy.data.collections.new(os.path.basename(filepath[:-4]))
-        bpy.context.scene.collection.children.link(collection)
+    collection = bpy.data.collections.new(os.path.basename(filepath[:-4]))
+    bpy.context.scene.collection.children.link(collection)
 
     map_file = read_generic_cfg_file(filepath)
 
@@ -99,23 +93,15 @@ def import_tile(context, filepath, import_scos, global_cfg, import_splines, spli
     blender_insts.append(terrain_obj)
 
     # Make collection
-    if bpy.app.version < (2, 80):
-        bpy.context.scene.objects.link(terrain_obj)
 
     collection.objects.link(terrain_obj)
 
     bpy.ops.object.select_all(action='DESELECT')
 
-    if bpy.app.version < (2, 80):
-        terrain_obj.select = True
-        bpy.ops.object.shade_smooth()
-        for o in blender_insts:
-            o.select = True
-    else:
-        terrain_obj.select_set(True)
-        bpy.ops.object.shade_smooth()
-        for o in blender_insts:
-            o.select_set(True)
+    terrain_obj.select_set(True)
+    bpy.ops.object.shade_smooth()
+    for o in blender_insts:
+        o.select_set(True)
 
     bpy.data.scenes[context.scene.name]["map_data"] = map_file
 
@@ -135,23 +121,11 @@ def generate_terrain_materials(mesh, filepath, global_cfg):
     map_name = os.path.basename(filepath)
 
     mat_blender = bpy.data.materials.new(filepath)
-    if bpy.app.version[0] < 3 and bpy.app.version[1] < 80:
-        mat = mat_blender
-        mat.diffuse_color = (0.5, 0.5, .5)
-        mat.specular_hardness = 0.1
-        mat.specular_intensity = 0.1
-        mat.specular_color = (1, 1, 1)
-
-        # TODO: Blender 2.79 compat
-        # Remove this once 2.79 compat is done
-        mesh.materials.append(mat_blender)
-        return
-    else:
-        mat_blender.use_nodes = True
-        mat = o3d_node_shader_utils.LayeredBSDFWrapper(mat_blender, is_readonly=False)
-        mat.base_color = (0.5, 0.5, .5)
-        mat.specular = 0.1
-        mat.roughness = 0.7
+    blender_compat.enable_material_nodes(mat_blender)
+    mat = LayeredBSDFWrapper(mat_blender, is_readonly=False)
+    mat.base_color = (0.5, 0.5, .5)
+    mat.specular = 0.1
+    mat.roughness = 0.7
 
     # The base texture has no splat_map, for now we just create a dummy path for it so that it isn't forgotten
     splat_dir = os.path.join(os.path.dirname(filepath), "texture", "map")
@@ -191,10 +165,7 @@ def generate_terrain_materials(mesh, filepath, global_cfg):
             if splat_tex and splat_tex.texture.image.has_data:
                 mat.base_color_textures[i][1].image = splat_tex.texture.image
 
-    if bpy.app.version[0] < 3 and bpy.app.version[1] < 80:
-        pass
-    else:
-        mat_blender.use_backface_culling = True
+    mat_blender.use_backface_culling = True
 
     mesh.materials.append(mat_blender)
 
@@ -235,10 +206,7 @@ def import_terrain_mesh(filepath, global_cfg):
 
     new_mesh = bpy.data.meshes.new("terrain_mesh-" + os.path.basename(filepath))
     new_mesh.from_pydata(verts, [], faces)
-    if bpy.app.version[0] < 3 and bpy.app.version[1] < 80:
-        new_mesh.uv_textures.new("UV Map")
-    else:
-        new_mesh.uv_layers.new(name="UV Map")
+    new_mesh.uv_layers.new(name="UV Map")
     new_mesh.update(calc_edges=True)
 
     for face in new_mesh.polygons:
@@ -396,25 +364,14 @@ def import_map_objects(filepath, map_file, terr_heights, import_x, parent_collec
 
 def clone_object(loaded_objs, obj_name, parent_collection, path):
     blender_insts = []
-    if bpy.app.version < (2, 80):
-        container_obj = bpy.data.objects.new(obj_name, None)
-        parent_collection.objects.link(container_obj)
-        blender_insts.append(container_obj)
-        for o in loaded_objs[path]:
-            cop = o.copy()
-            bpy.context.scene.objects.link(cop)
-            parent_collection.objects.link(cop)
-            cop.parent = container_obj
-            blender_insts.append(cop)
-    else:
-        container_obj = bpy.data.objects.new(obj_name, None)
-        parent_collection.objects.link(container_obj)
-        blender_insts.append(container_obj)
-        for o in loaded_objs[path]:
-            cop = o.copy()
-            parent_collection.objects.link(cop)
-            cop.parent = container_obj
-            blender_insts.append(cop)
+    container_obj = bpy.data.objects.new(obj_name, None)
+    parent_collection.objects.link(container_obj)
+    blender_insts.append(container_obj)
+    for o in loaded_objs[path]:
+        cop = o.copy()
+        parent_collection.objects.link(cop)
+        cop.parent = container_obj
+        blender_insts.append(cop)
     return container_obj, blender_insts
 
 
@@ -448,7 +405,7 @@ def parse_map_data(map_file, omsi_dir):
 
             objs.append({
                 "cfg_type": "object",
-                "path": os.path.join(omsi_dir, path),
+                "path": join_omsi_path(omsi_dir, path),
                 "id": obj_id,
                 "pos": pos, "rot": rot,
                 "tree_data": tree_data
@@ -480,7 +437,7 @@ def parse_map_data(map_file, omsi_dir):
                 pass  # Label
 
             objs.append({
-                "path": os.path.join(omsi_dir, path),
+                "path": join_omsi_path(omsi_dir, path),
                 "id": obj_id,
                 "pos": pos, "rot": rot,
                 "tree_data": tree_data,
@@ -508,7 +465,7 @@ def parse_map_data(map_file, omsi_dir):
 
             objs.append({
                 "cfg_type": "splineAttachement",
-                "path": os.path.join(omsi_dir, lines[1]),
+                "path": join_omsi_path(omsi_dir, lines[1]),
                 "id": int(lines[2]),
                 "pos": [float(lines[4 + x]) for x in range(3)],
                 "rot": [float(lines[7 + x]) for x in range(3)],
@@ -540,7 +497,7 @@ def parse_map_data(map_file, omsi_dir):
 
             objs.append({
                 "cfg_type": "splineAttachement_repeater",
-                "path": os.path.join(omsi_dir, lines[3]),
+                "path": join_omsi_path(omsi_dir, lines[3]),
                 "id": int(lines[4]),
                 "pos": [float(lines[6 + x]) for x in range(3)],
                 "rot": [float(lines[9 + x]) for x in range(3)],

@@ -7,6 +7,8 @@
 # <pep8 compliant>
 
 import bpy
+
+from . import blender_compat
 from mathutils import Color, Vector
 
 __all__ = (
@@ -681,7 +683,7 @@ class ShaderImageTextureWrapper():
 
             tree.links.new(node_image.outputs["Alpha" if self.use_alpha else "Color"], self.socket_dst)
             if self.use_alpha:
-                self.owner_shader.material.blend_method = 'BLEND'
+                blender_compat.set_material_alpha_mode(self.owner_shader.material, 'BLEND')
 
             self._node_image = node_image
         return self._node_image
@@ -833,109 +835,3 @@ class ShaderImageTextureWrapper():
 
     scale = property(scale_get, scale_set)
 
-
-class LayeredBSDFWrapper(PrincipledBSDFWrapper):
-    """
-    Hard coded shader setup, based in Principled BSDF but with automatic layering of diffuse textures.
-    Should cover most common cases on import, and gives a basic nodal shaders support for export.
-    Supports basic: diffuse/spec/reflect/transparency/normal, with texturing.
-    """
-
-    def __init__(self, material, is_readonly=True, use_nodes=True):
-        super().__init__(material, is_readonly, use_nodes)
-
-        self._base_color_textures = []
-        self._mix_node_links = [self.node_principled_bsdf]
-
-    def base_color_texture_get(self):
-        return None
-
-    base_color_texture = property(base_color_texture_get)
-
-    def base_color_textures_get(self):
-        if not self.use_nodes or self.node_principled_bsdf is None:
-            return None
-        return tuple(self._base_color_textures)
-
-    """Tuple of ShaderImageTextureWrappers"""
-    base_color_textures = property(base_color_textures_get)
-
-    def base_color_n_textures_set(self, n):
-        tree = self.material.node_tree
-        if n < len(self._base_color_textures):
-            # Delete excess textures
-            for x in range(len(self._base_color_textures) - 1, n - 1, -1):
-                tree.nodes.remove(self._mix_node_links[-1])
-                tree.nodes.remove(self._base_color_textures[-1][0].node_image)
-                tree.nodes.remove(self._base_color_textures[-1][1].node_image)
-                del self._base_color_textures[-1]
-                del self._mix_node_links[-1]
-        else:
-            # Fill in last spat_map if needed
-            if len(self._base_color_textures) > 0:
-                col_image = self._base_color_textures[-1][0]
-                node_mix = self._mix_node_links[-1]
-
-                self._base_color_textures[-1] = (
-                    col_image,
-                    ShaderImageTextureWrapper(
-                        self, node_mix,
-                        node_mix.inputs["Fac"],
-                        grid_row_diff=2,
-                    )
-                )
-
-            # Create new textures
-            for x in range(len(self._base_color_textures), n):
-                node_mix = tree.nodes.new(type='ShaderNodeMixRGB')
-                self._grid_to_location(
-                    -2, 0,
-                    dst_node=node_mix, ref_node=self._mix_node_links[-1],
-                )
-
-                tree.links.new(node_mix.outputs["Color"],
-                               self._mix_node_links[-1].inputs["Color1" if len(self._mix_node_links) > 1 else
-                               "Base Color"])
-
-                node_mix.inputs["Fac"].default_value = 1
-
-                self._base_color_textures.append((
-                    ShaderImageTextureWrapper(
-                        self, node_mix,
-                        node_mix.inputs["Color2"],
-                        grid_row_diff=1,
-                    ),
-                    ShaderImageTextureWrapper(
-                        self, node_mix,
-                        node_mix.inputs["Fac"],
-                        grid_row_diff=2,
-                    ) if x < n-1 else None  # Don't create a splat map for the last texture
-                ))
-
-                self._mix_node_links.append(node_mix)
-
-    base_color_n_textures = property(lambda self: len(self.base_color_textures_get()), base_color_n_textures_set)
-
-
-def generate_solid_material(diffuse, spec=(0, 0, 0), roughness=1):
-    mat_blender = bpy.data.materials.new("solid_mat-{0}".format(diffuse))
-    if bpy.app.version < (2, 80):
-        mat = mat_blender
-        mat.diffuse_color = diffuse[:3]
-        mat.specular_hardness = 1 - roughness
-        mat.specular_intensity = 1
-        mat.specular_color = spec
-        mat.alpha = diffuse[3]
-    else:
-        mat_blender.use_nodes = True
-        mat = PrincipledBSDFWrapper(mat_blender, is_readonly=False)
-        mat.base_color = diffuse[:3]
-        mat.specular = spec[0]
-        mat.roughness = roughness
-        mat.alpha = diffuse[3]
-
-        mat_blender.use_backface_culling = True
-        mat_blender.blend_method = "HASHED"
-        mat_blender.shadow_method = "HASHED"
-
-    return mat_blender
