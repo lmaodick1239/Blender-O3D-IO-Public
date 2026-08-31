@@ -1,0 +1,53 @@
+name: "Blender smoke test"
+
+on:
+    push:
+    pull_request:
+    workflow_dispatch:
+
+jobs:
+    smoke-test:
+        runs-on: "ubuntu-latest"
+        strategy:
+            fail-fast: false
+            matrix:
+                blender-series: ["4.2", "5.0", "5.2"]
+        steps:
+            - uses: "actions/checkout@v4"
+
+            - name: "Install Blender runtime dependencies"
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --no-install-recommends -y \
+                      libgl1 libsm6 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0
+
+            - name: "Download Blender ${{ matrix.blender-series }}"
+              shell: bash
+              run: |
+                  series="${{ matrix.blender-series }}"
+                  index="https://download.blender.org/release/Blender${series}/"
+                  archive=$(curl -fsSL "$index" \
+                      | grep -o "blender-${series}\.[0-9]\+-linux-x64\.tar\.xz" \
+                      | sort -V | tail -1)
+                  if [ -z "$archive" ]; then
+                      echo "No linux-x64 build found under $index" >&2
+                      exit 1
+                  fi
+                  echo "Using $archive"
+                  curl -fsSL "${index}${archive}" -o blender.tar.xz
+                  mkdir -p "$RUNNER_TEMP/blender"
+                  tar -xf blender.tar.xz -C "$RUNNER_TEMP/blender" --strip-components=1
+                  rm blender.tar.xz
+                  echo "$RUNNER_TEMP/blender" >> "$GITHUB_PATH"
+
+            - name: "Report Blender version"
+              run: blender --version
+
+            - name: "Validate extension manifest"
+              run: blender --command extension validate .
+
+            - name: "Run smoke test"
+              shell: bash
+              run: |
+                  blender --background --factory-startup --python tests/blender_smoke.py | tee smoke.log
+                  grep -q BLENDER_O3D_IO_SMOKE_OK smoke.log
