@@ -11,6 +11,7 @@ else:
 from . import blender_compat
 from .blender_texture_io import load_texture_into_new_slot, find_image_path
 from .o3d_cfg_parser import read_generic_cfg_file
+from .omsi_paths import join_omsi_path
 from mathutils import Vector
 import mathutils
 
@@ -258,10 +259,7 @@ class Spline:
         pos = Vector((px, py, pz))
         rot = Vector((rx, ry, rz))
         if apply_rot or world_space:
-            if bpy.app.version < (2, 80):
-                pos = pos * mathutils.Matrix.Rotation(math.radians(self.rot), 4, "Z")
-            else:
-                pos = pos @ mathutils.Matrix.Rotation(math.radians(self.rot), 4, "Z")
+            pos = pos @ mathutils.Matrix.Rotation(math.radians(self.rot), 4, "Z")
             rot.z += math.radians(-self.rot)
 
         if world_space:
@@ -370,10 +368,10 @@ def load_spline(sli_path, omsi_dir):
     """
     # Spline profiles are defined as a list of pairs of points. Each pair can have a different material and uvs.
     # We usually assume that the pairs join up with each other, but it is not required...
-    if not os.path.isfile(os.path.join(omsi_dir, sli_path)):
+    if not os.path.isfile(join_omsi_path(omsi_dir, sli_path)):
         sli_path = os.path.join("Splines", "invis_street.sli")
         log("[WARNING] Spline profile {0} does not exist! Replacing with invis_street.sli instead...")
-    with open(os.path.join(omsi_dir, sli_path), "r", encoding="utf-8", errors="replace") as f:
+    with open(join_omsi_path(omsi_dir, sli_path), "r", encoding="utf-8", errors="replace") as f:
         curr_mat_idx = -1
         points = []
         matls = {}
@@ -466,43 +464,27 @@ def load_spline_defs(map_file: dict):
 def generate_materials(mesh, sli_path, matls):
     for matl in matls.values():
         mat_blender = bpy.data.materials.new(matl["diffuse"])
-        if bpy.app.version < (2, 80):
-            mat = mat_blender
-            mat.diffuse_color = (1, 1, 1)
-            mat.specular_hardness = 0.1
-            mat.specular_intensity = 0
-            mat.specular_color = (0.1, 0.1, 0.1)
-        else:
-            mat_blender.use_nodes = True
-            mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=False)
-            mat.base_color = (1, 1, 1)
-            mat.specular = 0.1
-            mat.roughness = 0.9
+        blender_compat.enable_material_nodes(mat_blender)
+        mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=False)
+        mat.base_color = (1, 1, 1)
+        mat.specular = 0.1
+        mat.roughness = 0.9
 
         # Load the diffuse texture and assign it to a new texture slot
         diff_tex = load_texture_into_new_slot(sli_path, matl["diffuse"], mat)
         if diff_tex:
-            if bpy.app.version >= (2, 80):
-                mat.base_color_texture.image = diff_tex.texture.image
+            mat.base_color_texture.image = diff_tex.texture.image
 
             diff_tex.texture.image.colorspace_settings.name = 'sRGB'
 
             if "alpha" in matl and matl["alpha"] > 0:
                 # Material uses alpha stored in diffuse texture alpha channel
-                if bpy.app.version < (2, 80):
-                    mat.use_transparency = True
-                    diff_tex.use_map_alpha = True
-                    diff_tex.alpha_factor = 1
-                else:
-                    mat.alpha_texture.image = diff_tex.texture.image
+                mat.alpha_texture.image = diff_tex.texture.image
 
                 mat.alpha = 0
 
-        if bpy.app.version < (2, 80):
-            pass
-        else:
-            mat_blender.use_backface_culling = True
-            blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
+        mat_blender.use_backface_culling = True
+        blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
 
         mesh.materials.append(mat_blender)
 
@@ -532,10 +514,7 @@ def import_map_splines(filepath, map_file, spline_tess_dist, spline_curve_sag, p
         name = "spline-{0}".format(spline.id)
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(verts, [], tris)
-        if bpy.app.version < (2, 80):
-            mesh.uv_textures.new("UV Map")
-        else:
-            mesh.uv_layers.new(name="UV Map")
+        mesh.uv_layers.new(name="UV Map")
 
         values = [True] * len(mesh.polygons)
         mesh.polygons.foreach_set("use_smooth", values)
@@ -549,7 +528,7 @@ def import_map_splines(filepath, map_file, spline_tess_dist, spline_curve_sag, p
             face.material_index = mat_ids[i]
 
         # Generate materials for the spline
-        generate_materials(mesh, os.path.join(omsi_dir, spline.sli_path), spline_cache[spline.sli_path][1])
+        generate_materials(mesh, join_omsi_path(omsi_dir, spline.sli_path), spline_cache[spline.sli_path][1])
 
         # Create a blender object from the mesh and set its transform
         create_spline_obj(mesh, name, objs, parent_collection, spline)
@@ -614,14 +593,8 @@ def import_map_preview_splines(filepath, map_file, spline_tess_dist, parent_coll
     o = bpy.data.objects.new("merged-splines", spline_bdata)
     objs.append(o)
 
-    if bpy.app.version < (2, 80):
-        bpy.context.scene.objects.link(o)
-        parent_collection.objects.link(o)
-
-        o.select = True
-    else:
-        parent_collection.objects.link(o)
-        o.select_set(True)
+    parent_collection.objects.link(o)
+    o.select_set(True)
 
     verts = []
     tris = []
@@ -662,11 +635,5 @@ def create_spline_obj(mesh, name, objs, parent_collection, spline):
     bpy.data.objects[o.name]["spline_def"] = spline.__dict__
     o.location = [spline.pos[0], spline.pos[2], spline.pos[1]]
     o.rotation_euler = [0, 0, math.radians(-spline.rot)]
-    if bpy.app.version < (2, 80):
-        bpy.context.scene.objects.link(o)
-        parent_collection.objects.link(o)
-
-        o.select = True
-    else:
-        parent_collection.objects.link(o)
-        o.select_set(True)
+    parent_collection.objects.link(o)
+    o.select_set(True)

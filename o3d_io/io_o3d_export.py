@@ -12,12 +12,21 @@ import bpy
 from mathutils import Matrix
 from . import blender_compat, o3d_cfg_parser, o3dconvert
 
-if not (bpy.app.version[0] < 3 and bpy.app.version[1] < 80):
-    from bpy_extras import node_shader_utils
+from bpy_extras import node_shader_utils
 
 
 def log(*args):
     print("[O3D_Export]", *args)
+
+
+def default_o3d_material():
+    """
+    Neutral white material used for empty material slots and for objects Blender has no material on at all,
+    since OMSI expects every o3d file to carry at least one material.
+    """
+    # (diffuse_r, diffuse_g, diffuse_b, diffuse_a, specular_r, specular_g, specular_b, emission_r, emission_g,
+    #  emission_b, specular_power, texture_name)
+    return [1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ""]
 
 
 def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, materials, o3d_version, export_custom_normals):
@@ -36,112 +45,62 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
         vert_map = {}
         vert_count = 0
 
-        if bpy.app.version < (2, 80):
-            mesh.calc_normals_split()
-            mesh.calc_tessface()
-            uv_layer = mesh.tessface_uv_textures.active
-            for face in mesh.tessfaces:
-                face_inds = []
+        blender_compat.prepare_export_mesh(mesh, export_custom_normals)
+        for tri_loop in mesh.loop_triangles:
+            tri = []
+            tris.append(tri)
 
-                face_len = len(face.vertices)
-                for i in range(face_len):
-                    v_co = mesh.vertices[face.vertices[i]].co[:]
-                    v_nrm = face.split_normals[i][:]
-                    if uv_layer is not None:
-                        v_uv = uv_layer.data[face.index].uv[i][:]
-                    else:
-                        v_uv = (0, 0)
+            for tri_vert, loop, normal in zip(tri_loop.vertices, tri_loop.loops, tri_loop.split_normals):
+                vert = mesh.vertices[tri_vert]
+                v_co = vert.co[:]
+                v_nrm = normal[:]
+                if uv_layer is not None:
+                    v_uv = uv_layer[loop].uv[:2]
+                else:
+                    v_uv = (0, 0)
 
-                    if (v_co, v_nrm, v_uv) in vert_map:
-                        face_inds.append(vert_map[(v_co, v_nrm, v_uv)])
-                    else:
-                        vert_map[(v_co, v_nrm, v_uv)] = vert_count
-                        verts.append(
-                            [v_co[0], v_co[1], v_co[2],
-                             v_nrm[0], v_nrm[1], v_nrm[2],
-                             v_uv[0], 1 - v_uv[1]])
+                if (v_co, v_nrm, v_uv) in vert_map:
+                    tri.append(vert_map[(v_co, v_nrm, v_uv)])
+                else:
+                    vert_map[(v_co, v_nrm, v_uv)] = vert_count
+                    verts.append(
+                        [v_co[0], v_co[1], v_co[2],
+                         -v_nrm[0], -v_nrm[1], -v_nrm[2],
+                         v_uv[0], 1 - v_uv[1]])
+                    tri.append(vert_count)
+                    vert_count += 1
 
-                        face_inds.append(vert_count)
-
-                        vert_count += 1
-
-                # Create the triangle
-                if face_len >= 3:
-                    tris.append((face_inds[0], face_inds[1], face_inds[2], face.material_index))
-
-                # Sometimes we have to deal with quads...
-                # 2---3
-                # | \ |
-                # 0---1
-                if face_len >= 4:
-                    tris.append((face_inds[1], face_inds[3], face_inds[2], face.material_index))
-        else:
-            blender_compat.prepare_export_mesh(mesh, export_custom_normals)
-            for tri_loop in mesh.loop_triangles:
-                tri = []
-                tris.append(tri)
-
-                for tri_vert, loop, normal in zip(tri_loop.vertices, tri_loop.loops, tri_loop.split_normals):
-                    vert = mesh.vertices[tri_vert]
-                    v_co = vert.co[:]
-                    v_nrm = normal[:]
-                    if uv_layer is not None:
-                        v_uv = uv_layer[loop].uv[:2]
-                    else:
-                        v_uv = (0, 0)
-
-                    if (v_co, v_nrm, v_uv) in vert_map:
-                        tri.append(vert_map[(v_co, v_nrm, v_uv)])
-                    else:
-                        vert_map[(v_co, v_nrm, v_uv)] = vert_count
-                        verts.append(
-                            [v_co[0], v_co[1], v_co[2],
-                             -v_nrm[0], -v_nrm[1], -v_nrm[2],
-                             v_uv[0], 1 - v_uv[1]])
-                        tri.append(vert_count)
-                        vert_count += 1
-
-                tri.append(tri_loop.material_index)
+            tri.append(tri_loop.material_index)
 
         # Construct embedded material array
         o3d_mats = []
-        for mat in materials:
+        for material_slot in materials:
+            if material_slot.material is None:
+                # Keep the material indices written into the triangles aligned with the slots
+                o3d_mats.append(default_o3d_material())
+                continue
+
             # O3D mat structure:
             # (diffuse_r, diffuse_g, diffuse_b, diffuse_a, specular_r, specular_g, specular_b, emission_r, emission_g,
             #  emission_b, specular_power, texture_name)
             o3d_mat = []
             o3d_mats.append(o3d_mat)
-            if bpy.app.version < (2, 80):
-                mat = mat.material
-                o3d_mat.extend(mat.diffuse_color)
-                o3d_mat.append(mat.alpha)
-                o3d_mat.extend(np.array(mat.specular_color) * mat.specular_intensity)
-                o3d_mat.extend(np.array(mat.diffuse_color) * mat.emit)
-                o3d_mat.append(mat.specular_hardness)
-                texture_data = ""
-                for i, texture in reversed(list(enumerate(mat.texture_slots))):
-                    if texture is None or texture.texture_coords != 'UV' or not texture.use_map_color_diffuse:
-                        continue
-                    texture_data = bpy.data.textures[texture.name]
-                    if texture_data.type != 'IMAGE' or texture_data.image is None or not mat.use_textures[i]:
-                        continue
-                    texture_data = texture_data.image.name
-
-                o3d_mat.append(texture_data)
+            mat = node_shader_utils.PrincipledBSDFWrapper(material_slot.material, is_readonly=True)
+            o3d_mat.extend(mat.base_color[:3])
+            o3d_mat.append(mat.alpha)
+            if bpy.app.version >= (4, 0):
+                o3d_mat.extend(np.array(mat.specular_tint[:3]) * mat.specular)
             else:
-                mat = node_shader_utils.PrincipledBSDFWrapper(mat.material, is_readonly=True)
-                o3d_mat.extend(mat.base_color[:3])
-                o3d_mat.append(mat.alpha)
-                if bpy.app.version >= (4, 0):
-                    o3d_mat.extend(np.array(mat.specular_tint[:3]) * mat.specular)
-                else:
-                    o3d_mat.extend([mat.specular, mat.specular, mat.specular])
-                o3d_mat.extend(mat.emission_color[:3])
-                o3d_mat.append(1 - mat.roughness)
-                if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
-                    o3d_mat.append(os.path.basename(mat.base_color_texture.image.filepath))
-                else:
-                    o3d_mat.append("")
+                o3d_mat.extend([mat.specular, mat.specular, mat.specular])
+            o3d_mat.extend(mat.emission_color[:3])
+            o3d_mat.append(1 - mat.roughness)
+            if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
+                o3d_mat.append(os.path.basename(mat.base_color_texture.image.filepath))
+            else:
+                o3d_mat.append("")
+
+        if not o3d_mats:
+            o3d_mats.append(default_o3d_material())
 
         # Construct bones
         bones = []
@@ -183,10 +142,7 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
     else:
         obs = context.scene.objects
 
-    if bpy.app.version < (2, 80):
-        deps_graph = None
-    else:
-        deps_graph = context.evaluated_depsgraph_get()
+    deps_graph = context.evaluated_depsgraph_get()
 
     bpy.context.window_manager.progress_begin(0, len(obs))
 
@@ -204,20 +160,12 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
 
         log("Exporting " + ob.name + "...")
         bpy.context.window_manager.progress_update(index)
-        if bpy.app.version < (2, 80):
-            ob_eval = ob
+        ob_eval = ob.evaluated_get(deps_graph)
 
-            try:
-                me = ob_eval.to_mesh(context.scene, True, 'PREVIEW')
-            except RuntimeError:
-                continue
-        else:
-            ob_eval = ob.evaluated_get(deps_graph)
-
-            try:
-                me = ob_eval.to_mesh()
-            except RuntimeError:
-                continue
+        try:
+            me = ob_eval.to_mesh()
+        except RuntimeError:
+            continue
 
         axis_conversion_matrix = Matrix((
             (1, 0, 0, 0),
@@ -226,10 +174,7 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
             (0, 0, 0, 1)
         ))
 
-        if bpy.app.version < (2, 80):
-            o3d_matrix = axis_conversion_matrix * ob.matrix_world * axis_conversion_matrix
-        else:
-            o3d_matrix = axis_conversion_matrix @ ob.matrix_world @ axis_conversion_matrix
+        o3d_matrix = axis_conversion_matrix @ ob.matrix_world @ axis_conversion_matrix
         o3d_matrix.transpose()
         me.transform(ob.matrix_world)
         me.transform(axis_conversion_matrix)
@@ -244,10 +189,7 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
         if global_matrix is not None:
             bm.transform(global_matrix)
 
-        if bpy.app.version[0] < 3 and bpy.app.version[1] < 80:
-            bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method=0, ngon_method=0)
-        else:
-            bmesh.ops.triangulate(bm, faces=bm.faces)
+        bmesh.ops.triangulate(bm, faces=bm.faces)
 
         bm.to_mesh(me)
         bm.free()
@@ -269,6 +211,8 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
             exported_paths.add(path)
             export_mesh(path, context, ob_eval, me, [x for y in o3d_matrix for x in y], ob_eval.material_slots,
                         o3d_version, export_custom_normals)
+
+        ob_eval.to_mesh_clear()
 
         index += 1
 

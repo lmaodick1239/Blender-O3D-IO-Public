@@ -24,7 +24,7 @@
 bl_info = {
     "name": "Import OMSI map/cfg/sco/o3d files",
     "author": "Adam/Thomas Mathieson",
-    "version": (1, 3, 3),
+    "version": (1, 3, 4),
     "blender": (4, 0, 0),
     "location": "File > Import-Export",
     "description": "Import OMSI model .map, .cfg, .sco, and .o3d files along with their meshes, UVs, and materials",
@@ -35,7 +35,7 @@ bl_info = {
     "category": "Import-Export"
 }
 
-ADDON_VERSION = (1, 3, 3)
+ADDON_VERSION = (1, 3, 4)
 
 from .o3d_io import io_o3d_import, io_o3d_export, io_omsi_tile, io_omsi_map_panel
 import bpy
@@ -61,19 +61,13 @@ def log(*args):
 
 def make_annotations(cls):
     """
-    Converts class fields to annotations if running with Blender 2.8
+    Converts class fields declared as properties into the annotations Blender expects.
 
     Credit to: https://github.com/CGCookie/blender-addon-updater/pull/49
     :param cls: class to convert
     :return: converted class
     """
-    if bpy.app.version < (2, 80):
-        return cls
-    if bpy.app.version >= (2, 93, 0):
-        bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, bpy.props._PropertyDeferred)}
-    else:
-        bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, tuple)}
-    # bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, tuple)}
+    bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, bpy.props._PropertyDeferred)}
     if bl_props:
         if '__annotations__' not in cls.__dict__:
             setattr(cls, '__annotations__', {})
@@ -158,17 +152,11 @@ class ImportModelCFG(bpy.types.Operator, ImportHelper):
         # Find or create the parent collection
         parent_collection = None
         if self.parent_collection != "":
-            if bpy.app.version < (2, 80):
-                if self.parent_collection not in bpy.data.groups:
-                    parent_collection = bpy.data.groups.new(self.parent_collection)
-                else:
-                    parent_collection = bpy.data.groups[self.parent_collection]
+            if self.parent_collection not in bpy.data.collections:
+                parent_collection = bpy.data.collections.new(self.parent_collection)
+                bpy.context.scene.collection.children.link(parent_collection)
             else:
-                if self.parent_collection not in bpy.data.collections:
-                    parent_collection = bpy.data.collections.new(self.parent_collection)
-                    bpy.context.scene.collection.children.link(parent_collection)
-                else:
-                    parent_collection = bpy.data.collections[self.parent_collection]
+                parent_collection = bpy.data.collections[self.parent_collection]
 
         selected_paths = io_o3d_import.resolve_import_filepaths(
             self.filepath,
@@ -198,8 +186,6 @@ class ImportModelCFG(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 
 
-#if not (bpy.app.version[0] < 3 and bpy.app.version[1] < 80):
-#    @orientation_helper(axis_forward='Y', axis_up='Z')
 class ExportModelCFG(bpy.types.Operator, ExportHelper):
     """Imports an OMSI model file from a CFG, SCO, or O3D file"""
     bl_idname = "export_scene.omsi_model_cfg"
@@ -375,15 +361,9 @@ def register():
 
     io_omsi_map_panel.register()
 
-    # Compat with 2.7x and 3.x
-    if bpy.app.version[0] < 3 and bpy.app.version[1] < 80:
-        bpy.types.INFO_MT_file_import.append(menu_func_import)
-        bpy.types.INFO_MT_file_export.append(menu_func_export)
-        bpy.types.INFO_MT_file_import.append(menu_func_import_tile)
-    else:
-        bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
-        bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
-        bpy.types.TOPBAR_MT_file_import.append(menu_func_import_tile)
+    bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
+    bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
+    bpy.types.TOPBAR_MT_file_import.append(menu_func_import_tile)
 
 
 def unregister():
@@ -397,15 +377,9 @@ def unregister():
 
     io_omsi_map_panel.unregister()
 
-    # Compat with 2.7x and 3.x
-    if bpy.app.version[0] < 3 and bpy.app.version[1] < 80:
-        bpy.types.INFO_MT_file_import.remove(menu_func_import)
-        bpy.types.INFO_MT_file_export.remove(menu_func_export)
-        bpy.types.INFO_MT_file_import.remove(menu_func_import_tile)
-    else:
-        bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
-        bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
-        bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_tile)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_tile)
 
 
 if __name__ == "__main__":

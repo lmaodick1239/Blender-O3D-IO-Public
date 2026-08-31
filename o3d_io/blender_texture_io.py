@@ -41,10 +41,8 @@ def find_image_path(base_file_path, texture_path, abs_path=False, find_cfg=False
         tex_file = texture_path.lower()
 
     pre, ext = os.path.splitext(tex_file)
-    is_dds = False
     if os.path.isfile(pre + ".dds"):
         tex_file = pre + ".dds"
-        is_dds = True
 
     # Attempt a manual search for the file if we couldn't find it
     if not os.path.isfile(tex_file):
@@ -72,6 +70,25 @@ def find_image_path(base_file_path, texture_path, abs_path=False, find_cfg=False
         return None
 
 
+def decode_alpha_8_dds(dds, tex_file):
+    """
+    Rebuilds an ALPHA_8_UNORM DDS surface as a packed Blender image, since Blender can't load them itself.
+    """
+    surf = dds.surfaces[0]
+    alpha = np.frombuffer(bytes(surf.data), dtype=np.uint8)
+    expected = surf.width * surf.height
+    if alpha.size < expected:
+        raise ValueError("surface holds {0} of {1} expected pixels".format(alpha.size, expected))
+
+    image = bpy.data.images.new(tex_file, surf.width, surf.height, alpha=dds.header.ddspf.dwABitMask != 0)
+    # Keep the source path so exporting the material writes the real texture name back out
+    image.filepath = tex_file
+    image.pixels.foreach_set(np.repeat(alpha[:expected].astype(np.float32) / 255.0, 4))
+    # Pack the image into .blend so it gets saved with it
+    image.pack()
+    return image
+
+
 def load_image(base_file_path, texture_path, abs_path=False):
     tex_file = find_image_path(base_file_path, texture_path, abs_path, False)
 
@@ -80,7 +97,7 @@ def load_image(base_file_path, texture_path, abs_path=False):
         image = bpy.data.images.load(tex_file,
                                      check_existing=True)
 
-        is_dds = tex_file[:-3] == "dds"
+        is_dds = tex_file[-3:].lower() == "dds"
 
         if not image.has_data and is_dds:
             # image.has_data doesn't necessarily mean Blender can't load it (sometimes it's deferred), but there's a
@@ -97,18 +114,12 @@ def load_image(base_file_path, texture_path, abs_path=False):
                 dds = None
 
             if dds and dds.dxgi_format == 65:
-                # log("Loading Alpha_8 DDS file...")
                 # For now, we only support ALPHA_8_UNORM DDS files as they are uncompressed, and so far have been the
                 # only dds format encountered which isn't supported by Blender
-                surf = dds.surfaces[0]
-
-                image = bpy.data.images.new(tex_file, surf.width, surf.height, alpha=dds.header.ddspf.dwABitMask != 0)
-
-                # Fast way to set pixels (since 2.83)
-                image.pixels.foreach_set(np.repeat(np.array(surf.data, np.dtype('B')).astype(np.float32), 4))
-
-                # Pack the image into .blend so it gets saved with it
-                image.pack()
+                try:
+                    image = decode_alpha_8_dds(dds, tex_file)
+                except Exception as e:
+                    log("WARNING: Couldn't decode DDS file {0}: {1}".format(tex_file, e))
 
         return image
     else:
@@ -120,14 +131,6 @@ def load_texture_into_new_slot(base_file_path, texture_path, mat, abs_path=False
     image = load_image(base_file_path, texture_path, abs_path)
 
     if image is not None:
-        if bpy.app.version[0] < 3 and bpy.app.version[1] < 80:
-            tex = bpy.data.textures.new(texture_path, type="IMAGE")
-            tex.type_recast()
-            tex.image = image
-            texs = mat.texture_slots.add()
-            texs.texture = tex
-            return texs
-        else:
-            # Wrapper around old texture type
-            return TextureSlotWrapper(image)
+        # Wrapper around old texture type
+        return TextureSlotWrapper(image)
     return None

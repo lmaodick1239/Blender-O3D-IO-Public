@@ -12,6 +12,7 @@ if bpy.app.version >= (4, 0):
 else:
     from . import o3d_node_shader_utils
 from . import blender_compat
+from .omsi_paths import join_omsi_path
 
 
 def log(*args):
@@ -195,9 +196,9 @@ def read_cfg(filepath, override_text_encoding):
         elif current_command == "[mesh]":
             if param_ind == 0:
                 current_mat = None
-                mesh_path = os.path.join(folder, line)
+                mesh_path = join_omsi_path(folder, line)
                 if not os.path.isfile(mesh_path):
-                    mesh_path = os.path.join(folder_model, line)
+                    mesh_path = join_omsi_path(folder_model, line)
                 current_mesh = line
 
                 cfg_data[current_lod]["meshes"][current_mesh] = {
@@ -459,7 +460,7 @@ def read_cfg(filepath, override_text_encoding):
 
 
 def write_additional_cfg_props(cfg_props, f):
-    if "cfg_data" in cfg_props:
+    if cfg_props is not None and "cfg_data" in cfg_props:
         for prop in cfg_props["cfg_data"]:
             f.write(prop[0] + "\n")
             f.write("\n".join(prop[1:]))
@@ -499,17 +500,13 @@ def write_cfg_empty(f, filepath, context, obj):
         return
 
     pos = obj.location
+    texture = os.path.basename(obj.data.filepath) if obj.data is not None else ""
+    if texture == "licht.bmp":
+        texture = ""
 
     f.write("----------\n")
     if obj["type"] == "[light_enh]":
-        texture = os.path.basename(obj.data.filepath)
-        if texture == "licht.bmp":
-            texture = ""
-
-        if bpy.app.version < (2, 80):
-            size = obj.empty_draw_size
-        else:
-            size = obj.empty_display_size
+        size = obj.empty_display_size
 
         f.write("[light_enh]\n")
         f.write("\n".join(map(str, (*pos[:3],
@@ -520,14 +517,7 @@ def write_cfg_empty(f, filepath, context, obj):
                                     texture))))
         f.write("\n\n")
     elif obj["type"] == "[light_enh_2]":
-        texture = os.path.basename(obj.data.filepath)
-        if texture == "licht.bmp":
-            texture = ""
-
-        if bpy.app.version < (2, 80):
-            size = obj.empty_draw_size
-        else:
-            size = obj.empty_display_size
+        size = obj.empty_display_size
 
         f.write("[light_enh_2]\n")
         f.write("\n".join(map(str, (*pos[:3],
@@ -559,7 +549,7 @@ def write_cfg_light(f, filepath, context, obj):
         f.write("\n".join(map(str, (*obj.location,
                                     *spot_vec,
                                     *col_float_to_int(obj.data.color[:3]),
-                                    obj.data.distance if bpy.app.version < (2, 80) else obj.data.energy / 10,
+                                    obj.data.energy / 10,
                                     math.degrees(obj.data.spot_size * obj.data.spot_blend),
                                     math.degrees(obj.data.spot_size)))))
         f.write("\n\n")
@@ -570,7 +560,7 @@ def write_cfg_light(f, filepath, context, obj):
             light_var = ""
         f.write("[interiorlight]\n")
         f.write("\n".join(map(str, (light_var,
-                                    obj.data.distance if bpy.app.version < (2, 80) else obj.data.energy / 10,
+                                    obj.data.energy / 10,
                                     *col_float_to_int(obj.data.color[:3]),
                                     *obj.location))))
         f.write("\n\n")
@@ -596,39 +586,28 @@ def write_cfg_materials(f, obj):
             envmap = False
             specular = 0
             bumpmap = None
+            bumpmap_strength = 1.0
             emission_tex = None
-            if bpy.app.version < (2, 80):
-                for tex in mat_blender.texture_slots:
-                    if tex.image.use_map_alpha:
-                        alpha_mode = 2
-                        # TODO: Blender 2.79 support for alpha clip
-                        if not tex.image.use_map_color_diffuse:
-                            transmap = True
+            if mat.alpha_texture.image is not None:
+                alpha_mode = 2
+                if blender_compat.get_material_alpha_mode(mat_blender) == "CLIP":
+                    alpha_mode = 1
 
-                if mat_blender.specular_hardness > 20:
-                    # Heuristic to determine when we might want to turn on the envmap
-                    envmap = True
+                if mat.alpha_texture.image.filepath != mat.base_color_texture.image.filepath:
+                    transmap = True
 
-                specular = math.sqrt(mat_blender.specular_intensity)
-            else:
-                if mat.alpha_texture.image is not None:
-                    alpha_mode = 2
-                    if blender_compat.get_material_alpha_mode(mat_blender) == "CLIP":
-                        alpha_mode = 1
+            if mat.roughness <= 0.1:
+                envmap = True
 
-                    if mat.alpha_texture.image.filepath != mat.base_color_texture.image.filepath:
-                        transmap = True
+            specular = math.sqrt(mat.specular)
 
-                if mat.roughness <= 0.1:
-                    envmap = True
+            bump_map = blender_compat.find_bump_map(mat)
+            if bump_map is not None:
+                bumpmap = os.path.basename(bump_map[0].filepath)
+                bumpmap_strength = bump_map[1]
 
-                specular = math.sqrt(mat.specular)
-
-                if mat.normalmap_texture is not None and mat.normalmap_texture.image is not None:
-                    bumpmap = os.path.basename(mat.normalmap_texture.image.filepath)
-
-                if mat.emission_color_texture is not None and mat.emission_color_texture.image is not None:
-                    emission_tex = os.path.basename(mat.emission_color_texture.image.filepath)
+            if mat.emission_color_texture is not None and mat.emission_color_texture.image is not None:
+                emission_tex = os.path.basename(mat.emission_color_texture.image.filepath)
 
             if alpha_mode > 0:
                 f.write("[matl_alpha]\n{0}\n\n".format(alpha_mode))
@@ -643,13 +622,12 @@ def write_cfg_materials(f, obj):
 
                 f.write("[matl_envmap]\n{0}\n{1}\n\n".format(envmap_tex, specular))
 
-                if bpy.app.version > (2, 79):
-                    if not transmap and mat.specular_texture is not None and mat.specular_texture.image is not None:
-                        f.write(
-                            "[matl_envmap_mask]\n{0}\n\n".format(os.path.basename(mat.specular_texture.image.filepath)))
+                if not transmap and mat.specular_texture is not None and mat.specular_texture.image is not None:
+                    f.write(
+                        "[matl_envmap_mask]\n{0}\n\n".format(os.path.basename(mat.specular_texture.image.filepath)))
 
             if bumpmap is not None:
-                f.write("[matl_bumpmap]\n{0}\n{1}\n\n".format(bumpmap, mat.normalmap_strength))
+                f.write("[matl_bumpmap]\n{0}\n{1}\n\n".format(bumpmap, round(bumpmap_strength, 6)))
 
             if emission_tex is not None:
                 # Again, this is a bit of a rubbish heuristic, it should be improved at some point
@@ -677,28 +655,26 @@ def write_cfg_object(context, f, filepath, obj):
 
 def write_cfg(filepath, objs, context, selection_only):
     """
-    Attempts to merge blender objects into an existing CFG/SCO file
+    Writes the blender objects out as a new CFG/SCO file, replacing any file already at that path
     :param selection_only: whether to only export selected objects
     :param context: the current Blender context
-    :param filepath: path to the cfg file, if it doesn't exist a new one will be created
+    :param filepath: path to the cfg file to write
     :param objs: [Deprecated] the array of Blender objects to export
     :return:
     """
+    with open(filepath, "w") as f:
+        log("Writing cfg file...")
+        scene = bpy.data.scenes[context.scene.name]
+        if "groups" not in scene:
+            scene["groups"] = {
+                "ind": 1,
+                "group": "BlenderExport"
+            }
+        if "friendlyname" not in scene:
+            scene["friendlyname"] = os.path.basename(filepath)[:-4]
 
-    if True or not os.path.isfile(filepath):
-        with open(filepath, "w") as f:
-            log("Writing cfg file...")
-            scene = bpy.data.scenes[context.scene.name]
-            if "groups" not in scene:
-                scene["groups"] = {
-                    "ind": 1,
-                    "group": "BlenderExport"
-                }
-            if "friendlyname" not in scene:
-                scene["friendlyname"] = os.path.basename(filepath)[:-4]
-
-            # Create a new minimal CFG file
-            f.write("""
+        # Create a new minimal CFG file
+        f.write("""
 ###############################################################
 # GENERATED BY BLENDER-O3D-IO COPYRIGHT THOMAS MATHIESON 2023 #
 ###############################################################
@@ -712,69 +688,49 @@ def write_cfg(filepath, objs, context, selection_only):
     
 """.format(scene["groups"]["ind"], scene["groups"]["group"], scene["friendlyname"]))
 
-            # Populate any cfg data in the scene
-            write_additional_cfg_props(scene, f)
+        # Populate any cfg data in the scene
+        write_additional_cfg_props(scene, f)
 
-            if "tree" in scene:
-                tree = scene["tree"]
-                f.write("[tree]\n{0}\n{1}\n{2}\n{3}\n{4}\n\n".format(*tree))
+        if "tree" in scene:
+            tree = scene["tree"]
+            f.write("[tree]\n{0}\n{1}\n{2}\n{3}\n{4}\n\n".format(*tree))
 
-            if "editor_only" in scene and scene["editor_only"]:
-                f.write("[editor_only]\n\n")
+        if "editor_only" in scene and scene["editor_only"]:
+            f.write("[editor_only]\n\n")
 
+        f.write("\n###############################################################\n"
+                "\t\tBEGIN MODEL DATA\n"
+                "###############################################################\n\n")
+
+        # Now write each lod and each mesh within those lods
+        collection_names = [x.name for x in bpy.data.collections]
+        lods = [(x, float(x[4:])) for x in collection_names if x.startswith("LOD")]
+        lods = sorted(lods, key=lambda x: x[1], reverse=True)
+        non_lods = [o for x in collection_names for o in bpy.data.collections[x].all_objects if
+                    not x.startswith("LOD")]
+
+        non_lods.extend(context.scene.collection.objects)
+
+        for obj in non_lods:
+            if selection_only:
+                if not obj.select_get():
+                    continue
+
+            # log("Exporting {0}...".format(obj.name))
+            write_cfg_object(context, f, filepath, obj)
+
+        for lod in lods:
             f.write("\n###############################################################\n"
-                    "\t\tBEGIN MODEL DATA\n"
-                    "###############################################################\n\n")
+                    "\t\tBEGIN LOD {0}\n"
+                    "###############################################################\n\n".format(lod[1]))
+            f.write("[LOD]\n{0}\n\n".format(lod[1]))
 
-            # Now write each lod and each mesh within those lods
-            if bpy.app.version < (2, 80):
-                group_names = [x.name for x in bpy.data.groups]
-                lods = [(x, float(x[4:])) for x in group_names if x.startswith("LOD")]
-                lods = sorted(lods, key=lambda x: x[1], reverse=True)
-                non_lods = [o for x in group_names for o in bpy.data.groups[x].objects if
-                            not x.startswith("LOD")]
+            objs = bpy.data.collections[lod[0]].all_objects
 
-                non_lods.extend(context.scene.objects)
-            else:
-                collection_names = [x.name for x in bpy.data.collections]
-                lods = [(x, float(x[4:])) for x in collection_names if x.startswith("LOD")]
-                lods = sorted(lods, key=lambda x: x[1], reverse=True)
-                non_lods = [o for x in collection_names for o in bpy.data.collections[x].all_objects if
-                            not x.startswith("LOD")]
-
-                non_lods.extend(context.scene.collection.objects)
-
-            for obj in non_lods:
+            for obj in objs:
                 if selection_only:
-                    if bpy.app.version > (2, 80):
-                        if not obj.select_get():
-                            continue
-                    else:
-                        if not obj.select:
-                            continue
+                    if not obj.select_get():
+                        continue
 
                 # log("Exporting {0}...".format(obj.name))
                 write_cfg_object(context, f, filepath, obj)
-
-            for lod in lods:
-                f.write("\n###############################################################\n"
-                        "\t\tBEGIN LOD {0}\n"
-                        "###############################################################\n\n".format(lod[1]))
-                f.write("[LOD]\n{0}\n\n".format(lod[1]))
-
-                if bpy.app.version < (2, 80):
-                    objs = bpy.data.groups[lod[0]].objects
-                else:
-                    objs = bpy.data.collections[lod[0]].all_objects
-
-                for obj in objs:
-                    if selection_only:
-                        if bpy.app.version > (2, 80):
-                            if not obj.select_get():
-                                continue
-                        else:
-                            if not obj.select:
-                                continue
-
-                    # log("Exporting {0}...".format(obj.name))
-                    write_cfg_object(context, f, filepath, obj)

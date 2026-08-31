@@ -12,7 +12,7 @@ import os
 
 if bpy.app.version >= (4, 0):
     from bpy_extras import node_shader_utils as o3d_node_shader_utils
-elif bpy.app.version >= (2, 80):
+else:
     from . import o3d_node_shader_utils
 from . import blender_compat, o3dconvert
 
@@ -20,19 +20,11 @@ from . import blender_compat, o3dconvert
 from mathutils import Matrix, Vector
 from .o3d_cfg_parser import read_cfg
 from .blender_texture_io import load_texture_into_new_slot, load_image
+from .omsi_paths import platform_related_path
 
 
 def log(*args):
     print("[O3D_Import]", *args)
-
-
-def platform_related_path(path):
-    """
-    Return a string with correct path separators for the current platform
-    :param path: the path to convert
-    :return: the converted path
-    """
-    return path.replace("/", os.sep).replace("\\", os.sep)
 
 
 def resolve_import_filepaths(filepath, directory, filenames):
@@ -81,38 +73,26 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
 
     n_meshes = len([0 for lod in cfg_data for mesh in cfg_data[lod]["meshes"]])
     bpy.context.window_manager.progress_begin(0, n_meshes)
+    try:
+        sorted_lods = sorted(cfg_data.keys(), reverse=True)
 
-    sorted_lods = sorted(cfg_data.keys(), reverse=True)
+        # Work out where to put any custom data belonging to the root of the CFG file
+        # In this case we CAN'T use the scene collection since it doesn't expose custom data in the editor for some reason
+        custom_data_object = parent_collection
+        if custom_data_object is None \
+                or custom_data_object == context.scene.collection:
+            custom_data_object = bpy.data.scenes[context.scene.name]
 
-    # Work out where to put any custom data belonging to the root of the CFG file
-    # In this case we CAN'T use the scene collection since it doesn't expose custom data in the editor for some reason
-    custom_data_object = parent_collection
-    if custom_data_object is None \
-            or (bpy.app.version >= (2, 80) and custom_data_object == context.scene.collection):
-        custom_data_object = bpy.data.scenes[context.scene.name]
+        # Iterate through the selected files
+        blender_objs = []
+        mat_counter = 0
+        mesh_index = 0
+        is_highest_lod = True
+        current_collection = None
+        for current_lod in sorted_lods:
+            if not import_lods and not is_highest_lod:
+                continue
 
-    # Iterate through the selected files
-    blender_objs = []
-    mat_counter = 0
-    mesh_index = 0
-    is_highest_lod = True
-    current_collection = None
-    for current_lod in sorted_lods:
-        if not import_lods and not is_highest_lod:
-            continue
-
-        if bpy.app.version < (2, 80):
-            if current_lod == -1 or not import_lods:
-                current_collection = parent_collection
-            else:
-                collection_name = "LOD_{0}".format(current_lod)
-                if collection_name not in bpy.data.groups:
-                    current_collection = bpy.data.groups.new(collection_name)
-                    if parent_collection is not None:
-                        parent_collection.objects.link(current_collection)
-                else:
-                    current_collection = bpy.data.groups[collection_name]
-        else:
             if current_lod == -1 or not import_lods:
                 current_collection = bpy.context.scene.collection
                 if parent_collection is not None:
@@ -128,79 +108,59 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
                 else:
                     current_collection = bpy.data.collections[collection_name]
 
-        for current_mesh in cfg_data[current_lod]["meshes"]:
-            # Generate full path to file
-            path_to_file = cfg_data[current_lod]["meshes"][current_mesh]["path"]
-            path_to_file = platform_related_path(path_to_file)
-            bpy.context.window_manager.progress_update(mesh_index)
-            log("[{0:.2f}%] Loading {1}...".format((mesh_index + 1) / n_meshes * 100, path_to_file))
+            for current_mesh in cfg_data[current_lod]["meshes"]:
+                # Generate full path to file
+                path_to_file = cfg_data[current_lod]["meshes"][current_mesh]["path"]
+                path_to_file = platform_related_path(path_to_file)
+                bpy.context.window_manager.progress_update(mesh_index)
+                log("[{0:.2f}%] Loading {1}...".format((mesh_index + 1) / n_meshes * 100, path_to_file))
 
-            if path_to_file[-1:] == "x":
-                if not import_x:
-                    bpy.ops.object.select_all(action='DESELECT')
-                    continue
+                if path_to_file[-1:] == "x":
+                    if not import_x:
+                        bpy.ops.object.select_all(action='DESELECT')
+                        continue
 
-                # X files are not supported by this importer
-                try:
-                    x_file_path = {"name": os.path.basename(path_to_file)}
-                    # Clunky solution to work out what has been imported because the x importer doesn't set selection
-                    old_objs = set(context.scene.objects)
-                    # For now the x file importer doesn't handle omsi x files very well, materials aren't imported
-                    # correctly
-                    bpy.ops.object.select_all(action='DESELECT')
-                    bpy.ops.import_scene.x(filepath=path_to_file, files=[x_file_path], axis_forward='Y', axis_up='Z',
-                                           use_split_objects=False, use_split_groups=False, parented=False,
-                                           quickmode=True)
-                    # mat_counter = generate_materials(cfg_materials, filepath, mat_counter, materials, mesh,
-                    #                                  object_directory, path_to_file)
-                    new_objs = set(context.scene.objects) - old_objs
+                    # X files are not supported by this importer
+                    try:
+                        x_file_path = {"name": os.path.basename(path_to_file)}
+                        # Clunky solution to work out what has been imported because the x importer doesn't set selection
+                        old_objs = set(context.scene.objects)
+                        # For now the x file importer doesn't handle omsi x files very well, materials aren't imported
+                        # correctly
+                        bpy.ops.object.select_all(action='DESELECT')
+                        bpy.ops.import_scene.x(filepath=path_to_file, files=[x_file_path], axis_forward='Y', axis_up='Z',
+                                               use_split_objects=False, use_split_groups=False, parented=False,
+                                               quickmode=True)
+                        # mat_counter = generate_materials(cfg_materials, filepath, mat_counter, materials, mesh,
+                        #                                  object_directory, path_to_file)
+                        new_objs = set(context.scene.objects) - old_objs
 
-                    for o in new_objs:
-                        if current_collection is not None:
-                            if bpy.app.version > (2, 79):
+                        for o in new_objs:
+                            if current_collection is not None:
                                 if current_collection != bpy.context.scene.collection:
                                     bpy.context.scene.collection.objects.unlink(o)
                                 if current_collection in o.users_collection:
                                     continue
-                            # else:
-                            #     bpy.context.scene.objects.unlink(o)
-                            current_collection.objects.link(o)
+                                current_collection.objects.link(o)
 
-                    # Create lights
-                    create_lights(blender_objs, cfg_data[current_lod]["meshes"][current_mesh], filepath,
-                                  current_collection)
-                    blender_objs.extend(new_objs)
+                        # Create lights
+                        create_lights(blender_objs, cfg_data[current_lod]["meshes"][current_mesh], filepath,
+                                      current_collection)
+                        blender_objs.extend(new_objs)
+                        continue
+                    except Exception as e:
+                        log("WARNING: {0} was not imported! A compatible X importer was not found! Please use: "
+                            "https://github.com/Poikilos/io_import_x\n"
+                            "Exception: {1}".format(path_to_file, e))
+                        continue
+
+                # Load mesh
+                materials, matl_ids, mesh, o3d, o3d_transform_matrix = load_o3d(obj_root, path_to_file, split_normals)
+                if mesh is None:
                     continue
-                except Exception as e:
-                    log("WARNING: {0} was not imported! A compatible X importer was not found! Please use: "
-                        "https://github.com/Poikilos/io_import_x\n"
-                        "Exception: {1}".format(path_to_file, e))
-                    continue
 
-            # Load mesh
-            materials, matl_ids, mesh, o3d, o3d_transform_matrix = load_o3d(obj_root, path_to_file, split_normals)
-            if mesh is None:
-                continue
-
-            # Create blender object
-            blender_obj = None
-            if bpy.app.version < (2, 80):
-                blender_obj = bpy.data.objects.new(path_to_file[len(obj_root):-4], mesh)
-                blender_obj["export_path"] = path_to_file[len(obj_root):]
-                blender_objs.append(blender_obj)
-                scene = bpy.context.scene
-                scene.objects.link(blender_obj)
-
-                # In this case current_collection is actually a group and not a collection, but they're functionally
-                # the same
-                if current_collection is not None:
-                    current_collection.objects.link(blender_obj)
-
-                if hide_lods and not is_highest_lod:
-                    # Check this works in 2.79...
-                    blender_obj.hide = True
-                    blender_obj.hide_render = True
-            else:
+                # Create blender object
+                blender_obj = None
                 blender_obj = bpy.data.objects.new(path_to_file[len(obj_root):-4], mesh)
                 blender_obj["export_path"] = path_to_file[len(obj_root):]
                 blender_objs.append(blender_obj)
@@ -211,69 +171,68 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
                     blender_obj.hide_set(True)
                     blender_obj.hide_render = True
 
-            # Transform object
-            blender_obj.matrix_basis = o3d_transform_matrix
+                # Transform object
+                blender_obj.matrix_basis = o3d_transform_matrix
 
-            # Generate materials
-            cfg_mats = cfg_data[current_lod]["meshes"][current_mesh].get("matls", {})
-            mat_counter = generate_materials(cfg_mats, filepath,
-                                             mat_counter, materials, mesh)
+                # Generate materials
+                cfg_mats = cfg_data[current_lod]["meshes"][current_mesh].get("matls", {})
+                mat_counter = generate_materials(cfg_mats, filepath,
+                                                 mat_counter, materials, mesh)
 
-            # Populate remaining properties on the mesh
-            bpy.data.meshes[mesh.name]["cfg_data"] = cfg_data[current_lod]["meshes"][current_mesh].get("cfg_data", {})
-            # for prop in cfg_data[current_file[2]]["meshes"][current_file[1]].items():
-            #     if prop[0][0] == "[" and prop[0][-1] == "]":
-            #         # This must be an unparsed property, therefore we add it to the custom properties of the mesh
-            #         bpy.data.meshes[mesh.name][prop[0]] = prop[1]
+                # Populate remaining properties on the mesh
+                bpy.data.meshes[mesh.name]["cfg_data"] = cfg_data[current_lod]["meshes"][current_mesh].get("cfg_data", {})
+                # for prop in cfg_data[current_file[2]]["meshes"][current_file[1]].items():
+                #     if prop[0][0] == "[" and prop[0][-1] == "]":
+                #         # This must be an unparsed property, therefore we add it to the custom properties of the mesh
+                #         bpy.data.meshes[mesh.name][prop[0]] = prop[1]
 
-            for ind, tri in enumerate(mesh.polygons):
-                tri.material_index = matl_ids[ind]
+                for ind, tri in enumerate(mesh.polygons):
+                    tri.material_index = matl_ids[ind]
 
-            mesh.update()
+                mesh.update()
 
-            # Generate bones
-            for bone in o3d[4]:
-                blender_obj.vertex_groups.new(name=bone[0])
-                for vert in bone[1]:
-                    blender_obj.vertex_groups[bone[0]].add([vert[0]], vert[1], "REPLACE")
+                # Generate bones
+                for bone in o3d[4]:
+                    blender_obj.vertex_groups.new(name=bone[0])
+                    for vert in bone[1]:
+                        blender_obj.vertex_groups[bone[0]].add([vert[0]], vert[1], "REPLACE")
 
-            mesh_index += 1
+                mesh_index += 1
 
-        # Remove the is_highest_lod flag once we've imported the highest LOD, note that LOD -1 should always import
-        # first, but isn't the highest LOD (unless no other LODs are loaded)
-        if current_lod != -1:
-            is_highest_lod = False
+            # Remove the is_highest_lod flag once we've imported the highest LOD, note that LOD -1 should always import
+            # first, but isn't the highest LOD (unless no other LODs are loaded)
+            if current_lod != -1:
+                is_highest_lod = False
 
-        # Create lights
-        create_lights(blender_objs, cfg_data[current_lod], filepath, current_collection)
+            # Create lights
+            create_lights(blender_objs, cfg_data[current_lod], filepath, current_collection)
 
-    # Populate remaining properties on the cfg
-    if "cfg_data" in cfg_data[-1]:
-        custom_data_object["cfg_data"] = cfg_data[-1]["cfg_data"]
-    if "groups" in cfg_data[-1]:
-        custom_data_object["groups"] = cfg_data[-1]["groups"]
-    if "friendlyname" in cfg_data[-1]:
-        custom_data_object["friendlyname"] = cfg_data[-1]["friendlyname"]
-    if "editor_only" in cfg_data[-1]:
-        custom_data_object["editor_only"] = cfg_data[-1]["editor_only"]
-    if "tree" in cfg_data[-1]:
-        custom_data_object["tree"] = cfg_data[-1]["tree"]
+        # Populate remaining properties on the cfg
+        if "cfg_data" in cfg_data[-1]:
+            custom_data_object["cfg_data"] = cfg_data[-1]["cfg_data"]
+        if "groups" in cfg_data[-1]:
+            custom_data_object["groups"] = cfg_data[-1]["groups"]
+        if "friendlyname" in cfg_data[-1]:
+            custom_data_object["friendlyname"] = cfg_data[-1]["friendlyname"]
+        if "editor_only" in cfg_data[-1]:
+            custom_data_object["editor_only"] = cfg_data[-1]["editor_only"]
+        if "tree" in cfg_data[-1]:
+            custom_data_object["tree"] = cfg_data[-1]["tree"]
 
-    bpy.ops.object.select_all(action='DESELECT')
-    try:
-        for x in blender_objs:
-            if bpy.app.version < (2, 80):
-                x.select = True
-            else:
+        bpy.ops.object.select_all(action='DESELECT')
+        try:
+            for x in blender_objs:
                 x.select_set(True)
-    except Exception as e:
-        log("WARNING: Couldn't select loaded objects:", e)
+        except Exception as e:
+            log("WARNING: Couldn't select loaded objects:", e)
 
-    if n_meshes == 0:
-        log("WARNING: 0 models loaded! File:", filepath)
+        if n_meshes == 0:
+            log("WARNING: 0 models loaded! File:", filepath)
 
-    log("Loaded {0} models in {1} seconds!".format(n_meshes, time.time() - start_time))
-    return blender_objs
+        log("Loaded {0} models in {1} seconds!".format(n_meshes, time.time() - start_time))
+        return blender_objs
+    finally:
+        bpy.context.window_manager.progress_end()
 
 
 def create_lights(blender_objs, cfg_data, filepath, collection):
@@ -281,31 +240,16 @@ def create_lights(blender_objs, cfg_data, filepath, collection):
     for light_ind, light_cfg in enumerate(interior_lights):
         light_name = "::interior_light_{0}".format(light_ind)
 
-        if bpy.app.version < (2, 80):
-            light_data = bpy.data.lamps.new(name=light_name, type='POINT')
-            light_data.distance = light_cfg["range"]
-            light_data.energy = 0.04
-            light_data.color = (light_cfg["red"], light_cfg["green"], light_cfg["blue"])
-            light_data["variable"] = light_cfg["variable"]
-            light_data["cfg_type"] = "interiorlight"
+        light_data = bpy.data.lights.new(name=light_name, type='POINT')
+        light_data.energy = light_cfg["range"] * 10.0
+        light_data.color = (light_cfg["red"], light_cfg["green"], light_cfg["blue"])
+        light_data.shadow_soft_size = 0.02
+        light_data["variable"] = light_cfg["variable"]
+        light_data["cfg_type"] = "interiorlight"
 
-            light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
+        light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
 
-            bpy.context.scene.objects.link(light_object)
-            if collection is not None:
-                collection.objects.link(light_object)
-
-        else:
-            light_data = bpy.data.lights.new(name=light_name, type='POINT')
-            light_data.energy = light_cfg["range"] * 10.0
-            light_data.color = (light_cfg["red"], light_cfg["green"], light_cfg["blue"])
-            light_data.shadow_soft_size = 0.02
-            light_data["variable"] = light_cfg["variable"]
-            light_data["cfg_type"] = "interiorlight"
-
-            light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
-
-            collection.objects.link(light_object)
+        collection.objects.link(light_object)
 
         blender_objs.append(light_object)
         # light_object.parent = blender_obj
@@ -316,33 +260,17 @@ def create_lights(blender_objs, cfg_data, filepath, collection):
     for light_ind, light_cfg in enumerate(spotlights):
         light_name = "::spotlight_{0}".format(light_ind)
 
-        if bpy.app.version < (2, 80):
-            light_data = bpy.data.lamps.new(name=light_name, type='SPOT')
-            light_data.distance = light_cfg["range"]
-            light_data.energy = 0.04
-            light_data.color = (light_cfg["col_r"], light_cfg["col_g"], light_cfg["col_b"])
+        light_data = bpy.data.lights.new(name=light_name, type='SPOT')
+        light_data.energy = light_cfg["range"] * 10.0
+        light_data.color = (light_cfg["col_r"], light_cfg["col_g"], light_cfg["col_b"])
+        light_data.shadow_soft_size = 0.02
+        light_data.spot_size = math.radians(light_cfg["outer_angle"])
+        light_data.spot_blend = light_cfg["inner_angle"] / light_cfg["outer_angle"]
+        light_data["cfg_type"] = "spotlight"
 
-            light_data.spot_size = math.radians(light_cfg["outer_angle"])
-            light_data.spot_blend = light_cfg["inner_angle"] / light_cfg["outer_angle"]
-            light_data["cfg_type"] = "spotlight"
+        light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
 
-            light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
-
-            bpy.context.scene.objects.link(light_object)
-            if collection is not None:
-                collection.objects.link(light_object)
-        else:
-            light_data = bpy.data.lights.new(name=light_name, type='SPOT')
-            light_data.energy = light_cfg["range"] * 10.0
-            light_data.color = (light_cfg["col_r"], light_cfg["col_g"], light_cfg["col_b"])
-            light_data.shadow_soft_size = 0.02
-            light_data.spot_size = math.radians(light_cfg["outer_angle"])
-            light_data.spot_blend = light_cfg["inner_angle"] / light_cfg["outer_angle"]
-            light_data["cfg_type"] = "spotlight"
-
-            light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
-
-            collection.objects.link(light_object)
+        collection.objects.link(light_object)
 
         blender_objs.append(light_object)
         # light_object.parent = blender_obj
@@ -359,29 +287,15 @@ def create_lights(blender_objs, cfg_data, filepath, collection):
     for light_ind, light_cfg in enumerate(maplights):
         light_name = "::maplight_{0}".format(light_ind)
 
-        if bpy.app.version < (2, 80):
-            light_data = bpy.data.lamps.new(name=light_name, type='POINT')
-            light_data.distance = light_cfg["range"]
-            light_data.energy = 0.20
-            light_data.color = (light_cfg["r"], light_cfg["g"], light_cfg["b"])
-            light_data["cfg_type"] = "maplight"
+        light_data = bpy.data.lights.new(name=light_name, type='POINT')
+        light_data.energy = light_cfg["range"] * 50.0
+        light_data.color = (light_cfg["r"], light_cfg["g"], light_cfg["b"])
+        light_data.shadow_soft_size = 0.3
+        light_data["cfg_type"] = "maplight"
 
-            light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
+        light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
 
-            bpy.context.scene.objects.link(light_object)
-            if collection is not None:
-                collection.objects.link(light_object)
-
-        else:
-            light_data = bpy.data.lights.new(name=light_name, type='POINT')
-            light_data.energy = light_cfg["range"] * 50.0
-            light_data.color = (light_cfg["r"], light_cfg["g"], light_cfg["b"])
-            light_data.shadow_soft_size = 0.3
-            light_data["cfg_type"] = "maplight"
-
-            light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
-
-            collection.objects.link(light_object)
+        collection.objects.link(light_object)
 
         blender_objs.append(light_object)
         # light_object.parent = blender_obj
@@ -394,19 +308,11 @@ def create_lights(blender_objs, cfg_data, filepath, collection):
     for flare_ind, flare in enumerate(flares):
         flare_name = "::light_enh{0}_{1}".format("" if flare["type"] == "[light_enh]" else "_2", flare_ind)
         flare_obj = bpy.data.objects.new(flare_name, None)
-        if bpy.app.version < (2, 80):
-            bpy.context.scene.objects.link(flare_obj)
-            if collection is not None:
-                collection.objects.link(flare_obj)
+        collection.objects.link(flare_obj)
 
-            flare_obj.empty_draw_size = flare["size"]
-            flare_obj.empty_draw_type = "IMAGE"
-        else:
-            collection.objects.link(flare_obj)
-
-            flare_obj.empty_display_size = flare["size"]
-            flare_obj.empty_display_type = "IMAGE"
-            flare_obj.use_empty_image_alpha = True
+        flare_obj.empty_display_size = flare["size"]
+        flare_obj.empty_display_type = "IMAGE"
+        flare_obj.use_empty_image_alpha = True
 
         flare_obj.empty_image_offset = (-0.5, -0.5)
         flare_obj.color = (flare["col_r"], flare["col_g"], flare["col_b"], 0.5)
@@ -470,10 +376,7 @@ def load_o3d(object_directory, path_to_file, split_normals):
 
     mesh.from_pydata(vertex_pos, edges, face_list)
 
-    if bpy.app.version < (2, 80):
-        mesh.uv_textures.new("UV Map")
-    else:
-        mesh.uv_layers.new(name="UV Map")
+    mesh.uv_layers.new(name="UV Map")
 
     axis_conversion_matrix = Matrix((
         (1, 0, 0, 0),
@@ -486,14 +389,13 @@ def load_o3d(object_directory, path_to_file, split_normals):
     o3d_transform_matrix = Matrix(o3d_transform)
     o3d_transform_matrix.transpose()
     # log("Imported matrix: \n{0}".format(o3d_transform_matrix))
-    if bpy.app.version < (2, 80):
-        o3d_transform_matrix = axis_conversion_matrix * o3d_transform_matrix * axis_conversion_matrix
-        i_o3d_transform_matrix = o3d_transform_matrix.inverted()
-        mesh_matrix = i_o3d_transform_matrix * axis_conversion_matrix
+    o3d_transform_matrix = axis_conversion_matrix @ o3d_transform_matrix @ axis_conversion_matrix
+    if o3d_transform_matrix.determinant() == 0:
+        log("WARNING: {0} has a non-invertible transform, importing it untransformed!".format(path_to_file))
+        i_o3d_transform_matrix = o3d_transform_matrix.inverted_safe()
     else:
-        o3d_transform_matrix = axis_conversion_matrix @ o3d_transform_matrix @ axis_conversion_matrix
         i_o3d_transform_matrix = o3d_transform_matrix.inverted()
-        mesh_matrix = i_o3d_transform_matrix @ axis_conversion_matrix
+    mesh_matrix = i_o3d_transform_matrix @ axis_conversion_matrix
     # log("Converted matrix: \n{0}".format(o3d_transform_matrix))
     # log("Inverted matrix: \n{0}".format(i_o3d_transform_matrix))
     # log("Mesh matrix: \n{0}".format(mesh_matrix))
@@ -534,45 +436,39 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
         spec_g = matl[1][1]
         spec_b = matl[1][2]
         emit_r = matl[2][0]
-        emit_g = matl[2][0]
-        emit_b = matl[2][0]
+        emit_g = matl[2][1]
+        emit_b = matl[2][2]
         spec_h = matl[3]
 
         mat_blender = bpy.data.materials.new("{0}-{1}".format(matl[4], str(mat_counter)))
-        if bpy.app.version < (2, 80):
-            mat = mat_blender
-            mat.diffuse_color = (diffuse_r, diffuse_g, diffuse_b)
-            mat.specular_hardness = spec_h
-            mat.specular_intensity = 1
-            mat.specular_color = (spec_r, spec_g, spec_b)
-            mat.emit = np.mean(np.array(matl[2]) / np.max((np.array(matl[0][:3]), np.repeat(0.0001, 3)), axis=0))
-        else:
-            mat_blender.use_nodes = True
-            mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=False)
-            mat.base_color = (diffuse_r, diffuse_g, diffuse_b)
-            mat.roughness = 1 - spec_h
-            if bpy.app.version >= (4, 0):
-                specular_strength = max(spec_r, spec_g, spec_b)
-                mat.specular = specular_strength
-                if specular_strength > 0:
-                    mat.specular_tint = tuple(
-                        channel / specular_strength
-                        for channel in (spec_r, spec_g, spec_b)
-                    )
-                else:
-                    mat.specular_tint = (0, 0, 0)
+        blender_compat.enable_material_nodes(mat_blender)
+        mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=False)
+        mat.base_color = (diffuse_r, diffuse_g, diffuse_b)
+        mat.roughness = 1 - spec_h
+        if max(emit_r, emit_g, emit_b) > 0:
+            mat.emission_color = (emit_r, emit_g, emit_b)
+            mat.emission_strength = 1.0
+        if bpy.app.version >= (4, 0):
+            specular_strength = max(spec_r, spec_g, spec_b)
+            mat.specular = specular_strength
+            if specular_strength > 0:
+                mat.specular_tint = tuple(
+                    channel / specular_strength
+                    for channel in (spec_r, spec_g, spec_b)
+                )
             else:
-                mat.specular = spec_r
-                mat.specular_tint = 0
+                mat.specular_tint = (0, 0, 0)
+        else:
+            mat.specular = spec_r
+            mat.specular_tint = 0
 
-            mat_blender.use_backface_culling = True
-            blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
+        mat_blender.use_backface_culling = True
+        blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
 
         # Load the diffuse texture and assign it to a new texture slot
         diff_tex = load_texture_into_new_slot(cfg_file_path, matl[4], mat)
         if diff_tex:
-            if bpy.app.version >= (2, 80):
-                mat.base_color_texture.image = diff_tex.texture.image
+            mat.base_color_texture.image = diff_tex.texture.image
 
             # In some versions of Blender the colourspace isn't correctly detected, force it to sRGB for diffuse
             diff_tex.texture.image.colorspace_settings.name = 'sRGB'
@@ -584,76 +480,43 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
             if key in cfg_materials and "diffuse" in cfg_materials[key]:
                 if "alpha" in cfg_materials[key] and cfg_materials[key]["alpha"][0] > 0:
                     # Material uses alpha stored in diffuse texture alpha channel
-                    if bpy.app.version < (2, 80):
-                        mat.use_transparency = True
-                        diff_tex.use_map_alpha = True
-                        diff_tex.alpha_factor = 1
+                    mat.alpha_texture.image = diff_tex.texture.image
+                    if cfg_materials[key]["alpha"][0] == 1:
+                        blender_compat.set_material_alpha_mode(mat_blender, "CLIP")
                     else:
-                        mat.alpha_texture.image = diff_tex.texture.image
-                        if cfg_materials[key]["alpha"][0] == 1:
-                            blender_compat.set_material_alpha_mode(mat_blender, "CLIP")
-                        else:
-                            blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
+                        blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
 
                     mat.alpha = 0
 
                 if "transmap" in cfg_materials[key]:
                     # Material uses dedicated transparency texture
-                    if bpy.app.version < (2, 80):
-                        diff_tex.use_map_alpha = False
-                    else:
-                        # Set the specular texture to the alpha channel of the diffuse texture
-                        mat.specular_texture.image = diff_tex.texture.image
+                    # Set the specular texture to the alpha channel of the diffuse texture
+                    mat.specular_texture.image = diff_tex.texture.image
                     # Load the new transmap
                     trans_map = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["transmap"][0], mat)
                     if trans_map:
-                        if bpy.app.version < (2, 80):
-                            trans_map.texture.image.use_alpha = False
-                            trans_map.use_map_alpha = True
-                            trans_map.alpha_factor = 1
-                            trans_map.use_map_color_diffuse = False
-                        else:
-                            mat.alpha_texture.image = trans_map.texture.image
-                            blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
+                        mat.alpha_texture.image = trans_map.texture.image
+                        blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
                     else:
                         mat.alpha = 1
 
                 if "envmap" in cfg_materials[key]:
-                    if bpy.app.version < (2, 80):
-                        mat.specular_intensity = cfg_materials[key]["envmap"][0] ** 2
-                        mat.specular_hardness = 1 / 0.01
-                    else:
-                        mat.specular = cfg_materials[key]["envmap"][0] ** 2
-                        mat.roughness = 0.01
+                    mat.specular = cfg_materials[key]["envmap"][0] ** 2
+                    mat.roughness = 0.01
 
                     if "envmap_mask" in cfg_materials[key]:
                         # Load the new transmap
                         envmap_mask = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["envmap_mask"][0],
                                                                  mat)
                         if envmap_mask:
-                            if bpy.app.version < (2, 80):
-                                # TODO: Blender 2.79 compat for envmap masks
-                                pass
-                            else:
-                                # TODO: Doesn't multiply by the envmap strength
-                                mat.specular_texture.image = envmap_mask.texture.image
+                            # TODO: Doesn't multiply by the envmap strength
+                            mat.specular_texture.image = envmap_mask.texture.image
 
                 if "bumpmap" in cfg_materials[key]:
-                    if bpy.app.version < (2, 80):
-                        # TODO: Blender 2.79 compat for bump maps
-                        # mat.specular_intensity = cfg_materials[key]["envmap"][0] ** 2
-                        # mat.specular_hardness = 1 / 0.01
-                        cfg_materials[key]["cfg_data"].append([
-                            "[matl_bumpmap]",
-                            cfg_materials[key]["bumpmap"],
-                            str(cfg_materials[key]["bumpmap_strength"])
-                        ])
-                    else:
-                        bump = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["bumpmap"][0], mat)
-                        if bump is not None:
-                            mat.normalmap_texture.is_bump_map = True
-                            mat.normalmap_texture.image = bump.texture.image
-                            mat.normalmap_strength = cfg_materials[key]["bumpmap_strength"][0]
+                    bump = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["bumpmap"][0], mat)
+                    if bump is not None:
+                        blender_compat.apply_bump_map(mat, bump.texture.image,
+                                                      cfg_materials[key]["bumpmap_strength"][0])
 
                 if "alphascale" in cfg_materials[key]:
                     # TODO: parameterize the default alphascale value
@@ -663,7 +526,6 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
 
                 if "allcolor" in cfg_materials[key]:
                     # TODO: Work out if this is meant to override the material values or not
-                    # TODO: Blender 2.79 compat
                     # Allcolor allows material properties to be set to constant values
                     allcolor = cfg_materials[key]["allcolor"]
                     mat.base_color = [x[0] for x in allcolor[0:3]]
@@ -679,34 +541,18 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
 
                 if "nightmap" in cfg_materials[key]:
                     # A nightmap is an emission texture which is automatically toggled at night
-                    if bpy.app.version < (2, 80):
-                        # TODO: Blender 2.79 compat for nightmaps
-                        cfg_materials[key]["cfg_data"].append([
-                            "[matl_nightmap]",
-                            cfg_materials[key]["nightmap"][0]
-                        ])
-                        pass
-                    else:
-                        nightmap = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["nightmap"][0], mat)
-                        if nightmap is not None:
-                            mat.emission_color_texture.image = nightmap.texture.image
-                            # TODO: Parameterise the nightmaps and lightmaps
-                            mat.emission_strength = 0.5
+                    nightmap = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["nightmap"][0], mat)
+                    if nightmap is not None:
+                        mat.emission_color_texture.image = nightmap.texture.image
+                        # TODO: Parameterise the nightmaps and lightmaps
+                        mat.emission_strength = 0.5
 
                 if "lightmap" in cfg_materials[key]:
                     # A lightmap is an emission texture which is controlled by a script_var
-                    if bpy.app.version < (2, 80):
-                        # TODO: Blender 2.79 compat for lightmaps
-                        cfg_materials[key]["cfg_data"].append([
-                            "[matl_lightmap]",
-                            cfg_materials[key]["lightmap"][0]
-                        ])
-                        pass
-                    else:
-                        lightmap = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["lightmap"][0], mat)
-                        if lightmap is not None:
-                            mat.emission_color_texture.image = lightmap.texture.image
-                            mat.emission_strength = 1.5
+                    lightmap = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["lightmap"][0], mat)
+                    if lightmap is not None:
+                        mat.emission_color_texture.image = lightmap.texture.image
+                        mat.emission_strength = 1.5
 
                 # Populate some useful properties
                 bpy.data.materials[mat_blender.name]["type"] = cfg_materials[key]["type"]
