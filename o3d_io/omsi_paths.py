@@ -25,3 +25,43 @@ def join_omsi_path(base, relative):
     :return: the joined path using this platform's separators
     """
     return os.path.join(base, platform_related_path(relative).lstrip(os.sep))
+
+
+# OMSI configs are written in the author's local codepage. A Turkish or Cyrillic filename read as
+# cp1252 decodes to a name that does not exist on disk, so retry the other regional codepages.
+FALLBACK_ENCODINGS = ("cp1254", "cp1251", "cp1250", "cp1253", "cp1257")
+
+
+def decode_candidates(text, source_encoding="cp1252"):
+    """
+    Yields the text as it would read in each regional codepage, starting with the text itself.
+    """
+    yield text
+    if text.isascii():
+        return
+    try:
+        raw = text.encode(source_encoding)
+    except UnicodeEncodeError:
+        return
+    for encoding in FALLBACK_ENCODINGS:
+        try:
+            decoded = raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+        if decoded != text:
+            yield decoded
+
+
+def resolve_omsi_path(base, relative, source_encoding="cp1252"):
+    """
+    Joins an OMSI declared path onto its base directory, retrying other regional codepages when the
+    file is missing. Returns the first path that exists, or the plain join when none of them do.
+    """
+    fallback = None
+    for candidate in decode_candidates(relative, source_encoding):
+        path = join_omsi_path(base, candidate)
+        if fallback is None:
+            fallback = path
+        if os.path.isfile(path):
+            return path
+    return fallback

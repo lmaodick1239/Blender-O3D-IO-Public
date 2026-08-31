@@ -12,7 +12,7 @@ if bpy.app.version >= (4, 0):
 else:
     from . import o3d_node_shader_utils
 from . import blender_compat
-from .omsi_paths import join_omsi_path
+from .omsi_paths import join_omsi_path, resolve_omsi_path
 
 
 def log(*args):
@@ -196,9 +196,9 @@ def read_cfg(filepath, override_text_encoding):
         elif current_command == "[mesh]":
             if param_ind == 0:
                 current_mat = None
-                mesh_path = join_omsi_path(folder, line)
+                mesh_path = resolve_omsi_path(folder, line, encoding)
                 if not os.path.isfile(mesh_path):
-                    mesh_path = join_omsi_path(folder_model, line)
+                    mesh_path = resolve_omsi_path(folder_model, line, encoding)
                 current_mesh = line
 
                 cfg_data[current_lod]["meshes"][current_mesh] = {

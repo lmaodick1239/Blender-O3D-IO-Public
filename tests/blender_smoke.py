@@ -9,6 +9,7 @@ if str(HERE) not in sys.path:
 import bpy
 
 import smoke_io
+import smoke_paths
 import smoke_materials
 from smoke_support import load_addon
 
@@ -20,12 +21,14 @@ CHECKS = [
     smoke_materials.assert_terrain_material_compatibility,
     smoke_materials.assert_bump_map,
     smoke_io.assert_invalid_topology_guard,
-    smoke_io.assert_leading_separator_mesh_path,
+    smoke_paths.assert_leading_separator_mesh_path,
     smoke_io.assert_singular_transform_guard,
     smoke_io.assert_material_less_export,
     smoke_io.assert_emission_round_trip,
     smoke_io.assert_uv_seam_round_trip,
     smoke_io.assert_light_flare_flags_round_trip,
+    smoke_paths.assert_regional_codepage_paths,
+    smoke_paths.assert_missing_meshes_are_reported,
     smoke_io.assert_bulk_import,
     smoke_io.assert_round_trip,
 ]

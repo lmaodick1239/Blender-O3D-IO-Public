@@ -44,7 +44,7 @@ def resolve_import_filepaths(filepath, directory, filenames):
 
 
 def do_import(filepath, context, import_x, override_text_encoding, hide_lods, import_lods=True, parent_collection=None,
-              split_normals=True):
+              split_normals=True, missing_files=None):
     """
     Imports the selected CFG/SCO/O3D file
     :param override_text_encoding: the text encoding to use to read the file instead of utf8/cp1252
@@ -54,6 +54,7 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
     :param context: blender context
     :param import_lods: whether additional LODs should be loaded
     :param parent_collection: which current_collection to parent the imported objects to, use None for the scene current_collection
+    :param missing_files: optional list which collects the paths of meshes that could not be read
     :return: success message
     """
     obj_root = os.path.dirname(filepath)
@@ -157,6 +158,8 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
                 # Load mesh
                 materials, matl_ids, mesh, o3d, o3d_transform_matrix = load_o3d(obj_root, path_to_file, split_normals)
                 if mesh is None:
+                    if missing_files is not None:
+                        missing_files.append(path_to_file)
                     continue
 
                 # Create blender object
@@ -229,6 +232,9 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
         if n_meshes == 0:
             log("WARNING: 0 models loaded! File:", filepath)
 
+        if missing_files:
+            log("WARNING: {0} of {1} meshes could not be read and are missing from the import!".format(
+                len(missing_files), n_meshes))
         log("Loaded {0} models in {1} seconds!".format(n_meshes, time.time() - start_time))
         return blender_objs
     finally:

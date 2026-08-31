@@ -169,19 +169,28 @@ class ImportModelCFG(bpy.types.Operator, ImportHelper):
             return {'CANCELLED'}
 
         imported_count = 0
+        missing_files = []
         try:
             for selected_path in selected_paths:
                 imported_count += len(io_o3d_import.do_import(
                     selected_path, context, self.import_x, self.override_text_encoding, self.hide_lods,
                     import_lods=True, parent_collection=parent_collection,
-                    split_normals=self.import_custom_normals))
+                    split_normals=self.import_custom_normals, missing_files=missing_files))
         finally:
             context.window.cursor_set('DEFAULT')
 
-        self.report({'INFO'}, "Imported {0} object(s) from {1} file(s)".format(
-            imported_count,
-            len(selected_paths),
-        ))
+        if missing_files:
+            self.report({'WARNING'}, "Imported {0} object(s) from {1} file(s). {2} mesh file(s) were missing and have "
+                                     "been skipped, the first is: {3}".format(
+                                         imported_count,
+                                         len(selected_paths),
+                                         len(missing_files),
+                                         missing_files[0]))
+        else:
+            self.report({'INFO'}, "Imported {0} object(s) from {1} file(s)".format(
+                imported_count,
+                len(selected_paths),
+            ))
 
         return {'FINISHED'}
 

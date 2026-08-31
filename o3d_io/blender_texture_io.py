@@ -6,6 +6,7 @@ import os
 import bpy
 import numpy as np
 from .dds_loader.dds_loader import DDSTexture, FormatNotValid, FormatNotSupported
+from .omsi_paths import decode_candidates
 
 
 def log(*args):
@@ -30,6 +31,18 @@ class TextureSlotWrapper:
 
 
 def find_image_path(base_file_path, texture_path, abs_path=False, find_cfg=False):
+    """
+    Locates a texture referenced by a config file, retrying the regional codepages OMSI authors use
+    when the name as written does not exist on disk.
+    """
+    for candidate in decode_candidates(texture_path):
+        found = _find_image_path(base_file_path, candidate, abs_path, find_cfg)
+        if found is not None:
+            return found
+    return None
+
+
+def _find_image_path(base_file_path, texture_path, abs_path=False, find_cfg=False):
     if base_file_path[-3:] == "sco":
         tex_file = os.path.join(os.path.dirname(base_file_path), "texture", texture_path.lower())
     elif base_file_path[-3:] == "map":

@@ -24,31 +24,6 @@ def assert_invalid_topology_guard(addon: ModuleType) -> None:
     assert len(mesh.polygons) == 0
 
 
-def assert_leading_separator_mesh_path(addon: ModuleType) -> None:
-    """Issue #72: a [mesh] path written with a leading separator resolved to the drive root."""
-    join = addon.o3d_io.omsi_paths.join_omsi_path
-    base = os.path.join("models", "bus")
-    expected = os.path.join(base, "seat", "LChair3.o3d")
-    assert join(base, r"\seat\LChair3.o3d") == expected
-    assert join(base, r"seat\LChair3.o3d") == expected
-    assert join(base, "/seat/LChair3.o3d") == expected
-
-    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-cfg-") as temporary:
-        directory = Path(temporary)
-        (directory / "seat").mkdir()
-        mesh_file = directory / "seat" / "LChair3.o3d"
-        mesh_file.write_bytes(b"")
-        cfg_path = directory / "model.cfg"
-        cfg_path.write_text("[mesh]" + "\n" + r"\seat\LChair3.o3d" + "\n\n", encoding="cp1252")
-        cfg_data, _ = addon.o3d_io.o3d_cfg_parser.read_cfg(str(cfg_path), "")
-        paths = [
-            mesh["path"]
-            for lod in cfg_data.values()
-            for mesh in lod["meshes"].values()
-        ]
-        assert paths == [str(mesh_file)], paths
-
-
 def assert_singular_transform_guard(addon: ModuleType) -> None:
     """Issue #93: a degenerate o3d transform aborted the import with a ValueError."""
     source = create_source_object(addon)
