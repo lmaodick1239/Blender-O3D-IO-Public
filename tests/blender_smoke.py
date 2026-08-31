@@ -25,6 +25,7 @@ CHECKS = [
     smoke_io.assert_material_less_export,
     smoke_io.assert_emission_round_trip,
     smoke_io.assert_uv_seam_round_trip,
+    smoke_io.assert_light_flare_flags_round_trip,
     smoke_io.assert_bulk_import,
     smoke_io.assert_round_trip,
 ]

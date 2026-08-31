@@ -529,7 +529,8 @@ def write_cfg_empty(f, filepath, context, obj):
                                     size,
                                     obj["max_brightness_angle"], obj["min_brightness_angle"],
                                     obj["brightness_var"], obj["brightness"],
-                                    obj["z_offset"], obj["effect"], obj["cone_effect"], obj["ramp_time"],
+                                    obj["z_offset"], obj["effect"],
+                                    1 if obj["cone_effect"] else 0, obj["ramp_time"],
                                     texture))))
         f.write("\n\n")
 

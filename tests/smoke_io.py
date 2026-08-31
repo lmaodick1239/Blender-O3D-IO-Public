@@ -162,6 +162,47 @@ def assert_uv_seam_round_trip(addon: ModuleType) -> None:
         bpy.data.objects.remove(imported[0], do_unlink=True)
 
 
+def assert_light_flare_flags_round_trip(addon: ModuleType) -> None:
+    """Boolean flare flags were written as True/False, which neither OMSI nor the importer can parse."""
+    bpy.ops.object.select_all(action="DESELECT")
+    flare = bpy.data.objects.new("::light_enh_2_0", None)
+    bpy.context.scene.collection.objects.link(flare)
+    flare.location = (1.0, 2.0, 3.0)
+    flare["type"] = "[light_enh_2]"
+    flare["forward_vector"] = (0.0, 1.0, 0.0)
+    flare["rotation_axis"] = (0.0, 0.0, 1.0)
+    flare["omnidirectional"] = False
+    flare["rotating"] = 0
+    flare["max_brightness_angle"] = 30.0
+    flare["min_brightness_angle"] = 60.0
+    flare["brightness_var"] = ""
+    flare["brightness"] = 1.0
+    flare["z_offset"] = 0.0
+    flare["effect"] = 0
+    flare["cone_effect"] = False
+    flare["ramp_time"] = 0.5
+    flare.select_set(True)
+    bpy.context.view_layer.objects.active = flare
+
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-flare-") as temporary:
+        cfg_path = Path(temporary) / "flare.cfg"
+        addon.o3d_io.io_o3d_export.do_export(
+            str(cfg_path), bpy.context, Matrix.Identity(4), True, 7, True
+        )
+        text = cfg_path.read_text(encoding="cp1252")
+        assert "[light_enh_2]" in text
+        assert "False" not in text, text
+        assert "True" not in text, text
+        # The importer must be able to read back what the exporter just wrote
+        cfg_data, _ = addon.o3d_io.o3d_cfg_parser.read_cfg(str(cfg_path), "")
+        flares = cfg_data[-1]["light_flares"]
+        assert len(flares) == 1, flares
+        assert flares[0]["cone_effect"] is False
+        assert flares[0]["omni"] is False
+
+    bpy.data.objects.remove(flare, do_unlink=True)
+
+
 def assert_bulk_import(addon: ModuleType) -> None:
     source = create_source_object(addon)
     with tempfile.TemporaryDirectory(prefix="blender-o3d-io-bulk-") as temporary:
