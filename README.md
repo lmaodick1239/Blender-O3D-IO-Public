@@ -6,9 +6,11 @@ An OMSI import and export add-on for Blender supporting `.map`, `.cfg`, `.sco`, 
 
 ## Blender 4.x and 5.x support
 
-Version 1.3.3 supports Blender 4.0 through Blender 5.1. It uses Blender's current custom-normal, Principled BSDF, material transparency, and multi-file selection APIs while retaining the legacy compatibility paths for older source installations.
+Version 1.3.4 supports Blender 4.0 through Blender 5.2, and is verified against Blender 5.2 LTS. It uses Blender's current custom-normal, Principled BSDF, material transparency, and multi-file selection APIs while retaining the legacy compatibility paths for older source installations.
 
-For Blender 4.2 through 5.1, install the extension ZIP from `Edit > Preferences > Get Extensions > Install from Disk`. Select the ZIP file itself instead of its containing folder. Blender 4.0 and 4.1 can use the repository ZIP through the legacy add-on installer.
+Map and tile import build their materials on the shader wrapper shipped with the running Blender version, so the terrain and map-preview materials work on 4.0 and newer where the Principled BSDF sockets were renamed.
+
+For Blender 4.2 through 5.2, install the extension ZIP from `Edit > Preferences > Get Extensions > Install from Disk`. Select the ZIP file itself instead of its containing folder. Blender 4.0 and 4.1 can use the repository ZIP through the legacy add-on installer.
 
 The optional private `o3d_crypto.py` module is not distributed with this repository. Its warning only affects encrypted O3D files; ordinary import and export remain available.
 
