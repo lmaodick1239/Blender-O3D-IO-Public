@@ -52,16 +52,42 @@ def decode_candidates(text, source_encoding="cp1252"):
             yield decoded
 
 
+def resolve_case_insensitive_path(path):
+    """Return the existing path's casing, or the requested path when no match exists."""
+    path = platform_related_path(path)
+    if os.path.exists(path):
+        return path
+    drive, tail = os.path.splitdrive(os.path.abspath(path))
+    current = drive + os.sep
+    for component in tail.split(os.sep):
+        if not component:
+            continue
+        exact = os.path.join(current, component)
+        if os.path.exists(exact):
+            current = exact
+            continue
+        try:
+            match = next((name for name in sorted(os.listdir(current))
+                          if name.casefold() == component.casefold()), None)
+        except OSError:
+            return path
+        if match is None:
+            return path
+        current = os.path.join(current, match)
+    return current
+
+
 def resolve_omsi_path(base, relative, source_encoding="cp1252"):
     """
-    Joins an OMSI declared path onto its base directory, retrying other regional codepages when the
-    file is missing. Returns the first path that exists, or the plain join when none of them do.
+    Resolve a declared OMSI path regardless of filename/directory case or regional codepage.
+    Returns the first file that exists, or the plain join when none of them do.
     """
     fallback = None
     for candidate in decode_candidates(relative, source_encoding):
         path = join_omsi_path(base, candidate)
         if fallback is None:
             fallback = path
+        path = resolve_case_insensitive_path(path)
         if os.path.isfile(path):
             return path
     return fallback

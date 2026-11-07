@@ -3,10 +3,15 @@
 # ==============================================================================
 
 import os
+from contextvars import ContextVar
+
 import bpy
 import numpy as np
 from .dds_loader.dds_loader import DDSTexture, FormatNotValid, FormatNotSupported
-from .omsi_paths import decode_candidates
+from .omsi_paths import decode_candidates, platform_related_path, resolve_case_insensitive_path
+
+
+missing_texture_files = ContextVar("missing_texture_files", default=None)
 
 
 def log(*args):
@@ -43,28 +48,32 @@ def find_image_path(base_file_path, texture_path, abs_path=False, find_cfg=False
 
 
 def _find_image_path(base_file_path, texture_path, abs_path=False, find_cfg=False):
-    if base_file_path[-3:] == "sco":
-        tex_file = os.path.join(os.path.dirname(base_file_path), "texture", texture_path.lower())
-    elif base_file_path[-3:] == "map":
-        tex_file = os.path.join(os.path.dirname(base_file_path), "..", "..", texture_path.lower())
+    base_file_path = resolve_case_insensitive_path(base_file_path)
+    texture_path = platform_related_path(texture_path)
+    if base_file_path[-3:].lower() == "sco":
+        tex_file = os.path.join(os.path.dirname(base_file_path), "texture", texture_path)
+    elif base_file_path[-3:].lower() == "map":
+        tex_file = os.path.join(os.path.dirname(base_file_path), "..", "..", texture_path)
     else:
-        tex_file = os.path.join(os.path.dirname(base_file_path), "..", "texture", texture_path.lower())
+        tex_file = os.path.join(os.path.dirname(base_file_path), "..", "texture", texture_path)
 
     if abs_path:
-        tex_file = texture_path.lower()
+        tex_file = texture_path
 
+    tex_file = resolve_case_insensitive_path(tex_file)
     pre, ext = os.path.splitext(tex_file)
-    if os.path.isfile(pre + ".dds"):
-        tex_file = pre + ".dds"
+    dds_file = resolve_case_insensitive_path(pre + ".dds")
+    if os.path.isfile(dds_file):
+        tex_file = dds_file
 
     # Attempt a manual search for the file if we couldn't find it
     if not os.path.isfile(tex_file):
         tex_dir = os.path.dirname(base_file_path)
         while True:
-            tex_file = os.path.join(tex_dir, texture_path.lower())
+            tex_file = resolve_case_insensitive_path(os.path.join(tex_dir, texture_path))
             if os.path.isfile(tex_file):
                 break
-            tex_file = os.path.join(tex_dir, "texture", texture_path.lower())
+            tex_file = resolve_case_insensitive_path(os.path.join(tex_dir, "texture", texture_path))
             if os.path.isfile(tex_file):
                 break
 
@@ -75,7 +84,7 @@ def _find_image_path(base_file_path, texture_path, abs_path=False, find_cfg=Fals
                 break
 
     if find_cfg:
-        tex_file += ".cfg"
+        tex_file = resolve_case_insensitive_path(tex_file + ".cfg")
 
     if os.path.isfile(tex_file):
         return tex_file
@@ -136,6 +145,9 @@ def load_image(base_file_path, texture_path, abs_path=False):
 
         return image
     else:
+        missing_files = missing_texture_files.get()
+        if missing_files is not None:
+            missing_files.append(texture_path)
         log("WARNING: Couldn't find texture: {0}".format(texture_path))
         return None
 

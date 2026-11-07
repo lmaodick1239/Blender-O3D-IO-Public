@@ -14,7 +14,7 @@ from . import blender_compat, io_omsi_spline, io_o3d_import
 from .layered_shader import LayeredBSDFWrapper
 from .blender_texture_io import load_texture_into_new_slot
 from .o3d_cfg_parser import read_generic_cfg_file
-from .omsi_paths import join_omsi_path
+from .omsi_paths import resolve_omsi_path, resolve_case_insensitive_path
 
 
 def log(*args):
@@ -23,13 +23,14 @@ def log(*args):
 
 def do_import(context, filepath, import_scos, import_splines, spline_tess_dist, spline_tess_angle, import_x,
               centre_x, centre_y, load_radius):
+    filepath = resolve_case_insensitive_path(filepath)
     # Read global.cfg
     global_cfg = read_generic_cfg_file(os.path.join(os.path.dirname(filepath), "global.cfg"))
 
-    if filepath[-3:] == "map":
+    if filepath[-3:].lower() == "map":
         import_tile(context, filepath, import_scos, global_cfg, import_splines, spline_tess_dist, spline_tess_angle,
                     import_x)
-    elif filepath[-3:] == "cfg":
+    elif filepath[-3:].lower() == "cfg":
         start_time = time.time()
         working_dir = os.path.dirname(filepath)
         objs = []
@@ -67,6 +68,7 @@ def do_import(context, filepath, import_scos, import_splines, spline_tess_dist, 
 
 def import_tile(context, filepath, import_scos, global_cfg, import_splines, spline_tess_dist, spline_tess_angle,
                 import_x, loaded_objs_cache=None):
+    filepath = resolve_case_insensitive_path(filepath)
     start_time = time.time()
 
     collection = bpy.data.collections.new(os.path.basename(filepath[:-4]))
@@ -128,11 +130,11 @@ def generate_terrain_materials(mesh, filepath, global_cfg):
     mat.roughness = 0.7
 
     # The base texture has no splat_map, for now we just create a dummy path for it so that it isn't forgotten
-    splat_dir = os.path.join(os.path.dirname(filepath), "texture", "map")
+    splat_dir = resolve_case_insensitive_path(os.path.join(os.path.dirname(filepath), "texture", "map"))
     splat_maps = [os.path.join(splat_dir, map_name + ".0.dds")] + \
                  [os.path.join(splat_dir, x) for x in
-                  os.listdir(os.path.join(os.path.dirname(filepath), "texture", "map"))
-                  if os.path.basename(x).startswith(map_name) and is_int(x[len(map_name) + 1:-4])]
+                  os.listdir(splat_dir)
+                  if os.path.basename(x).casefold().startswith(map_name.casefold()) and is_int(x[len(map_name) + 1:-4])]
 
     mat.base_color_n_textures = min(len(splat_maps), 16)
 
@@ -148,7 +150,7 @@ def generate_terrain_materials(mesh, filepath, global_cfg):
     for i, splat_map in enumerate(splat_maps[:0:-1]):
         f_name = os.path.basename(splat_map)
 
-        tex_no = int(f_name.removeprefix(map_name)[1:-4])
+        tex_no = int(f_name[len(map_name) + 1:-4])
 
         if i >= 15:
             log("WARNING: Terrain tile has more than 16 textures, only the first 16 will be imported!")
@@ -178,7 +180,8 @@ def import_terrain_mesh(filepath, global_cfg):
     :return: a blender object of the terrain
     """
     terr_dim = 61
-    with open(filepath + ".terrain", "rb") as f:
+    terrain_path = resolve_case_insensitive_path(filepath + ".terrain")
+    with open(terrain_path, "rb") as f:
         # Header
         f.read(0x4)
 
@@ -405,7 +408,7 @@ def parse_map_data(map_file, omsi_dir):
 
             objs.append({
                 "cfg_type": "object",
-                "path": join_omsi_path(omsi_dir, path),
+                "path": resolve_omsi_path(omsi_dir, path),
                 "id": obj_id,
                 "pos": pos, "rot": rot,
                 "tree_data": tree_data
@@ -437,7 +440,7 @@ def parse_map_data(map_file, omsi_dir):
                 pass  # Label
 
             objs.append({
-                "path": join_omsi_path(omsi_dir, path),
+                "path": resolve_omsi_path(omsi_dir, path),
                 "id": obj_id,
                 "pos": pos, "rot": rot,
                 "tree_data": tree_data,
@@ -465,7 +468,7 @@ def parse_map_data(map_file, omsi_dir):
 
             objs.append({
                 "cfg_type": "splineAttachement",
-                "path": join_omsi_path(omsi_dir, lines[1]),
+                "path": resolve_omsi_path(omsi_dir, lines[1]),
                 "id": int(lines[2]),
                 "pos": [float(lines[4 + x]) for x in range(3)],
                 "rot": [float(lines[7 + x]) for x in range(3)],
@@ -497,7 +500,7 @@ def parse_map_data(map_file, omsi_dir):
 
             objs.append({
                 "cfg_type": "splineAttachement_repeater",
-                "path": join_omsi_path(omsi_dir, lines[3]),
+                "path": resolve_omsi_path(omsi_dir, lines[3]),
                 "id": int(lines[4]),
                 "pos": [float(lines[6 + x]) for x in range(3)],
                 "rot": [float(lines[9 + x]) for x in range(3)],

@@ -12,7 +12,7 @@ if bpy.app.version >= (4, 0):
 else:
     from . import o3d_node_shader_utils
 from . import blender_compat
-from .omsi_paths import join_omsi_path, resolve_omsi_path
+from .omsi_paths import resolve_omsi_path, resolve_case_insensitive_path
 
 
 def log(*args):
@@ -26,6 +26,7 @@ def read_generic_cfg_file(cfg_path):
     :return: a dict with the cfg command (including square brackets) as the key and a list of instances (which are
              lists of lines) as values
     """
+    cfg_path = resolve_case_insensitive_path(cfg_path)
     try:
         with open(cfg_path, 'r', encoding="utf-8") as f:
             lines = [l.rstrip() for l in f.readlines()]
@@ -97,6 +98,7 @@ def read_cfg(filepath, override_text_encoding):
       The cfg_data dictionary: {lod: {mesh/path: {'matls': {texture_path:{ material properties...}}, mesh properties}}},
       The root folder of the material).
     """
+    filepath = resolve_case_insensitive_path(filepath)
     # get the folder
     folder = (os.path.dirname(filepath))
     folder_model = os.path.join(folder, "model")

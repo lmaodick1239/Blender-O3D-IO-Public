@@ -11,7 +11,7 @@ else:
 from . import blender_compat
 from .blender_texture_io import load_texture_into_new_slot, find_image_path
 from .o3d_cfg_parser import read_generic_cfg_file
-from .omsi_paths import join_omsi_path
+from .omsi_paths import resolve_omsi_path
 from mathutils import Vector
 import mathutils
 
@@ -368,10 +368,12 @@ def load_spline(sli_path, omsi_dir):
     """
     # Spline profiles are defined as a list of pairs of points. Each pair can have a different material and uvs.
     # We usually assume that the pairs join up with each other, but it is not required...
-    if not os.path.isfile(join_omsi_path(omsi_dir, sli_path)):
+    resolved_path = resolve_omsi_path(omsi_dir, sli_path)
+    if not os.path.isfile(resolved_path):
         sli_path = os.path.join("Splines", "invis_street.sli")
         log("[WARNING] Spline profile {0} does not exist! Replacing with invis_street.sli instead...")
-    with open(join_omsi_path(omsi_dir, sli_path), "r", encoding="utf-8", errors="replace") as f:
+        resolved_path = resolve_omsi_path(omsi_dir, sli_path)
+    with open(resolved_path, "r", encoding="utf-8", errors="replace") as f:
         curr_mat_idx = -1
         points = []
         matls = {}
@@ -528,7 +530,7 @@ def import_map_splines(filepath, map_file, spline_tess_dist, spline_curve_sag, p
             face.material_index = mat_ids[i]
 
         # Generate materials for the spline
-        generate_materials(mesh, join_omsi_path(omsi_dir, spline.sli_path), spline_cache[spline.sli_path][1])
+        generate_materials(mesh, resolve_omsi_path(omsi_dir, spline.sli_path), spline_cache[spline.sli_path][1])
 
         # Create a blender object from the mesh and set its transform
         create_spline_obj(mesh, name, objs, parent_collection, spline)

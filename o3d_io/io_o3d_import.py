@@ -3,6 +3,7 @@
 # ==============================================================================
 import math
 import time
+from collections import Counter
 from math import radians
 
 import numpy as np
@@ -19,8 +20,8 @@ from . import blender_compat, o3dconvert, o3d_armature
 # from . import log
 from mathutils import Matrix, Vector
 from .o3d_cfg_parser import read_cfg
-from .blender_texture_io import load_texture_into_new_slot, load_image
-from .omsi_paths import platform_related_path
+from .blender_texture_io import load_texture_into_new_slot, load_image, missing_texture_files
+from .omsi_paths import platform_related_path, resolve_case_insensitive_path
 
 
 def log(*args):
@@ -33,11 +34,12 @@ def resolve_import_filepaths(filepath, directory, filenames):
     selected_names = filenames or [os.path.basename(filepath)]
     resolved = []
     for filename in selected_names:
-        candidate = os.path.abspath(os.path.join(base_directory, filename))
+        candidate = os.path.abspath(os.path.join(base_directory, platform_related_path(filename)))
         if os.path.normcase(os.path.dirname(candidate)) != os.path.normcase(base_directory):
             continue
         if os.path.splitext(candidate)[1].lower() not in supported_extensions:
             continue
+        candidate = resolve_case_insensitive_path(candidate)
         if os.path.isfile(candidate):
             resolved.append(candidate)
     return resolved
@@ -57,6 +59,7 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
     :param missing_files: optional list which collects the paths of meshes that could not be read
     :return: success message
     """
+    filepath = resolve_case_insensitive_path(filepath)
     obj_root = os.path.dirname(filepath)
     start_time = time.time()
     if os.path.splitext(filepath)[1].lower() in {".o3d", ".rdy"}:
@@ -74,6 +77,9 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
 
     n_meshes = len([0 for lod in cfg_data for mesh in cfg_data[lod]["meshes"]])
     bpy.context.window_manager.progress_begin(0, n_meshes)
+    unreadable_meshes = []
+    missing_textures = []
+    texture_token = missing_texture_files.set(missing_textures)
     try:
         sorted_lods = sorted(cfg_data.keys(), reverse=True)
 
@@ -116,7 +122,7 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
                 bpy.context.window_manager.progress_update(mesh_index)
                 log("[{0:.2f}%] Loading {1}...".format((mesh_index + 1) / n_meshes * 100, path_to_file))
 
-                if path_to_file[-1:] == "x":
+                if path_to_file[-1:].lower() == "x":
                     if not import_x:
                         bpy.ops.object.select_all(action='DESELECT')
                         continue
@@ -158,6 +164,7 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
                 # Load mesh
                 materials, matl_ids, mesh, o3d, o3d_transform_matrix = load_o3d(obj_root, path_to_file, split_normals)
                 if mesh is None:
+                    unreadable_meshes.append(path_to_file)
                     if missing_files is not None:
                         missing_files.append(path_to_file)
                     continue
@@ -270,12 +277,18 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
         if n_meshes == 0:
             log("WARNING: 0 models loaded! File:", filepath)
 
-        if missing_files:
+        if unreadable_meshes:
             log("WARNING: {0} of {1} meshes could not be read and are missing from the import!".format(
-                len(missing_files), n_meshes))
+                len(unreadable_meshes), n_meshes))
         log("Loaded {0} models in {1} seconds!".format(n_meshes, time.time() - start_time))
+        for label, paths in (("Unreadable meshes", unreadable_meshes), ("Missing textures", missing_textures)):
+            counts = Counter(os.path.basename(path.replace("\\", "/")) for path in paths)
+            log("{0}: {1} occurrences, {2} unique filename(s)".format(label, len(paths), len(counts)))
+            for filename, count in counts.most_common():
+                log("  {0}x {1}".format(count, filename))
         return blender_objs
     finally:
+        missing_texture_files.reset(texture_token)
         bpy.context.window_manager.progress_end()
 
 
@@ -397,6 +410,7 @@ def load_o3d(object_directory, path_to_file, split_normals):
     :param path_to_file: path to the o3d file to load
     :return:
     """
+    path_to_file = resolve_case_insensitive_path(path_to_file)
     try:
         with open(path_to_file, "rb") as f:
             o3d_bytes = f.read()

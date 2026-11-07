@@ -59,6 +59,12 @@ Blender-O3D-IO includes a fast o3d file importer and exporter with full support 
 6. Map tiles can be imported from `File->Import->OMSI Map Tile (*.map)`
 7. You can export o3d/cfg/sco files from `File->Export->OMSI Model Config (*.cfg, *.sco, *.o3d)`
 
+Imported model, config, texture, spline, and terrain paths are resolved without regard to filename or directory casing, including on Linux. Existing files keep their original names; exact matches take priority, and regional-codepage fallbacks remain supported.
+
+## Import diagnostics
+
+After the `Loaded ...` console line, each model import prints tallies of unreadable meshes and missing textures, grouped by filename with occurrence counts and unique-file totals. Repeated references are counted separately, the most frequent failures appear first, and counts reset for each imported model or configuration. Existing warnings still appear as files are processed.
+
 ## Exporter Tips
 OMSI and Blender handle 3D models and materials fairly differently so there are a few areas where the conversion between 
 Blender and OMSI is a bit imprecise, this is most notable when exporting as there are a few assumptions the exporter 
