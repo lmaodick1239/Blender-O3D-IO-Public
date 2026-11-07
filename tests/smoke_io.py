@@ -695,6 +695,137 @@ def assert_round_trip(addon: ModuleType) -> None:
         assert len(imported_cfg[0].data.vertices) == 3
 
 
+def parse_o3d_omsi(data: bytes):
+    """Parse an O3D file using the reader rules decompiled from OMSI 2.2.032.
+
+    This deliberately does not use o3dconvert.import_o3d, so the tests verify
+    what OMSI actually reads instead of what the add-on round-trips with itself.
+    The layout follows docs/research/2026-11-07-omsi-vs-addon-bones.md:
+
+    - version byte: rejected if > 7
+    - options byte: present if version >= 3; bit 0 = 32-bit triangle indices
+    - encryption key (u32): present if version >= 4; 0xFFFFFFFF = not encrypted
+    - 0x17 vertex count: u16 if version < 3, otherwise u32; 32 bytes per vertex
+    - 0x49 triangle count: u16 if version < 3, otherwise u32; indices are u32
+      when options bit 0 is set, otherwise u16, plus a u16 material index
+    - 0x26 material count: always u16
+    - 0x54 bone count: always u16; each influence is always u16 index + f32
+    - 0x79: 16 f32 transform values (64 bytes), always last
+
+    Returns (version, options, counts, bones) where bones is
+    [(name, [(index, weight), ...]), ...]. Raises AssertionError if any section
+    is unknown or the file does not end exactly at the end of a section.
+    """
+    assert len(data) >= 3 and data[0:2] == b"\x84\x19", f"bad magic: {data[:3].hex()}"
+    version = data[2]
+    assert version <= 7, f"version {version} is too new for OMSI"
+    offset = 3
+
+    options = 0
+    if version >= 3:
+        options = data[offset]
+        offset += 1
+    if version >= 4:
+        key = struct.unpack_from("<I", data, offset)[0]
+        offset += 4
+        assert key == 0xFFFFFFFF, "encrypted O3D files are unsupported by this parser"
+
+    counts = {}
+    bones = []
+    while offset < len(data):
+        section = data[offset]
+        offset += 1
+        if section == 0x17:
+            if version < 3:
+                n = struct.unpack_from("<H", data, offset)[0]
+                offset += 2
+            else:
+                n = struct.unpack_from("<I", data, offset)[0]
+                offset += 4
+            counts["vertices"] = n
+            offset += n * 32
+        elif section == 0x49:
+            if version < 3:
+                n = struct.unpack_from("<H", data, offset)[0]
+                offset += 2
+            else:
+                n = struct.unpack_from("<I", data, offset)[0]
+                offset += 4
+            counts["triangles"] = n
+            stride = (4 * 3 + 2) if (options & 1) == 1 else (2 * 4)
+            offset += n * stride
+        elif section == 0x26:
+            n = struct.unpack_from("<H", data, offset)[0]
+            offset += 2
+            counts["materials"] = n
+            for _ in range(n):
+                offset += 11 * 4
+                offset += data[offset] + 1
+        elif section == 0x54:
+            n = struct.unpack_from("<H", data, offset)[0]
+            offset += 2
+            counts["bones"] = n
+            for _ in range(n):
+                name_len = data[offset]
+                offset += 1
+                name = data[offset:offset + name_len].decode("cp1252", errors="backslashreplace")
+                offset += name_len
+                influence_count = struct.unpack_from("<H", data, offset)[0]
+                offset += 2
+                influences = []
+                for _ in range(influence_count):
+                    index = struct.unpack_from("<H", data, offset)[0]
+                    weight = struct.unpack_from("<f", data, offset + 2)[0]
+                    offset += 6
+                    influences.append((index, weight))
+                bones.append((name, influences))
+        elif section == 0x79:
+            offset += 16 * 4
+        else:
+            raise AssertionError(
+                f"unexpected section 0x{section:02x} at offset 0x{offset - 1:x}"
+            )
+
+    return version, options, counts, bones
+
+
+def _make_wide_unique_uv_mesh(name: str):
+    """Build a mesh whose export needs 32-bit triangle indices (> 65535 vertices).
+
+    Returns (mesh, vertex_count). Every triangle has unique position/normal/UV
+    so the exporter emits one vertex per loop and the final index range exceeds
+    the u16 limit.
+    """
+    triangle_count = 25000
+    vertex_count = triangle_count * 3
+
+    vertices = []
+    uv_coords = []
+    triangles = []
+
+    for tri_idx in range(triangle_count):
+        base_idx = tri_idx * 3
+        for v_offset in range(3):
+            v_idx = base_idx + v_offset
+            x = float(v_idx % 500)
+            y = float(v_idx // 500)
+            z = float(v_offset) * 0.1
+            vertices.append((x, y, z))
+            uv_coords.append((float(v_idx % 1000) / 1000.0, float(v_idx // 1000) / 100.0))
+        triangles.append((base_idx, base_idx + 1, base_idx + 2))
+
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(vertices, [], triangles)
+
+    uv_layer = mesh.uv_layers.new(name="UV Map")
+    for tri in mesh.loop_triangles:
+        for loop_idx in tri.loops:
+            vert_idx = mesh.loops[loop_idx].vertex_index
+            uv_layer.data[loop_idx].uv = uv_coords[vert_idx]
+    mesh.update()
+    return mesh, vertex_count
+
+
 def assert_narrow_index_width(addon: ModuleType) -> None:
     """Verify that normal meshes use 16-bit indices (header flag bit 0 clear)."""
     bpy.ops.object.select_all(action="DESELECT")
@@ -734,47 +865,17 @@ def assert_wide_index_width(addon: ModuleType) -> None:
     """Verify that large-index meshes use 32-bit indices (header flag bit 0 set)."""
     bpy.ops.object.select_all(action="DESELECT")
 
-    # Create a mesh that will have > 65535 exported vertices
-    # We need at least 65536/3 = 21846 triangles with unique vertices
-    # Strategy: create 25000 triangles, each with unique (position, normal, UV) combinations
-    triangle_count = 25000
-    vertex_count = triangle_count * 3
-
-    vertices = []
-    uv_coords = []
-    triangles = []
-
-    for tri_idx in range(triangle_count):
-        base_idx = tri_idx * 3
-        # Create 3 unique vertices for each triangle
-        for v_offset in range(3):
-            v_idx = base_idx + v_offset
-            x = float(v_idx % 500)
-            y = float(v_idx // 500)
-            z = float(v_offset) * 0.1
-            vertices.append((x, y, z))
-            # Unique UV to prevent deduplication
-            uv_coords.append((float(v_idx % 1000) / 1000.0, float(v_idx // 1000) / 100.0))
-        triangles.append((base_idx, base_idx + 1, base_idx + 2))
-
-    mesh = bpy.data.meshes.new("O3D Wide Index Mesh")
-    mesh.from_pydata(vertices, [], triangles)
-
-    # Add UV layer with unique UVs
-    uv_layer = mesh.uv_layers.new(name="UV Map")
-    for tri in mesh.loop_triangles:
-        for loop_idx in tri.loops:
-            vert_idx = mesh.loops[loop_idx].vertex_index
-            uv_layer.data[loop_idx].uv = uv_coords[vert_idx]
-    mesh.update()
+    # Create a mesh that will have > 65535 exported vertices: 25000 triangles,
+    # each with unique (position, normal, UV) so nothing deduplicates.
+    mesh, vertex_count = _make_wide_unique_uv_mesh("O3D Wide Index Mesh")
 
     source = bpy.data.objects.new("O3D Wide Index Object", mesh)
     bpy.context.scene.collection.objects.link(source)
     source.select_set(True)
 
-    # Add bone weight on high-index vertices
+    # Add bone weight on low-index vertices: bone influences are always u16.
     bone_group = source.vertex_groups.new(name="HighBone")
-    bone_group.add([vertex_count - 3, vertex_count - 2, vertex_count - 1], 1.0, "REPLACE")
+    bone_group.add([0, 1, 2], 1.0, "REPLACE")
 
     with tempfile.TemporaryDirectory(prefix="blender-o3d-io-wide-") as temporary:
         filepath = Path(temporary) / "wide.o3d"
@@ -789,6 +890,67 @@ def assert_wide_index_width(addon: ModuleType) -> None:
             options_byte = struct.unpack("<B", f.read(1))[0]
             # Bit 0 should be set for 32-bit indices
             assert (options_byte & 1) == 1, f"Expected wide indices (bit 0 set), got options_byte={options_byte}"
+
+        bpy.data.objects.remove(source, do_unlink=True)
+
+
+def assert_wide_mesh_bone_indices_are_u16(addon: ModuleType) -> None:
+    """Bone influence indices stay u16 even when triangle indices are 32-bit."""
+    bpy.ops.object.select_all(action="DESELECT")
+    mesh, vertex_count = _make_wide_unique_uv_mesh("O3D Wide Bone Index Mesh")
+
+    source = bpy.data.objects.new("O3D Wide Bone Index Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    source.select_set(True)
+
+    # Weight the three lowest vertices so the export is legal for bones.
+    bone_group = source.vertex_groups.new(name="LowBone")
+    bone_group.add([0, 1, 2], 1.0, "REPLACE")
+
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-wide-bone-") as temporary:
+        filepath = Path(temporary) / "wide_bone.o3d"
+        addon.o3d_io.io_o3d_export.do_export(
+            str(filepath), bpy.context, Matrix.Identity(4), True, 7, True
+        )
+
+        with open(filepath, "rb") as f:
+            data = f.read()
+
+        version, options, counts, bones = parse_o3d_omsi(data)
+        assert version == 7, f"expected v7, got {version}"
+        assert (options & 1) == 1, f"expected wide triangle indices, options={options:#x}"
+        assert counts["bones"] == 1, f"expected one bone, got {counts['bones']}"
+        assert bones[0][0] == "LowBone", f"unexpected bone name {bones[0][0]!r}"
+        influences = bones[0][1]
+        assert [idx for idx, _ in influences] == [0, 1, 2], f"unexpected influences {influences}"
+        assert all(idx < 65536 for idx, _ in influences), f"bone index above u16 range: {influences}"
+
+        bpy.data.objects.remove(source, do_unlink=True)
+
+
+def assert_weighted_index_above_u16_rejected(addon: ModuleType) -> None:
+    """Weighted vertex indices above 65535 are rejected: OMSI bones use u16."""
+    bpy.ops.object.select_all(action="DESELECT")
+    mesh, vertex_count = _make_wide_unique_uv_mesh("O3D Wide Weight Rejection Mesh")
+
+    source = bpy.data.objects.new("O3D Wide Weight Rejection Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    source.select_set(True)
+
+    bone_group = source.vertex_groups.new(name="HighBone")
+    bone_group.add([vertex_count - 3, vertex_count - 2, vertex_count - 1], 1.0, "REPLACE")
+
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-wide-weight-reject-") as temporary:
+        filepath = Path(temporary) / "wide_weight_reject.o3d"
+        try:
+            addon.o3d_io.io_o3d_export.do_export(
+                str(filepath), bpy.context, Matrix.Identity(4), True, 7, True
+            )
+            assert False, "Expected ValueError for weighted indices above 65535"
+        except ValueError as e:
+            error_msg = str(e)
+            assert "65535" in error_msg, f"Error should mention the 65535 limit: {error_msg}"
+            assert "HighBone" in error_msg, f"Error should name the group: {error_msg}"
 
         bpy.data.objects.remove(source, do_unlink=True)
 
@@ -843,6 +1005,50 @@ def assert_pre_v3_wide_index_rejection(addon: ModuleType) -> None:
             error_msg = str(e)
             assert "version" in error_msg.lower(), f"Error should mention version: {error_msg}"
             assert "65535" in error_msg, f"Error should mention limit: {error_msg}"
+
+        bpy.data.objects.remove(source, do_unlink=True)
+
+
+def assert_v3_header_layout(addon: ModuleType) -> None:
+    """Version 3 files carry the options byte and u32 counts, but no key."""
+    bpy.ops.object.select_all(action="DESELECT")
+    mesh = bpy.data.meshes.new("O3D V3 Header Mesh")
+    mesh.from_pydata(
+        [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+        [],
+        [(0, 1, 2)],
+    )
+    source = bpy.data.objects.new("O3D V3 Header Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    source.select_set(True)
+
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-v3-header-") as temporary:
+        filepath = Path(temporary) / "v3_header.o3d"
+        addon.o3d_io.io_o3d_export.do_export(
+            str(filepath), bpy.context, Matrix.Identity(4), True, 3, True
+        )
+
+        with open(filepath, "rb") as f:
+            data = f.read()
+
+        assert data[0:2] == b"\x84\x19", f"bad magic: {data[:3].hex()}"
+        assert data[2] == 3, f"expected version 3, got {data[2]}"
+        # Byte 3 is the options byte; byte 4 must be the 0x17 section tag, which
+        # proves no 4-byte encryption key is present in a version 3 header.
+        assert data[4] == 0x17, f"expected 0x17 vertex section at byte 4, got {data[4]:#x}"
+        assert struct.unpack_from("<I", data, 5)[0] == 3, "expected u32 vertex count"
+
+        version, options, counts, bones = parse_o3d_omsi(data)
+        assert version == 3
+        assert counts["vertices"] == 3, f"expected 3 vertices, got {counts['vertices']}"
+        assert counts["triangles"] == 1, f"expected 1 triangle, got {counts['triangles']}"
+
+        # The add-on's own reader must agree on the counts too.
+        header, vertex_list, triangle_list, material_list, bone_list, transform, encrypted = \
+            addon.o3d_io.o3dconvert.import_o3d(data)
+        assert header[2] == 3
+        assert len(vertex_list) == counts["vertices"]
+        assert len(triangle_list) == counts["triangles"]
 
         bpy.data.objects.remove(source, do_unlink=True)
 
@@ -1272,3 +1478,32 @@ def assert_malformed_influence_recovery(addon: ModuleType) -> None:
     finally:
         # Unconditional cleanup
         bpy.data.objects.remove(source2, do_unlink=True)
+
+
+def assert_unbound_setbone_warning(addon: ModuleType) -> None:
+    """[setbone] names that no longer match a populated vertex group are reported."""
+    bpy.ops.object.select_all(action="DESELECT")
+    mesh = bpy.data.meshes.new("O3D Setbone Mesh")
+    mesh.from_pydata(
+        [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+        [],
+        [(0, 1, 2)],
+    )
+    source = bpy.data.objects.new("O3D Setbone Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    source.select_set(True)
+
+    main_group = source.vertex_groups.new(name="Main")
+    main_group.add([0], 1.0, "REPLACE")
+    source.vertex_groups.new(name="Empty")
+
+    mesh["cfg_data"] = [
+        ["[setbone]", "Main", "-11"],
+        ["[setbone]", "Renamed", "-10"],
+        ["[setbone]", "Empty", "-12"],
+    ]
+
+    unbound = addon.o3d_io.o3d_cfg_parser.find_unbound_setbone_names(source)
+    assert unbound == {"Renamed", "Empty"}, f"expected {{'Renamed', 'Empty'}}, got {unbound}"
+
+    bpy.data.objects.remove(source, do_unlink=True)

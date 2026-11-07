@@ -38,11 +38,15 @@ CHECKS = [
     smoke_io.assert_posed_rig_with_export_error,
     smoke_io.assert_narrow_index_width,
     smoke_io.assert_wide_index_width,
+    smoke_io.assert_wide_mesh_bone_indices_are_u16,
+    smoke_io.assert_weighted_index_above_u16_rejected,
     smoke_io.assert_pre_v3_wide_index_rejection,
+    smoke_io.assert_v3_header_layout,
     smoke_io.assert_bone_validation,
     smoke_io.assert_pose_deformation,
     smoke_io.assert_weight_export_reimport,
     smoke_io.assert_malformed_influence_recovery,
+    smoke_io.assert_unbound_setbone_warning,
     smoke_io.assert_round_trip,
 ]
 

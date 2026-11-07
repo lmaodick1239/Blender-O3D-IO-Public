@@ -470,6 +470,53 @@ def write_additional_cfg_props(cfg_props, f):
                 f.write("\n")
 
 
+def find_unbound_setbone_names(obj):
+    """
+    Return the names from preserved [setbone] entries that no longer match a
+    vertex group with at least one vertex assigned a weight above zero.
+
+    OMSI binds a bone name to an integer slot through [setbone], and skips
+    entries whose name matches no loaded bone. The CFG parser stores [setbone]
+    blocks verbatim under obj.data["cfg_data"], and under each material's
+    "cfg_data" when the block followed a [matl] command. If a user renames or
+    empties a vertex group in Blender, the preserved entry no longer matches any
+    exported bone and OMSI silently stops deforming that bone. Comparison is
+    exact and case-sensitive.
+    """
+    def _populated_group_names():
+        names = set()
+        for vert in obj.data.vertices:
+            for group in vert.groups:
+                if group.weight > 0.0:
+                    names.add(obj.vertex_groups[group.group].name)
+        return names
+
+    entries = []
+    data_cfg = obj.data.get("cfg_data")
+    if data_cfg is not None:
+        entries.extend(data_cfg)
+    for slot in obj.material_slots:
+        mat = slot.material
+        if mat is None:
+            continue
+        mat_cfg = mat.get("cfg_data")
+        if mat_cfg is not None:
+            entries.extend(mat_cfg)
+
+    populated = _populated_group_names()
+    unbound = set()
+    for entry in entries:
+        # Entries are [command, line, ...]; trailing blank lines may follow.
+        if not entry or str(entry[0]).strip() != "[setbone]":
+            continue
+        if len(entry) < 2:
+            continue
+        name = str(entry[1]).strip()
+        if name and name not in populated:
+            unbound.add(name)
+    return unbound
+
+
 def write_cfg_mesh(f, filepath, context, obj):
     if "export_path" in obj:
         export_path = obj["export_path"]
@@ -479,6 +526,10 @@ def write_cfg_mesh(f, filepath, context, obj):
     f.write("---------------------------------------------------------------\n"
             "\t\t{0}\n\n".format(export_path[:-4].upper()))
     f.write("[mesh]\n{0}\n\n".format(export_path))
+
+    for name in sorted(find_unbound_setbone_names(obj)):
+        log(f"Warning: [setbone] name '{name}' on object '{obj.name}' no longer matches "
+            f"a vertex group with weights; OMSI will skip this bone.")
 
     write_additional_cfg_props(obj.data, f)
 

@@ -158,21 +158,31 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
         # Construct bones with validated weights mapped to export vertices
         bones = collect_o3d_bones(blender_obj, len(mesh.vertices), source_to_export)
 
-        # Compute maximum index across both triangle indices and bone vertex indices
+        # 32-bit triangle indices are driven by triangle indices only. Bone
+        # influence indices are always 16-bit in OMSI, regardless of options bit 0.
         max_triangle_index = max((idx for tri in tris for idx in tri[:3]), default=0)
-        max_bone_index = max((idx for _, influences in bones for idx, _ in influences), default=0)
-        max_triangle_or_weight_index = max(max_triangle_index, max_bone_index)
+        long_triangle_indices = max_triangle_index > 65535
 
-        # Determine if we need 32-bit indices
-        long_triangle_indices = max_triangle_or_weight_index > 65535
-
-        # Reject wide indices for pre-v3 formats
+        # Reject wide triangle indices for pre-v3 formats
         if o3d_version < 3 and long_triangle_indices:
             raise ValueError(
-                f"O3D version {o3d_version} does not support indices above 65535. "
-                f"Maximum index in this mesh is {max_triangle_or_weight_index}. "
+                f"O3D version {o3d_version} does not support triangle indices above 65535. "
+                f"Maximum triangle index in this mesh is {max_triangle_index}. "
                 f"Use version 3 or higher, or reduce the vertex count."
             )
+
+        # OMSI addresses bone influences with a 16-bit index, so weighted vertices
+        # above index 65535 cannot be skinned. Reject before writing the bone
+        # section. (The file is opened above, so like the pre-v3 rejection this
+        # can leave a partial file behind on failure.)
+        for bone_name, influences in bones:
+            for idx, _ in influences:
+                if idx > 65535:
+                    raise ValueError(
+                        f"Vertex group '{bone_name}' has weighted vertex index {idx}, "
+                        f"above the 65535 limit OMSI uses for bone influences. "
+                        f"Reduce the vertex count or move weights to lower vertices."
+                    )
 
         o3dconvert.export_o3d(f, verts, tris, o3d_mats, bones, transform_matrix,
                               version=o3d_version,

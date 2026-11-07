@@ -72,7 +72,7 @@ def import_material(buff, offset):
 
 
 # Takes an o3d bone struct and returns ((name, weights), newOffset)
-def import_bone(buff, offset, long_triangle_indices):
+def import_bone(buff, offset):
     h = struct.unpack_from("<B", buff, offset=offset)  # Name length
     b_name = struct.unpack_from("<{0}p".format(str(h[0] + 1)), buff, offset=offset)[0].decode("cp1252",
                                                                                               errors="backslashreplace")
@@ -82,8 +82,10 @@ def import_bone(buff, offset, long_triangle_indices):
     offset += 2
     weights = []
     for w in range(n_weights[0]):
-        weights.append(struct.unpack_from("<If" if long_triangle_indices else "<Hf", buff, offset=offset))
-        offset += 8 if long_triangle_indices else 6
+        # OMSI always stores bone influence indices as u16, regardless of the
+        # header options bit that widens triangle indices.
+        weights.append(struct.unpack_from("<Hf", buff, offset=offset))
+        offset += 6
 
     return (b_name, weights), offset
 
@@ -146,17 +148,14 @@ def import_material_list(buff, offset, l_header):
 
 
 # Imports a list of o3d bones and returns (bones, newOffset)
-def import_bone_list(buff, offset, l_header, long_triangle_indices):
-    if l_header:
-        header = struct.unpack_from("<I", buff, offset=offset)[0]
-        offset += 4
-    else:
-        header = struct.unpack_from("<H", buff, offset=offset)[0]
-        offset += 2
+def import_bone_list(buff, offset):
+    # OMSI always writes the bone count as u16, even in long-header files.
+    header = struct.unpack_from("<H", buff, offset=offset)[0]
+    offset += 2
 
     bones = []
     for b in range(header):
-        nb = import_bone(buff, offset, long_triangle_indices)
+        nb = import_bone(buff, offset)
         bones.append(nb[0])
         offset = nb[1]
 
@@ -180,17 +179,21 @@ def import_o3d(packed_bytes):
     off = 3
     l_header = False
     encrypted = False
-    bonus_header = [0, 0]
+    bonus_header = [0, 0xffffffff]
     if header[0:2] == (0x84, 0x19):
-        if header[2] > 3:
-            # Long header variant, sometimes encrypted
-            bonus_header = struct.unpack_from("<BI", packed_bytes, offset=off)
-            # log("Extended header options: long_triangle_indices={0}; alt_encryption_seed={1}; encryption_key={2}".format(
-            #    bonus_header[0] & 1 == 1, bonus_header[0] & 2 == 2, bonus_header[1]))
-            if bonus_header[1] != 0xffffffff:
-                encrypted = True
-                # log("Encrypted file detected!")
-            off += 5
+        if header[2] >= 3:
+            # Long header variant: the options byte is present from version 3 and
+            # the encryption key only from version 4. Sometimes encrypted.
+            bonus_header[0] = struct.unpack_from("<B", packed_bytes, offset=off)[0]
+            off += 1
+            # log("Extended header options: long_triangle_indices={0}; alt_encryption_seed={1}".format(
+            #    bonus_header[0] & 1 == 1, bonus_header[0] & 2 == 2))
+            if header[2] >= 4:
+                bonus_header[1] = struct.unpack_from("<I", packed_bytes, offset=off)[0]
+                off += 4
+                if bonus_header[1] != 0xffffffff:
+                    encrypted = True
+                    # log("Encrypted file detected!")
             l_header = True
     else:
         log(
@@ -217,7 +220,7 @@ def import_o3d(packed_bytes):
             material_list, off = import_material_list(packed_bytes, off, l_header)
             # log("Loaded {0} materials!".format(len(material_list)))
         elif section == 0x54:
-            bone_list, off = import_bone_list(packed_bytes, off, False, bonus_header[0] & 1 == 1)
+            bone_list, off = import_bone_list(packed_bytes, off)
             # log("Loaded {0} bones!".format(len(bone_list)))
         elif section == 0x79:
             transform, off = import_transform(packed_bytes, off)
@@ -229,7 +232,7 @@ def import_o3d(packed_bytes):
         # # log("Loaded {0} triangles!".format(len(triangle_list)))
         # material_list, off = import_material_list(packed_bytes, off, l_header)
         # # log("Loaded {0} materials!".format(len(material_list)))
-        # bone_list, off = import_bone_list(packed_bytes, off, l_header)
+        # bone_list, off = import_bone_list(packed_bytes, off)
         # # log("Loaded {0} bones!".format(len(bone_list)))
         # transform, off = import_transform(packed_bytes, off)
 
@@ -270,7 +273,7 @@ def export_material(write, material):
     write("<{0}p".format(len(material[-1])+1), material[-1].encode("cp1252"))
 
 
-def export_bone(write, bone, long_triangle_indices):
+def export_bone(write, bone):
     bone_name, influences = bone
 
     # Validate bone name fits in one-byte length-prefixed encoding
@@ -300,6 +303,15 @@ def export_bone(write, bone, long_triangle_indices):
                 f"Index must be a non-negative integer."
             )
 
+        # OMSI addresses bone influences with a 16-bit index, so weighted
+        # vertices must fit in a u16 regardless of the triangle index width.
+        if vertex_index > 65535:
+            raise ValueError(
+                f"Bone '{bone_name}' has vertex index {vertex_index} above 65535. "
+                f"OMSI stores bone influence indices as 16-bit values, so weighted "
+                f"vertices must have an index of at most 65535."
+            )
+
         # Validate weight is finite and non-negative
         if not (isinstance(weight, (int, float)) and math.isfinite(weight) and weight >= 0.0):
             raise ValueError(
@@ -307,7 +319,7 @@ def export_bone(write, bone, long_triangle_indices):
                 f"Weight must be a finite non-negative number."
             )
 
-        write("<If" if long_triangle_indices else "<Hf", vertex_index, weight)
+        write("<Hf", vertex_index, weight)
 
 
 def export_vertex_list(write, vertex_list, encrypted, encryption_key, long_header, alt_encryption_seed, version):
@@ -369,7 +381,7 @@ def export_material_list(write, material_list, long_header):
         export_material(write, m)
 
 
-def export_bone_list(write, bone_list, long_header, long_triangle_indices):
+def export_bone_list(write, bone_list):
     if len(bone_list) == 0:
         return
 
@@ -385,7 +397,7 @@ def export_bone_list(write, bone_list, long_header, long_triangle_indices):
     write("<H", len(bone_list))
 
     for bone in bone_list:
-        export_bone(write, bone, long_triangle_indices)
+        export_bone(write, bone)
 
 
 def export_transform(write, transform):
@@ -408,21 +420,22 @@ def export_o3d(file, vertex_list, triangle_list, material_list, bone_list, trans
 
     # Write header
     write("<BBB", 0x84, 0x19, version)
-    long_header = version > 3
-    if version > 3:
-        # Write extended header
+    long_header = version >= 3
+    if version >= 3:
+        # Write extended header: the options byte is present from version 3 and
+        # the encryption key only from version 4.
         options_byte = (1 if long_triangle_indices else 0) | (2 if alt_encryption_seed else 0)
         if not encrypted:
             # TODO: I think encryption is currently broken
             encryption_key = 0xffffffff
-        write("<BI", options_byte, encryption_key)
+        if version >= 4:
+            write("<BI", options_byte, encryption_key)
+        else:
+            write("<B", options_byte)
 
-    if version <= 3:
-        if alt_encryption_seed:
-            log("WARNING: O3D files with a version < 3 don't support the alt encryption "
-                "seed")
+    if version < 4:
         if encrypted:
-            log("WARNING: O3D files with a version < 3 don't support encryption, the "
+            log("WARNING: O3D files with a version < 4 don't support encryption, the "
                 "file will be unreadable")
 
     export_vertex_list(write, vertex_list, encrypted, encryption_key, long_header, alt_encryption_seed, version)
@@ -431,6 +444,6 @@ def export_o3d(file, vertex_list, triangle_list, material_list, bone_list, trans
     # log("Wrote {0} triangles!".format(len(triangle_list)))
     export_material_list(write, material_list, long_header)
     # log("Wrote {0} materials!".format(len(material_list)))
-    export_bone_list(write, bone_list, long_header, long_triangle_indices)
+    export_bone_list(write, bone_list)
     # log("Wrote {0} bones!".format(len(bone_list)))
     export_transform(write, transform)
