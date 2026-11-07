@@ -14,7 +14,7 @@ if bpy.app.version >= (4, 0):
     from bpy_extras import node_shader_utils as o3d_node_shader_utils
 else:
     from . import o3d_node_shader_utils
-from . import blender_compat, o3dconvert
+from . import blender_compat, o3dconvert, o3d_armature
 
 # from . import log
 from mathutils import Matrix, Vector
@@ -196,9 +196,47 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
 
                 # Generate bones
                 for bone in o3d[4]:
-                    blender_obj.vertex_groups.new(name=bone[0])
+                    bone_name = bone[0] if bone[0] else ""
+
+                    # Check if Blender supports this name
+                    if not bone_name:
+                        log(f"{path_to_file}: skipping bone: empty names are unsupported by Blender")
+                        continue
+
+                    blender_obj.vertex_groups.new(name=bone_name)
                     for vert in bone[1]:
-                        blender_obj.vertex_groups[bone[0]].add([vert[0]], vert[1], "REPLACE")
+                        vertex_index = vert[0]
+                        weight = vert[1]
+
+                        # Validate influence data
+                        try:
+                            index_valid = 0 <= vertex_index < len(blender_obj.data.vertices)
+                            weight_valid = isinstance(weight, (int, float)) and math.isfinite(weight) and weight >= 0.0
+                        except (TypeError, ValueError):
+                            index_valid = False
+                            weight_valid = False
+
+                        if not index_valid:
+                            log(f"{path_to_file}: skipping influence for {bone_name!r}: "
+                                f"vertex index {vertex_index!r} out of range (mesh has {len(blender_obj.data.vertices)} vertices)")
+                            continue
+
+                        if not weight_valid:
+                            log(f"{path_to_file}: skipping influence for {bone_name!r}: "
+                                f"weight {weight!r} is invalid (must be non-negative finite number)")
+                            continue
+
+                        blender_obj.vertex_groups[bone_name].add([vertex_index], weight, "REPLACE")
+
+                # Create armature if bones are present
+                if o3d[4]:
+                    armature = o3d_armature.create_armature_for_mesh(blender_obj, o3d[4])
+                    if armature:
+                        blender_objs.append(armature)
+                    else:
+                        log(f"{path_to_file}: no armature created (construction failed or no valid bones)")
+
+
 
                 mesh_index += 1
 

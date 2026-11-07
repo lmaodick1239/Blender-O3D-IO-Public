@@ -2,50 +2,77 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Import OMSI O3D bone weights into usable Blender armatures and export rest-space Blender rigs back to OMSI bone sections.
+**Goal:** Import OMSI O3D bone weights into usable Blender armatures and export independently rigged Blender meshes back to OMSI without baking the current armature pose.
 
-**Architecture:** Keep `o3dconvert.py` as the O3D format layer and add a focused Blender armature helper that consumes the existing named weight tuples. Wire that helper into O3D import, and make export collect validated vertex groups while disabling armature deformation for geometry extraction. Blender hierarchy is editor metadata; O3D names and weights remain the portable contract.
+**Architecture:** Keep `o3dconvert.py` as the binary O3D layer and preserve its named bone tuple representation. Add a focused `o3d_armature.py` helper for Blender hierarchy, placement, validation, parenting, and modifier binding; keep import/export orchestration in `io_o3d_import.py` and `io_o3d_export.py`. Export vertex groups after final O3D vertex construction, while obtaining geometry with armature deformation disabled.
 
-**Tech Stack:** Python, Blender 4.2–5.2 Python API, `bpy`, `mathutils`, existing Blender smoke harness.
+**Tech Stack:** Python, Blender `bpy` and `mathutils`, existing `blender_compat.py` helpers, and the repository’s background Blender smoke harness.
 
 ## Global Constraints
 
 - Create one Blender armature per imported O3D mesh that contains bones.
 - Keep the O3D bone names as Blender vertex-group names.
 - Build a canonical human hierarchy because O3D stores no parent relationships.
-- Estimate bone placement from weighted vertex centroids, with a normalized template fallback for missing or degenerate data.
+- Estimate bone placement from weighted vertex centroids, with a normalized human template fallback for missing or degenerate data.
 - Add an Armature modifier and parent each imported bone-bearing mesh to its generated armature.
 - Export vertex groups as O3D bone weights so independently rigged Blender models can be used in OMSI.
 - Export rest/model-space geometry rather than baking the current armature pose.
-- Do not implement OMSI's procedural human runtime, `[links]` pose generation, or animation clips.
+- Do not implement OMSI procedural human runtime, `[links]` pose generation, or animation clips.
 - Support the declared Blender 4.2 through 5.2 range without new dependencies.
-- Preserve existing behavior for imports without O3D bones and exports without bone groups.
+- Preserve existing behavior for imports without O3D bones and exports without valid bone groups.
+- Do not modify `README.md` or `README-FR.md`.
+- Do not serialize Blender armature hierarchy because O3D section `0x54` contains names and weights only.
 
 ---
 
-### Task 1: Build the reusable armature-construction helper
+## File Map
+
+- Create `o3d_io/o3d_armature.py`: Blender armature construction, canonical parent map, template placement, and influence normalization.
+- Modify `o3d_io/io_o3d_import.py`: validate/import vertex groups and invoke armature construction per bone-bearing mesh.
+- Modify `o3d_io/io_o3d_export.py`: preserve source-to-export vertex mapping, collect validated groups, extract rest-space geometry, and choose index width.
+- Modify `o3d_io/o3dconvert.py`: make `0x54` bone count/index-width serialization match the documented format and reject unrepresentable values.
+- Modify `tests/smoke_io.py`: add synthetic armature, malformed influence, posed export, round-trip, and index-width checks.
+- Modify `tests/blender_smoke.py`: register the new smoke checks in the existing suite.
+
+## Verification Commands
+
+Run the complete suite with the Blender executable under test:
+
+```bash
+blender --background --factory-startup --python tests/blender_smoke.py
+```
+
+The command must print `BLENDER_O3D_IO_SMOKE_OK`. Run it with Blender 4.2, 5.0, and 5.2 where those interpreters are available. Use `git diff --check` after implementation.
+
+### Task 1: Add the armature helper and synthetic coverage
 
 **Files:**
 - Create: `o3d_io/o3d_armature.py`
-- Test: `tests/smoke_io.py`
+- Modify: `tests/smoke_io.py`
+- Modify: `tests/blender_smoke.py`
 
 **Interfaces:**
-- Consumes: `bpy.types.Object`, mesh vertex coordinates, and O3D bone tuples of type `list[tuple[str, list[tuple[int, float]]]]`.
-- Produces: `create_armature_for_mesh(mesh_object: bpy.types.Object, bones: list[tuple[str, list[tuple[int, float]]]]) -> bpy.types.Object | None`.
-- Produces: explicit module constants for the canonical parent map and template bone directions so tests can inspect stable behavior without depending on O3D file order.
+- Consumes `bpy.types.Object` and `list[tuple[str, list[tuple[int, float]]]]` O3D bone records.
+- Produces `create_armature_for_mesh(mesh_object: bpy.types.Object, bones: list[tuple[str, list[tuple[int, float]]]]) -> bpy.types.Object | None`.
+- Exposes `CANONICAL_PARENTS` for test inspection.
+- Logs invalid influences and returns `None` only when no usable bone names remain.
 
-- [ ] **Step 1: Add a failing helper test using a synthetic mesh and named weights**
+- [ ] **Step 1: Add a failing synthetic smoke check**
 
-Add a smoke assertion that creates a small mesh with `Main`, `Hip`, and `Head`
-vertex groups, calls `create_armature_for_mesh`, and checks:
+Add `assert_armature_helper(addon)` to `tests/smoke_io.py`. Create the test mesh inline with four non-collinear vertices and call the helper with repeated names and weights:
 
 ```python
+mesh = bpy.data.meshes.new("O3D Armature Source Mesh")
+mesh.from_pydata([(0, 0, 0), (0, 0, 1), (1, 0, 0), (0, 1, 0)], [], [(0, 1, 2)])
+source = bpy.data.objects.new("O3D Armature Source", mesh)
+bpy.context.scene.collection.objects.link(source)
 armature = addon.o3d_io.o3d_armature.create_armature_for_mesh(
     source,
     [
         ("Main", [(0, 1.0), (1, 0.5)]),
         ("Hip", [(0, 0.5), (2, 1.0)]),
         ("Head", [(1, 1.0)]),
+        ("Hip", [(2, 0.25)]),
     ],
 )
 assert armature is not None
@@ -55,17 +82,24 @@ assert armature.data.bones["Head"].parent == armature.data.bones["Main"]
 assert source.parent is armature
 assert source.modifiers[-1].type == "ARMATURE"
 assert source.modifiers[-1].object is armature
+assert all(bone.length > 0.0 for bone in armature.data.bones)
 ```
 
-- [ ] **Step 2: Run the focused smoke test and verify it fails**
+Remove the source object and armature after assertions so the smoke scene stays isolated.
 
-Run the repository’s Blender smoke command used by CI, targeting the updated
-`smoke_io.py` entry point. Expected result: failure because
-`o3d_io.o3d_armature` does not exist.
+- [ ] **Step 2: Run the smoke test and confirm the new check fails**
 
-- [ ] **Step 3: Implement canonical hierarchy and robust influence collection**
+Run:
 
-In `o3d_io/o3d_armature.py`, define:
+```bash
+blender --background --factory-startup --python tests/blender_smoke.py
+```
+
+Expected failure: `o3d_io.o3d_armature` is not available or `create_armature_for_mesh` is undefined.
+
+- [ ] **Step 3: Implement explicit hierarchy and influence normalization**
+
+Create `o3d_io/o3d_armature.py` with these exact parent relationships:
 
 ```python
 CANONICAL_PARENTS = {
@@ -84,216 +118,226 @@ CANONICAL_PARENTS = {
 }
 ```
 
-Merge repeated names by maximum weight for a given vertex, ignore only
-out-of-range, non-finite, or negative influences with an explicit log message,
-and retain unknown names as root bones. Use weighted centroids for heads and
-derive tails from the child centroid or a non-zero template direction. Ensure
-every edit bone has a non-zero length even when its group has no usable
-vertices.
+Normalize records by name while preserving first-seen bone order. For repeated `(bone_name, vertex_index)` entries, retain the maximum valid weight. Skip and log weights when the index is outside `0 <= index < len(mesh.data.vertices)`, the weight is not finite, or the weight is negative. Keep zero weights out of centroid calculations but permit a named group to exist if its name is non-empty. Do not infer parents from input order. Unknown names remain root bones.
 
-- [ ] **Step 4: Implement armature creation and binding**
+- [ ] **Step 4: Implement centroid, template, and edit-bone creation**
 
-Create an armature data block and object, link it to the mesh’s collection,
-create edit bones, assign explicit parents after all bones exist, exit edit
-mode, parent the mesh to the armature, and add an Armature modifier pointing
-to the armature. Return the armature object. Return `None` only when the input
-contains no usable bone names, and log construction failures rather than
-silently swallowing them.
+Use mesh-local vertex coordinates. For each bone with usable positive weights, calculate the weighted centroid. Use a normalized human template direction/position for missing or degenerate centroids, scaling the template by the mesh bounding-box diagonal with a minimum scale of `0.001`. Place each head at its centroid or fallback point. Use the child centroid as a tail when a canonical child exists and is distinct; otherwise use a non-zero template direction. Ensure every edit bone has a strictly positive length.
 
-- [ ] **Step 5: Run the focused smoke test and verify it passes**
+Create an armature data block and object, link the armature to the first collection used by the mesh (or the scene collection if none exists), create all edit bones, assign parent pointers in a second pass, exit edit mode, set `mesh_object.parent = armature_object`, and append an Armature modifier targeting the new object. Catch construction failures, log the mesh name and exception, and return `None` without deleting the mesh or its vertex groups.
 
-Run the same Blender smoke selector. Expected result: the synthetic armature,
-canonical parents, parenting, and modifier assertions pass.
+- [ ] **Step 5: Run the synthetic check and confirm it passes**
 
-- [ ] **Step 6: Commit the helper**
+Run the same Blender smoke command. Expected result: the synthetic bones, parent map, non-zero lengths, mesh parenting, and modifier assertions pass.
+
+- [ ] **Step 6: Commit the helper and test**
 
 ```bash
-git add o3d_io/o3d_armature.py tests/smoke_io.py
+git add o3d_io/o3d_armature.py tests/smoke_io.py tests/blender_smoke.py
 git commit -m "feat: build armatures from O3D bones"
 ```
 
-### Task 2: Wire armatures into O3D import
+### Task 2: Integrate validated bone import
 
 **Files:**
-- Modify: `o3d_io/io_o3d_import.py:197-202` and import setup near the module imports
-- Test: `tests/smoke_io.py`
+- Modify: `o3d_io/io_o3d_import.py:17-18,197-202`
+- Modify: `tests/smoke_io.py`
 
 **Interfaces:**
-- Consumes: `o3d_armature.create_armature_for_mesh` from Task 1 and the parsed
-  `o3d[4]` bone tuples returned by `load_o3d`.
-- Produces: bone-bearing imported O3D objects with generated armatures, while
-  mesh-only O3D objects retain their existing behavior.
+- Consumes parsed `o3d[4]` bone records from `load_o3d`.
+- Produces named Blender vertex groups and, when records are present, a generated armature per mesh object.
 
-- [ ] **Step 1: Add a failing real-asset import assertion**
+- [ ] **Step 1: Add a failing importer integration check**
 
-Add a smoke test that imports
-`/mnt/More_Games/openOMSI-0.1.78-linux-x64/Humans/aXYZ/model/man01.o3d`
-with `do_import`, locates the new mesh object and its armature, and asserts the
-13 expected names:
+Add `assert_imported_bone_armature(addon)` as an isolated importer integration check. Temporarily replace `io_o3d_import.load_o3d` with a test stub returning a synthetic Blender mesh plus `Main`, `Hip`, and `Head` bone tuples, call `do_import` using a temporary placeholder `.o3d` path, then restore the original loader in `finally`. Assert the result contains the mesh and generated armature, the same group names, canonical parent relationships, mesh parenting, and an Armature modifier. Also assert that the existing material-only import path does not create an armature. Do not rely on exporting/re-importing an O3D file here; binary bone round trips depend on the `o3dconvert.py` fixes in Task 5 and are verified in Task 6.
 
-```python
-expected = {
-    "Hip", "Head", "OA_R", "UA_L", "Hand_R", "OS_R", "Hand_L",
-    "US_L", "OS_L", "US_R", "OA_L", "UA_R", "Main",
-}
-assert {bone.name for bone in armature.data.bones} == expected
-assert {group.name for group in mesh_object.vertex_groups} == expected
-```
+Add an optional stock-human check that reads the asset path from `O3D_HUMAN_ASSET` and explicitly logs/skips when unset or missing. When present, import it and assert the 13 names from the design spec: `Hip`, `Head`, `OA_R`, `UA_L`, `Hand_R`, `OS_R`, `Hand_L`, `US_L`, `OS_L`, `US_R`, `OA_L`, `UA_R`, and `Main`.
 
-Also assert that importing a known mesh without bones still returns only its
-mesh object and does not create an armature.
+- [ ] **Step 2: Run the focused check and confirm it fails**
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+Run the smoke command. Expected failure: imported groups exist but no armature object is generated.
 
-Run the Blender smoke selector for the new assertion. Expected result: the
-imported mesh has vertex groups but no generated armature.
+- [ ] **Step 3: Add import diagnostics and helper invocation**
 
-- [ ] **Step 3: Wire the helper after vertex groups are populated**
-
-Import `o3d_armature` and call:
+Import `.o3d_armature`. Before adding each parsed influence, validate its vertex index and weight and log `[O3D_Import]`, source path, bone name, index, and reason for skipped data. Preserve the group name when Blender can represent it; do not silently discard an empty or unknown name. After all groups are created, call:
 
 ```python
 if o3d[4]:
     o3d_armature.create_armature_for_mesh(blender_obj, o3d[4])
 ```
 
-Call it after all vertex groups are created and before the object is selected
-for the completed import result. Preserve the existing returned object list and
-LOD collection logic.
+If the helper reports construction failure, keep the mesh and groups in the returned object list and log that no armature was created. Do not alter LOD collection selection or the `blender_objs` result contract.
 
-- [ ] **Step 4: Add explicit import diagnostics**
+- [ ] **Step 4: Run focused and full import checks**
 
-Ensure invalid influences are logged with the O3D path, bone name, vertex index,
-and reason. If armature construction fails, leave the imported mesh and groups
-available, log the failure, and do not report that an armature was created.
+Run the complete smoke command. Verify generated armatures for bone-bearing sources, no armatures for mesh-only sources, and unchanged material/path/LOD checks.
 
-- [ ] **Step 5: Run focused import tests and the existing smoke suite**
-
-Run the real-asset bone test and then the complete configured Blender smoke
-suite. Expected result: generated armatures pass and all existing import,
-material, path, and regression checks remain green.
-
-- [ ] **Step 6: Commit importer integration**
+- [ ] **Step 5: Commit importer integration**
 
 ```bash
 git add o3d_io/io_o3d_import.py tests/smoke_io.py
 git commit -m "feat: attach armatures during O3D import"
 ```
 
-### Task 3: Make bone export rest-space and validation aware
+### Task 3: Add validated export bone collection and source-index mapping
 
 **Files:**
-- Modify: `o3d_io/io_o3d_export.py:20-120`
-- Test: `tests/smoke_io.py`
+- Modify: `o3d_io/io_o3d_export.py:32-121`
+- Modify: `tests/smoke_io.py`
 
 **Interfaces:**
-- Consumes: Blender mesh objects with vertex groups and optional Armature
-  modifiers.
-- Produces: validated `list[tuple[str, list[tuple[int, float]]]]` passed to
-  `o3dconvert.export_o3d`, with rest-space geometry and correct index width.
+- Add `collect_o3d_bones(blender_obj: bpy.types.Object, source_vertex_count: int, source_to_export: dict[int, list[int]]) -> list[tuple[str, list[tuple[int, float]]]]`.
+- The returned indices refer to the final `verts` array, not the original Blender mesh vertex array.
 
-- [ ] **Step 1: Add a failing export test for a posed rig**
+- [ ] **Step 1: Add a failing weight round-trip check**
 
-Create a triangle mesh with a `Main` vertex group and an armature modifier,
-pose the armature by rotating its edit/pose bone, export it, parse the written
-O3D, and compare the exported vertex positions against the unposed source
-mesh. Also assert that the parsed bone list contains `Main` and its weights.
+Create a mesh with a UV seam that causes exported vertex duplication and assign one group to the source vertex shared by both seam vertices. Export and parse the O3D bytes. Assert the group is non-empty and contains each generated export index corresponding to the source vertex. Add a second group with no assignments and assert it is omitted.
 
-Add a second test with a mesh that has no material and no bone groups to ensure
-the existing default-material path remains unchanged.
+- [ ] **Step 2: Run the check and confirm the current exporter fails**
 
-- [ ] **Step 2: Run the focused export test and verify it fails**
+Run the smoke command. Expected failure: the current exporter queries group weights using generated indices, may emit empty groups, and can lose or misassign weights after seam duplication.
 
-Run the Blender smoke selector. Expected result: the current exporter evaluates
-the armature modifier and exports posed geometry.
+- [ ] **Step 3: Implement validated collection**
 
-- [ ] **Step 3: Separate rest-space geometry from source vertex groups**
+Build `source_to_export` while constructing `verts`: whenever a source Blender vertex becomes a new exported vertex, append the exported index to that source vertex’s list; when an existing exported vertex is reused, append the index as well. For each vertex group, query weights against the source vertex count, then copy each valid weight to every corresponding exported vertex index. Retain finite weights `>= 0.0`, skip out-of-range source indices, and log object/group/index/reason for invalid data. Omit groups with no retained influences and preserve Blender group order.
 
-In `do_export`, detect Armature modifiers and create the export mesh without
-their deformation applied. Keep the existing evaluated path for non-armature
-modifiers and preserve object/world/global transforms. Do not mutate the
-original Blender mesh or permanently disable modifiers.
+- [ ] **Step 4: Replace the broad exception path and run the check**
 
-- [ ] **Step 4: Validate and collect export influences**
+Call `collect_o3d_bones` from `export_mesh` after final vertex construction and pass its result to `o3dconvert.export_o3d`. Run the smoke command and verify seam weights and empty-group omission.
 
-Replace the broad exception around `v_group.weight(index)` with an explicit
-collector that:
-
-```python
-def collect_o3d_bones(
-    blender_obj: bpy.types.Object,
-    vertex_count: int,
-) -> list[tuple[str, list[tuple[int, float]]]]:
-    ...
-```
-
-For each group, retain finite weights greater than or equal to zero, reject
-out-of-range indices, omit empty groups, and log the object/group/reason for
-skipped data. Preserve the existing group order for stable output.
-
-- [ ] **Step 5: Select long indices consistently**
-
-Before serialization, ensure a version-3-or-later export uses long indices when
-the mesh or any bone influence needs an index above `65535`. Reject the
-combination of version below 3 and indices above `65535` with an explicit
-export error rather than truncating. Pass the same choice to triangle and bone
-serialization.
-
-- [ ] **Step 6: Run focused export tests and the existing smoke suite**
-
-Verify that posed armatures export rest geometry, re-imported bones preserve
-names and weights, invalid influences are diagnosed, and existing round-trip
-tests remain green.
-
-- [ ] **Step 7: Commit export support**
+- [ ] **Step 5: Commit the collector**
 
 ```bash
 git add o3d_io/io_o3d_export.py tests/smoke_io.py
-git commit -m "feat: export validated rest-space O3D bones"
+git commit -m "fix: validate and map exported O3D weights"
 ```
 
-### Task 4: Document and run final compatibility verification
+### Task 4: Export rest-space geometry while preserving other modifiers
 
 **Files:**
-- Modify: `README.md` bone/feature documentation section
-- Modify: `README-FR.md` corresponding bone/feature documentation section
-- Test: `tests/smoke_io.py`
+- Modify: `o3d_io/io_o3d_export.py:124-215`
+- Modify: `tests/smoke_io.py`
 
 **Interfaces:**
-- Consumes: completed importer and exporter behavior from Tasks 1–3.
-- Produces: user-facing instructions for importing, posing, and exporting
-  bone-bearing models plus final verified behavior.
+- `do_export` continues accepting the existing arguments and returns the existing result.
+- `export_mesh` receives a mesh snapshot whose coordinates are rest/model-space when an Armature modifier is present.
 
-- [ ] **Step 1: Document the user workflow**
+- [ ] **Step 1: Add a failing posed-rig export test**
 
-Explain that imported bone-bearing O3D meshes receive per-mesh armatures,
-Blender hierarchy is inferred for editing, O3D export serializes named vertex
-groups rather than hierarchy, and exports use rest/model-space geometry.
-Mention that independently rigged models export when their vertex groups use
-the intended OMSI bone names.
+Create a two-bone armature and a mesh with a group bound to the child bone. Record the source rest vertex positions, pose the child bone by a visible rotation, export the mesh, parse the O3D vertices, and assert the current output differs from the recorded rest positions. Then add the intended assertion that output positions match the rest-space expectation; this assertion must fail before the fix.
 
-- [ ] **Step 2: Run the complete supported smoke matrix**
+- [ ] **Step 2: Implement non-destructive armature exclusion**
 
-Run the repository’s configured smoke command against Blender 4.2, 5.0, and
-5.2 when those interpreters are available. The expected result is a passing
-baseline with the new real-human import, pose, rest-export, re-import, and
-malformed-influence assertions.
+In `do_export`, inspect the source object’s modifiers before obtaining the evaluated mesh. For objects with an Armature modifier, temporarily disable only those modifiers for viewport/render evaluation, obtain the evaluated mesh, then restore every modifier’s prior state in a `finally` block. Do not mutate the source mesh data, pose, parenting, or modifier order. Keep non-armature modifiers evaluated as before. Continue applying object/world/global transforms to the temporary mesh only.
 
-- [ ] **Step 3: Inspect the final diff**
+- [ ] **Step 3: Run posed export verification**
+
+Run the smoke command. Verify a posed mesh exports the rest-space coordinates, while the generated Armature modifier and source pose remain intact after export.
+
+- [ ] **Step 4: Commit rest-space export**
+
+```bash
+git add o3d_io/io_o3d_export.py tests/smoke_io.py
+git commit -m "fix: export armature meshes from rest space"
+```
+
+### Task 5: Correct O3D index-width selection and binary validation
+
+**Files:**
+- Modify: `o3d_io/io_o3d_export.py:116-121`
+- Modify: `o3d_io/o3dconvert.py:273-352,366-403`
+- Modify: `tests/smoke_io.py`
+
+**Interfaces:**
+- `o3dconvert.export_o3d` keeps its current arguments and uses `long_triangle_indices` for both triangle indices and `0x54` weight vertex indices.
+- Bone count remains serialized as `u16` in section `0x54`, including version 3+.
+
+- [ ] **Step 1: Add failing index-width tests**
+
+Add a direct binary test for a normal version-7 mesh and assert header flag bit 0 is clear when all triangle and bone indices fit in `u16`. Add a synthetic large-index case that requires bit 0 and assert the serialized weight record uses four-byte vertex indices. Add a version-2 case requiring an index above `65535` and assert export raises a clear `ValueError` instead of truncating.
+
+- [ ] **Step 2: Implement one width decision in the exporter**
+
+After final `verts`, triangles, and bones are known, compute `max_triangle_or_weight_index`. Set `long_triangle_indices = max_index > 65535`. Reject `o3d_version < 3 and long_triangle_indices` with an error naming the version and maximum index. Pass the same boolean to `o3dconvert.export_o3d`; do not always pass `False`.
+
+- [ ] **Step 3: Validate serializer bounds**
+
+In `o3dconvert.py`, validate that the bone count and each weight count fit `u16`, names fit the one-byte length-prefixed encoding, indices are non-negative integers, and weights are finite and non-negative. Use `u16` bone counts for the `0x54` section regardless of long headers. Raise `ValueError` with the affected bone or record details when a value cannot be represented.
+
+- [ ] **Step 4: Run binary and regression checks**
+
+Run the smoke command. Verify version/header flags, 16-bit and 32-bit round trips, malformed-value errors, and all existing material/path tests.
+
+- [ ] **Step 5: Commit format-layer changes**
+
+```bash
+git add o3d_io/io_o3d_export.py o3d_io/o3dconvert.py tests/smoke_io.py
+git commit -m "fix: select O3D bone index width consistently"
+```
+
+### Task 6: Add end-to-end pose and re-import verification
+
+**Files:**
+- Modify: `tests/smoke_io.py`
+- Modify: `tests/blender_smoke.py`
+
+**Interfaces:**
+- Uses the completed importer/exporter/helper behavior without adding production APIs.
+
+- [ ] **Step 1: Add visible pose deformation coverage**
+
+Import or construct a mesh with a child-bone group, record a bound vertex coordinate, rotate the child pose bone in pose mode, update the dependency graph, and assert the evaluated mesh coordinate changes by more than `1e-5`. Restore/delete the test objects afterward.
+
+- [ ] **Step 2: Add export/re-import weight verification**
+
+Export the posed rig, parse it with `o3dconvert.import_o3d`, assert the expected named bones are present, assert every weight index is within the parsed vertex count, and assert the expected weights survive within `1e-6`. Delete the source and re-import the file through `do_import`; verify group names and generated armature names.
+
+- [ ] **Step 3: Add explicit malformed-input recovery coverage**
+
+Call the armature helper and exporter collector with duplicate names, duplicate indices, negative values, `float("nan")`, `float("inf")`, and out-of-range indices. Assert valid influences remain, invalid influences do not serialize, empty groups are omitted, and the helper does not fail solely because one influence is malformed.
+
+- [ ] **Step 4: Register checks and run the full suite**
+
+Add the checks to `CHECKS` in `tests/blender_smoke.py` in dependency order after existing low-level guards and before the final broad round trip. Run Blender 4.2, 5.0, and 5.2 where available. The expected terminal marker is `BLENDER_O3D_IO_SMOKE_OK` for every supported interpreter.
+
+- [ ] **Step 5: Commit end-to-end coverage**
+
+```bash
+git add tests/smoke_io.py tests/blender_smoke.py
+git commit -m "test: cover O3D armature round trips"
+```
+
+### Task 7: Final review and compatibility verification
+
+**Files:**
+- Inspect all changed files; do not modify README files.
+
+- [ ] **Step 1: Run formatting and repository checks**
 
 Run:
 
 ```bash
-git --no-pager diff --check HEAD~3..HEAD
-git --no-pager status --short
+git diff --check
+git status --short
 ```
 
-Confirm that only the planned armature helper, importer/exporter changes,
-tests, and directly related documentation are present.
+Confirm no generated Blender files, smoke logs, temporary O3D files, or `.gitignorefolder` contents were added.
 
-- [ ] **Step 4: Commit documentation and final tests**
+- [ ] **Step 2: Run the complete Blender matrix**
+
+Run `tests/blender_smoke.py` with Blender 4.2, 5.0, and 5.2. Record any unavailable interpreter explicitly; available interpreters must print `BLENDER_O3D_IO_SMOKE_OK`.
+
+- [ ] **Step 3: Verify requirement coverage**
+
+Confirm the final diff covers canonical hierarchy, centroid/template placement, per-mesh armatures including LOD meshes, import diagnostics, validated export groups, rest-space export, index-width consistency, malformed influence recovery, pose deformation, re-import, and unchanged mesh-only behavior.
+
+- [ ] **Step 4: Inspect the final diff for scope**
+
+Run:
 
 ```bash
-git add README.md README-FR.md tests/smoke_io.py
-git commit -m "docs: describe OMSI bone rig workflow"
+git --no-pager diff --stat
+git --no-pager diff -- o3d_io/o3d_armature.py o3d_io/io_o3d_import.py o3d_io/io_o3d_export.py o3d_io/o3dconvert.py tests/smoke_io.py tests/blender_smoke.py
 ```
+
+Ensure no README changes or unrelated refactors are present.

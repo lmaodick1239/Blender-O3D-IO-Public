@@ -271,12 +271,43 @@ def export_material(write, material):
 
 
 def export_bone(write, bone, long_triangle_indices):
-    # write("<B", len(bone[0]))
-    write("<{0}p".format(len(bone[0])+1), bone[0].encode("cp1252"))
+    bone_name, influences = bone
 
-    write("<H", len(bone[1]))
-    for w in bone[1]:
-        write("<If" if long_triangle_indices else "<Hf", *w)
+    # Validate bone name fits in one-byte length-prefixed encoding
+    encoded_name = bone_name.encode("cp1252")
+    if len(encoded_name) > 255:
+        raise ValueError(
+            f"Bone name '{bone_name}' is too long: {len(encoded_name)} bytes encoded. "
+            f"Maximum length is 255 bytes in cp1252 encoding."
+        )
+
+    write("<{0}p".format(len(encoded_name)+1), encoded_name)
+
+    # Validate influence count fits in u16
+    if len(influences) > 65535:
+        raise ValueError(
+            f"Bone '{bone_name}' has {len(influences)} influences, "
+            f"but the O3D format supports at most 65535 influences per bone."
+        )
+
+    write("<H", len(influences))
+
+    for vertex_index, weight in influences:
+        # Validate vertex index is a non-negative integer
+        if not isinstance(vertex_index, int) or vertex_index < 0:
+            raise ValueError(
+                f"Bone '{bone_name}' has invalid vertex index {vertex_index}. "
+                f"Index must be a non-negative integer."
+            )
+
+        # Validate weight is finite and non-negative
+        if not (isinstance(weight, (int, float)) and math.isfinite(weight) and weight >= 0.0):
+            raise ValueError(
+                f"Bone '{bone_name}' has invalid weight {weight} for vertex {vertex_index}. "
+                f"Weight must be a finite non-negative number."
+            )
+
+        write("<If" if long_triangle_indices else "<Hf", vertex_index, weight)
 
 
 def export_vertex_list(write, vertex_list, encrypted, encryption_key, long_header, alt_encryption_seed, version):
@@ -342,11 +373,16 @@ def export_bone_list(write, bone_list, long_header, long_triangle_indices):
     if len(bone_list) == 0:
         return
 
+    # Validate bone count fits in u16
+    if len(bone_list) > 65535:
+        raise ValueError(
+            f"O3D bone section supports at most 65535 bones, "
+            f"but this mesh has {len(bone_list)} bones."
+        )
+
     write("<B", 0x54)
-    if long_header:
-        write("<I", 0)
-    else:
-        write("<H", 0)
+    # Always write bone count as u16, regardless of long_header
+    write("<H", len(bone_list))
 
     for bone in bone_list:
         export_bone(write, bone, long_triangle_indices)
@@ -382,9 +418,6 @@ def export_o3d(file, vertex_list, triangle_list, material_list, bone_list, trans
         write("<BI", options_byte, encryption_key)
 
     if version <= 3:
-        if long_triangle_indices:
-            log("WARNING: O3D files with a version < 3 don't support long triangle "
-                "indices, the file will be unreadable")
         if alt_encryption_seed:
             log("WARNING: O3D files with a version < 3 don't support the alt encryption "
                 "seed")

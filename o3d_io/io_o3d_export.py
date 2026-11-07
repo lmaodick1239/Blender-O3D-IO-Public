@@ -29,6 +29,48 @@ def default_o3d_material():
     return [1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ""]
 
 
+def collect_o3d_bones(blender_obj, source_vertex_count, source_to_export):
+    """
+    Collect validated bone weights mapped to exported vertex indices.
+
+    Args:
+        blender_obj: Blender object with vertex groups
+        source_vertex_count: Number of vertices in the source mesh
+        source_to_export: dict mapping source vertex index to list of export vertex indices
+
+    Returns:
+        List of (bone_name, [(export_index, weight), ...]) tuples
+    """
+    bones = []
+    for v_group in blender_obj.vertex_groups:
+        influences = []
+
+        # Query weights from source vertex indices
+        for source_idx in range(source_vertex_count):
+            try:
+                weight = v_group.weight(source_idx)
+
+                # Validate weight
+                if not (isinstance(weight, (int, float)) and weight >= 0.0 and weight != float('inf') and weight != float('-inf') and weight == weight):
+                    log(f"Warning: Skipping invalid weight {weight} for object '{blender_obj.name}', group '{v_group.name}', vertex {source_idx}")
+                    continue
+
+                # Map to all corresponding export indices
+                if source_idx in source_to_export:
+                    for export_idx in source_to_export[source_idx]:
+                        influences.append((export_idx, weight))
+            except RuntimeError:
+                # Vertex not in this group
+                pass
+
+        # Only include groups with at least one valid influence
+        if influences:
+            bones.append((v_group.name, influences))
+
+    return bones
+
+
+
 def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, materials, o3d_version, export_custom_normals):
     # Create o3d file
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -44,6 +86,7 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
         verts = []  # Array of (xp, yp, zp, xn, yn, zn, u, v)
         vert_map = {}
         vert_count = 0
+        source_to_export = {}  # Map source vertex index to list of export vertex indices
 
         blender_compat.prepare_export_mesh(mesh, export_custom_normals)
         for tri_loop in mesh.loop_triangles:
@@ -60,7 +103,13 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
                     v_uv = (0, 0)
 
                 if (v_co, v_nrm, v_uv) in vert_map:
-                    tri.append(vert_map[(v_co, v_nrm, v_uv)])
+                    export_idx = vert_map[(v_co, v_nrm, v_uv)]
+                    tri.append(export_idx)
+                    # Map source vertex to this existing export vertex
+                    if tri_vert not in source_to_export:
+                        source_to_export[tri_vert] = []
+                    if export_idx not in source_to_export[tri_vert]:
+                        source_to_export[tri_vert].append(export_idx)
                 else:
                     vert_map[(v_co, v_nrm, v_uv)] = vert_count
                     verts.append(
@@ -68,6 +117,10 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
                          -v_nrm[0], -v_nrm[1], -v_nrm[2],
                          v_uv[0], 1 - v_uv[1]])
                     tri.append(vert_count)
+                    # Map source vertex to this new export vertex
+                    if tri_vert not in source_to_export:
+                        source_to_export[tri_vert] = []
+                    source_to_export[tri_vert].append(vert_count)
                     vert_count += 1
 
             tri.append(tri_loop.material_index)
@@ -102,21 +155,29 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
         if not o3d_mats:
             o3d_mats.append(default_o3d_material())
 
-        # Construct bones
-        bones = []
-        for v_group in blender_obj.vertex_groups:
-            bone = (v_group.name, [])
-            bones.append(bone)
-            for index in range(len(verts)):
-                try:
-                    bone[1].append((index, v_group.weight(index)))
-                except Exception as e:
-                    pass
+        # Construct bones with validated weights mapped to export vertices
+        bones = collect_o3d_bones(blender_obj, len(mesh.vertices), source_to_export)
+
+        # Compute maximum index across both triangle indices and bone vertex indices
+        max_triangle_index = max((idx for tri in tris for idx in tri[:3]), default=0)
+        max_bone_index = max((idx for _, influences in bones for idx, _ in influences), default=0)
+        max_triangle_or_weight_index = max(max_triangle_index, max_bone_index)
+
+        # Determine if we need 32-bit indices
+        long_triangle_indices = max_triangle_or_weight_index > 65535
+
+        # Reject wide indices for pre-v3 formats
+        if o3d_version < 3 and long_triangle_indices:
+            raise ValueError(
+                f"O3D version {o3d_version} does not support indices above 65535. "
+                f"Maximum index in this mesh is {max_triangle_or_weight_index}. "
+                f"Use version 3 or higher, or reduce the vertex count."
+            )
 
         o3dconvert.export_o3d(f, verts, tris, o3d_mats, bones, transform_matrix,
                               version=o3d_version,
                               encrypted=False, encryption_key=0x0,
-                              long_triangle_indices=False,
+                              long_triangle_indices=long_triangle_indices,
                               alt_encryption_seed=True,
                               invert_triangle_winding=True)
 
@@ -160,61 +221,99 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
 
         log("Exporting " + ob.name + "...")
         bpy.context.window_manager.progress_update(index)
-        ob_eval = ob.evaluated_get(deps_graph)
+
+        # Identify Armature modifiers before evaluation to export rest-space geometry
+        armature_modifiers = []
+        if hasattr(ob, 'modifiers'):
+            for mod in ob.modifiers:
+                if mod.type == 'ARMATURE':
+                    armature_modifiers.append(mod)
+
+        # Store original visibility states for all Armature modifiers
+        original_modifier_states = []
+        for mod in armature_modifiers:
+            original_modifier_states.append({
+                'modifier': mod,
+                'show_viewport': mod.show_viewport,
+                'show_render': mod.show_render
+            })
 
         try:
-            me = ob_eval.to_mesh()
-        except RuntimeError:
-            continue
+            # Temporarily disable Armature modifiers to obtain rest-space geometry
+            for mod in armature_modifiers:
+                mod.show_viewport = False
+                mod.show_render = False
 
-        axis_conversion_matrix = Matrix((
-            (1, 0, 0, 0),
-            (0, 0, 1, 0),
-            (0, 1, 0, 0),
-            (0, 0, 0, 1)
-        ))
+            # Obtain a local dependency graph for armature-disabled evaluation
+            # Do not overwrite the shared deps_graph used by later objects
+            local_deps_graph = context.evaluated_depsgraph_get() if armature_modifiers else deps_graph
 
-        o3d_matrix = axis_conversion_matrix @ ob.matrix_world @ axis_conversion_matrix
-        o3d_matrix.transpose()
-        me.transform(ob.matrix_world)
-        me.transform(axis_conversion_matrix)
-        if ob.matrix_world.is_negative:
-            me.flip_normals()
+            ob_eval = ob.evaluated_get(local_deps_graph)
 
-        log("Exported matrix: \n{0}".format(o3d_matrix))
+            me = None
+            try:
+                me = ob_eval.to_mesh()
+            except RuntimeError:
+                # Cannot convert to mesh, skip this object
+                index += 1
+                continue
 
-        bm = bmesh.new()
-        bm.from_mesh(me)
+            try:
+                axis_conversion_matrix = Matrix((
+                    (1, 0, 0, 0),
+                    (0, 0, 1, 0),
+                    (0, 1, 0, 0),
+                    (0, 0, 0, 1)
+                ))
 
-        if global_matrix is not None:
-            bm.transform(global_matrix)
+                o3d_matrix = axis_conversion_matrix @ ob.matrix_world @ axis_conversion_matrix
+                o3d_matrix.transpose()
+                me.transform(ob.matrix_world)
+                me.transform(axis_conversion_matrix)
+                if ob.matrix_world.is_negative:
+                    me.flip_normals()
 
-        bmesh.ops.triangulate(bm, faces=bm.faces)
+                log("Exported matrix: \n{0}".format(o3d_matrix))
 
-        bm.to_mesh(me)
-        bm.free()
+                bm = bmesh.new()
+                bm.from_mesh(me)
 
-        # Export individual model
-        if "export_path" in ob:
-            path = os.path.join(obj_root, ob["export_path"])
-        else:
-            path = os.path.join(obj_root, ob.name + ".o3d")
+                if global_matrix is not None:
+                    bm.transform(global_matrix)
 
-        if single_o3d:
-            if len(obs) == 1:
-                path = filepath
-            else:
-                path = os.path.join(obj_root, os.path.basename(filepath)[:-4] + "-" + ob.name + ".o3d")
+                bmesh.ops.triangulate(bm, faces=bm.faces)
 
-        # Export the mesh if it hasn't already been exported
-        if path not in exported_paths:
-            exported_paths.add(path)
-            export_mesh(path, context, ob_eval, me, [x for y in o3d_matrix for x in y], ob_eval.material_slots,
-                        o3d_version, export_custom_normals)
+                bm.to_mesh(me)
+                bm.free()
 
-        ob_eval.to_mesh_clear()
+                # Export individual model
+                if "export_path" in ob:
+                    path = os.path.join(obj_root, ob["export_path"])
+                else:
+                    path = os.path.join(obj_root, ob.name + ".o3d")
 
-        index += 1
+                if single_o3d:
+                    if len(obs) == 1:
+                        path = filepath
+                    else:
+                        path = os.path.join(obj_root, os.path.basename(filepath)[:-4] + "-" + ob.name + ".o3d")
+
+                # Export the mesh if it hasn't already been exported
+                if path not in exported_paths:
+                    exported_paths.add(path)
+                    export_mesh(path, context, ob_eval, me, [x for y in o3d_matrix for x in y], ob_eval.material_slots,
+                                o3d_version, export_custom_normals)
+            finally:
+                # Clean up evaluated mesh whenever to_mesh() succeeded
+                if me is not None:
+                    ob_eval.to_mesh_clear()
+
+            index += 1
+        finally:
+            # Restore original modifier visibility states
+            for state in original_modifier_states:
+                state['modifier'].show_viewport = state['show_viewport']
+                state['modifier'].show_render = state['show_render']
 
     if not single_o3d:
         cfg_materials = o3d_cfg_parser.write_cfg(filepath, obs, context, use_selection)
