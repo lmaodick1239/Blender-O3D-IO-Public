@@ -6,6 +6,7 @@ from types import ModuleType
 
 import bpy
 from bpy_extras import node_shader_utils
+from mathutils import Matrix
 
 
 def assert_material_compatibility(addon: ModuleType) -> None:
@@ -61,6 +62,40 @@ def assert_layered_material_compatibility(addon: ModuleType) -> None:
     assert all(texture[0] is not None for texture in wrapper.base_color_textures)
     wrapper.base_color_n_textures = 1
     assert len(wrapper.base_color_textures) == 1
+
+
+def assert_layered_material_export_rejected(addon: ModuleType) -> None:
+    """Ordinary O3D export rejects layered diffuse stacks instead of dropping layers."""
+    mesh = bpy.data.meshes.new("O3D Layered Export Mesh")
+    mesh.from_pydata(
+        [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+        [], [(0, 1, 2)],
+    )
+    material = bpy.data.materials.new("O3D Layered Export Material")
+    addon.o3d_io.blender_compat.enable_material_nodes(material)
+    wrapper = addon.o3d_io.layered_shader.LayeredBSDFWrapper(material, is_readonly=False)
+    wrapper.base_color_n_textures = 2
+    mesh.materials.append(material)
+    source = bpy.data.objects.new("O3D Layered Export Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    bpy.ops.object.select_all(action="DESELECT")
+    source.select_set(True)
+    try:
+        with tempfile.TemporaryDirectory(prefix="blender-o3d-io-layered-export-") as temporary:
+            filepath = Path(temporary) / "layered.o3d"
+            try:
+                addon.o3d_io.io_o3d_export.do_export(
+                    str(filepath), bpy.context, Matrix.Identity(4), True, 7, True
+                )
+            except ValueError as error:
+                assert "layered" in str(error).lower(), error
+            else:
+                raise AssertionError("layered material export was accepted")
+            assert not filepath.exists()
+    finally:
+        bpy.data.objects.remove(source, do_unlink=True)
+
+
 
 
 def assert_terrain_material_compatibility(addon: ModuleType) -> None:

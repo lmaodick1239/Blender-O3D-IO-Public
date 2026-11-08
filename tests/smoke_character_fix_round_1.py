@@ -183,7 +183,7 @@ def assert_textured_object_material_cfg(addon):
             addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)
             assert result.mesh.material_slots[2].material is None
             parsed = addon.o3d_io.o3dconvert.import_o3d((root / result.mesh["export_path"]).read_bytes())
-            assert [material[-1] for material in parsed[3]] == ["actual-object.bmp", "actual-object.bmp", ""]
+            assert [material[-1] for material in parsed[3]] == ["texture/actual-object.bmp", "texture/actual-object.bmp", ""]
             influences = {}
             for _, entries in parsed[4]:
                 for index, _ in entries:

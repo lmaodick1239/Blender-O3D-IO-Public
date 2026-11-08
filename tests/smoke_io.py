@@ -1004,9 +1004,8 @@ def assert_wide_index_width(addon: ModuleType) -> None:
     bpy.context.scene.collection.objects.link(source)
     source.select_set(True)
 
-    # Add bone weight on low-index vertices: bone influences are always u16.
-    bone_group = source.vertex_groups.new(name="HighBone")
-    bone_group.add([0, 1, 2], 1.0, "REPLACE")
+    # Keep this width-only fixture static. Weighted wide-mesh coverage is
+    # exercised separately by assert_wide_mesh_bone_indices_are_u16.
 
     with tempfile.TemporaryDirectory(prefix="blender-o3d-io-wide-") as temporary:
         filepath = Path(temporary) / "wide.o3d"
@@ -1026,20 +1025,25 @@ def assert_wide_index_width(addon: ModuleType) -> None:
 
 
 def assert_wide_mesh_bone_indices_are_u16(addon: ModuleType) -> None:
-    """Bone influence indices stay u16 even when triangle indices are 32-bit."""
+    """Bone influence indices stay u16 independently of triangle width."""
     bpy.ops.object.select_all(action="DESELECT")
-    mesh, vertex_count = _make_wide_unique_uv_mesh("O3D Wide Bone Index Mesh")
+    mesh = bpy.data.meshes.new("O3D Weighted Bone Index Mesh")
+    mesh.from_pydata(
+        [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+        [],
+        [(0, 1, 2)],
+    )
+    mesh.update()
 
-    source = bpy.data.objects.new("O3D Wide Bone Index Object", mesh)
+    source = bpy.data.objects.new("O3D Weighted Bone Index Object", mesh)
     bpy.context.scene.collection.objects.link(source)
     source.select_set(True)
 
-    # Weight the three lowest vertices so the export is legal for bones.
     bone_group = source.vertex_groups.new(name="LowBone")
     bone_group.add([0, 1, 2], 1.0, "REPLACE")
 
-    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-wide-bone-") as temporary:
-        filepath = Path(temporary) / "wide_bone.o3d"
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-weighted-bone-") as temporary:
+        filepath = Path(temporary) / "weighted_bone.o3d"
         addon.o3d_io.io_o3d_export.do_export(
             str(filepath), bpy.context, Matrix.Identity(4), True, 7, True
         )
@@ -1049,14 +1053,14 @@ def assert_wide_mesh_bone_indices_are_u16(addon: ModuleType) -> None:
 
         version, options, counts, bones = parse_o3d_omsi(data)
         assert version == 7, f"expected v7, got {version}"
-        assert (options & 1) == 1, f"expected wide triangle indices, options={options:#x}"
+        assert (options & 1) == 0, f"expected narrow triangle indices, options={options:#x}"
         assert counts["bones"] == 1, f"expected one bone, got {counts['bones']}"
         assert bones[0][0] == "LowBone", f"unexpected bone name {bones[0][0]!r}"
         influences = bones[0][1]
         assert [idx for idx, _ in influences] == [0, 1, 2], f"unexpected influences {influences}"
         assert all(idx < 65536 for idx, _ in influences), f"bone index above u16 range: {influences}"
 
-        bpy.data.objects.remove(source, do_unlink=True)
+    bpy.data.objects.remove(source, do_unlink=True)
 
 
 def assert_weighted_index_above_u16_rejected(addon: ModuleType) -> None:
@@ -1675,6 +1679,125 @@ def assert_embedded_material_round_trip(addon: ModuleType) -> None:
                 bpy.data.objects.remove(obj, do_unlink=True)
 
 
+def assert_scaled_origin_frame(addon: ModuleType) -> None:
+    """Global export scale applies consistently to positions and the stored frame."""
+    bpy.ops.object.select_all(action="DESELECT")
+    mesh = bpy.data.meshes.new("O3D Scaled Origin Mesh")
+    mesh.from_pydata(
+        [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+        [], [(0, 1, 2)],
+    )
+    source = bpy.data.objects.new("O3D Scaled Origin Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    source.location = (2.0, 3.0, 4.0)
+    source.select_set(True)
+    try:
+        with tempfile.TemporaryDirectory(prefix="blender-o3d-io-scaled-origin-") as temporary:
+            filepath = Path(temporary) / "scaled.o3d"
+            addon.o3d_io.io_o3d_export.do_export(
+                str(filepath), bpy.context, Matrix.Scale(2.0, 4), True, 7, True
+            )
+            parsed = addon.o3d_io.o3dconvert.import_o3d(filepath.read_bytes())
+            assert tuple(round(value, 4) for value in parsed[1][0][0]) == (4.0, 8.0, 6.0)
+            assert tuple(round(value, 4) for value in parsed[5][3][:3]) == (4.0, 8.0, 6.0)
+    finally:
+        bpy.data.objects.remove(source, do_unlink=True)
+
+
+def assert_generic_skinned_runtime_limits(addon: ModuleType) -> None:
+    """Generic skinned export enforces traced OMSI runtime limits."""
+    bpy.ops.object.select_all(action="DESELECT")
+    mesh, _ = _make_wide_unique_uv_mesh("O3D Generic Skinned Wide Mesh")
+    source = bpy.data.objects.new("O3D Generic Skinned Wide Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    source.select_set(True)
+    group = source.vertex_groups.new(name="WideBone")
+    group.add([0], 1.0, "REPLACE")
+    try:
+        with tempfile.TemporaryDirectory(prefix="blender-o3d-io-generic-skin-limit-") as temporary:
+            filepath = Path(temporary) / "wide-skinned.o3d"
+            try:
+                addon.o3d_io.io_o3d_export.do_export(
+                    str(filepath), bpy.context, Matrix.Identity(4), True, 7, True
+                )
+            except ValueError as error:
+                assert "65535" in str(error), error
+            else:
+                raise AssertionError("wide skinned generic export was accepted")
+            assert not filepath.exists()
+    finally:
+        bpy.data.objects.remove(source, do_unlink=True)
+
+    bpy.ops.object.select_all(action="DESELECT")
+    mesh = bpy.data.meshes.new("O3D Dominant Bone Mesh")
+    mesh.from_pydata(
+        [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+        [], [(0, 1, 2)],
+    )
+    source = bpy.data.objects.new("O3D Dominant Bone Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    source.select_set(True)
+    try:
+        for index in range(129):
+            group = source.vertex_groups.new(name=f"Bone{index}")
+            group.add([0], 1.0 if index == 128 else 0.1, "REPLACE")
+        with tempfile.TemporaryDirectory(prefix="blender-o3d-io-dominant-bone-") as temporary:
+            filepath = Path(temporary) / "dominant.o3d"
+            try:
+                addon.o3d_io.io_o3d_export.do_export(
+                    str(filepath), bpy.context, Matrix.Identity(4), True, 7, True
+                )
+            except ValueError as error:
+                assert "128" in str(error), error
+            else:
+                parsed = addon.o3d_io.o3dconvert.import_o3d(filepath.read_bytes())
+                raise AssertionError(f"dominant bone index 128 was accepted: {[(name, entries[:1]) for name, entries in parsed[4]]}")
+            assert not filepath.exists()
+    finally:
+        bpy.data.objects.remove(source, do_unlink=True)
+
+
+def assert_armature_helper_group_filter(addon: ModuleType) -> None:
+    """Armature-backed helper groups are omitted from native weight rows."""
+    bpy.ops.object.select_all(action="DESELECT")
+    armature_data = bpy.data.armatures.new("O3D Helper Armature")
+    armature_obj = bpy.data.objects.new("O3D Helper Armature", armature_data)
+    bpy.context.scene.collection.objects.link(armature_obj)
+    bpy.context.view_layer.objects.active = armature_obj
+    bpy.ops.object.mode_set(mode="EDIT")
+    bone = armature_data.edit_bones.new("Deform")
+    bone.head = (0.0, 0.0, 0.0)
+    bone.tail = (0.0, 0.0, 1.0)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    mesh = bpy.data.meshes.new("O3D Helper Mesh")
+    mesh.from_pydata(
+        [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+        [], [(0, 1, 2)],
+    )
+    source = bpy.data.objects.new("O3D Helper Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    source.select_set(True)
+    deform = source.vertex_groups.new(name="Deform")
+    deform.add([0, 1, 2], 1.0, "REPLACE")
+    helper = source.vertex_groups.new(name="Helper")
+    helper.add([0, 1, 2], 1.0, "REPLACE")
+    source.parent = armature_obj
+    modifier = source.modifiers.new("Armature", "ARMATURE")
+    modifier.object = armature_obj
+    try:
+        with tempfile.TemporaryDirectory(prefix="blender-o3d-io-helper-group-") as temporary:
+            filepath = Path(temporary) / "helper.o3d"
+            addon.o3d_io.io_o3d_export.do_export(
+                str(filepath), bpy.context, Matrix.Identity(4), True, 7, True
+            )
+            bone_names = [name for name, _ in addon.o3d_io.o3dconvert.import_o3d(filepath.read_bytes())[4]]
+            assert bone_names == ["Deform"], bone_names
+    finally:
+        bpy.data.objects.remove(source, do_unlink=True)
+        bpy.data.objects.remove(armature_obj, do_unlink=True)
+        bpy.data.armatures.remove(armature_data)
+
 def assert_long_import_name_mapping(addon: ModuleType) -> None:
     """Long and colliding file bone names map to distinct Blender groups."""
     original_load_o3d = addon.o3d_io.io_o3d_import.load_o3d
@@ -1712,6 +1835,36 @@ def assert_long_import_name_mapping(addon: ModuleType) -> None:
                     bpy.data.objects.remove(obj, do_unlink=True)
     finally:
         addon.o3d_io.io_o3d_import.load_o3d = original_load_o3d
+
+
+def assert_generic_smoothskin_cfg(addon: ModuleType) -> None:
+    """Generic CFG export infers one smoothskin block from serialized weights."""
+    bpy.ops.object.select_all(action="DESELECT")
+    mesh = bpy.data.meshes.new("O3D Generic Smooth Mesh")
+    mesh.from_pydata(
+        [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+        [], [(0, 1, 2)],
+    )
+    source = bpy.data.objects.new("O3D Generic Smooth Object", mesh)
+    bpy.context.scene.collection.objects.link(source)
+    source.select_set(True)
+    first = source.vertex_groups.new(name="Main")
+    first.add([0, 1, 2], 0.5, "REPLACE")
+    second = source.vertex_groups.new(name="Hip")
+    second.add([0, 1, 2], 0.5, "REPLACE")
+    original_cfg = [["[setbone]", "Main", "-11"]]
+    mesh["cfg_data"] = original_cfg
+    try:
+        with tempfile.TemporaryDirectory(prefix="blender-o3d-io-generic-smooth-") as temporary:
+            filepath = Path(temporary) / "smooth.cfg"
+            addon.o3d_io.io_o3d_export.do_export(
+                str(filepath), bpy.context, Matrix.Identity(4), True, 7, True
+            )
+            text = filepath.read_text(encoding="utf-8")
+            assert text.count("[smoothskin]") == 1, text
+            assert mesh["cfg_data"] == original_cfg
+    finally:
+        bpy.data.objects.remove(source, do_unlink=True)
 
 
 def assert_singular_transform_geometry(addon: ModuleType) -> None:

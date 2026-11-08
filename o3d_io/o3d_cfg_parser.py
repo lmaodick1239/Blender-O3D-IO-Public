@@ -468,9 +468,12 @@ def read_cfg(filepath, override_text_encoding):
     return cfg_data, (folder + os.path.sep)
 
 
-def write_additional_cfg_props(cfg_props, f):
+def write_additional_cfg_props(cfg_props, f, skip_commands=()):
+    skip_commands = {str(command).strip().lower() for command in skip_commands}
     if cfg_props is not None and "cfg_data" in cfg_props:
         for prop in cfg_props["cfg_data"]:
+            if prop and str(prop[0]).strip().lower() in skip_commands:
+                continue
             f.write(prop[0] + "\n")
             f.write("\n".join(prop[1:]))
             f.write("\n")
@@ -526,7 +529,7 @@ def find_unbound_setbone_names(obj):
     return unbound
 
 
-def write_cfg_mesh(f, filepath, context, obj):
+def write_cfg_mesh(f, filepath, context, obj, smoothskin=None):
     if "export_path" in obj:
         export_path = obj["export_path"]
     else:
@@ -540,9 +543,9 @@ def write_cfg_mesh(f, filepath, context, obj):
         log(f"Warning: [setbone] name '{name}' on object '{obj.name}' no longer matches "
             f"a vertex group with weights; OMSI will skip this bone.")
 
-    write_additional_cfg_props(obj.data, f)
-
-    # Materials
+    write_additional_cfg_props(obj.data, f, skip_commands=("[smoothskin]",))
+    if smoothskin:
+        f.write("[smoothskin]\n\n")
     write_cfg_materials(f, obj)
 
 
@@ -703,10 +706,10 @@ def write_cfg_materials(f, obj):
             write_additional_cfg_props(mat_blender, f)
 
 
-def write_cfg_object(context, f, filepath, obj):
+def write_cfg_object(context, f, filepath, obj, smoothskin=None):
     o_type = obj.type
     if o_type == "MESH":
-        write_cfg_mesh(f, filepath, context, obj)
+        write_cfg_mesh(f, filepath, context, obj, smoothskin)
     elif o_type == "LIGHT":
         write_cfg_light(f, filepath, context, obj)
     elif o_type == "LAMP":
@@ -717,7 +720,7 @@ def write_cfg_object(context, f, filepath, obj):
         log("Unsupported object type for export: {0} for {1}".format(obj.type, obj.name))
 
 
-def write_cfg(filepath, objs, context, selection_only):
+def write_cfg(filepath, objs, context, selection_only, *, smoothskin_by_object=None):
     """
     Writes the blender objects out as a new CFG/SCO file, replacing any file already at that path
     :param selection_only: whether to only export selected objects
@@ -795,7 +798,10 @@ def write_cfg(filepath, objs, context, selection_only):
         lod_objects = set().union(*buckets.values()) if buckets else set()
         for obj in eligible:
             if obj not in lod_objects:
-                write_cfg_object(context, f, filepath, obj)
+                write_cfg_object(
+                    context, f, filepath, obj,
+                    (smoothskin_by_object or {}).get(id(obj), {}).get("smoothskin"),
+                )
 
         for factor, members in sorted(buckets.items(), reverse=True):
             if not members:
@@ -806,4 +812,7 @@ def write_cfg(filepath, objs, context, selection_only):
             f.write("[LOD]\n{0}\n\n".format(factor))
             for obj in eligible:
                 if obj in members:
-                    write_cfg_object(context, f, filepath, obj)
+                    write_cfg_object(
+                        context, f, filepath, obj,
+                        (smoothskin_by_object or {}).get(id(obj), {}).get("smoothskin"),
+                    )

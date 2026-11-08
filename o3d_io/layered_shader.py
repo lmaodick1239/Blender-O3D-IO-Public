@@ -25,6 +25,7 @@ class LayeredBSDFWrapper(_shader_utils.PrincipledBSDFWrapper):
             super().__init__(material, is_readonly)
 
         self._base_color_textures = []
+        material["o3d_layered_material"] = True
         self._mix_node_links = [self.node_principled_bsdf]
 
     def base_color_texture_get(self):
