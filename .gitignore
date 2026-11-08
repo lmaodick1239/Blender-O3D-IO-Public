@@ -1,5 +1,61 @@
+# Python bytecode and caches
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution, build, and packaging
 /dist/
+build/
+*.egg-info/
 /render/
-./gitignorefolder
+
+# Testing, linting, and coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+test.py
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Blender files and backups
+*.blend
+*.blend1
+*.blend2
+*.blend[0-9]*
+*.blend@
+*.blend*~
+
+# Workspace, worktree, and external folders
+.gitignorefolder/
+.worktrees/
+.superpowers/
+.kilo/
+.kilocode/
+
+# Research and planning artifacts
+docs/research/
+docs/superpowers/
+research/
+superpowers/
+
+# Editor and IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS artifacts
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
