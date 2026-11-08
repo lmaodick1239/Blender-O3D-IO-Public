@@ -175,8 +175,8 @@ def assert_textured_object_material_cfg(addon):
             assert text.count("[setbone]\nMain\n-11\n") == 1, text
             assert "[setbone]\nMain\n-2\n" not in text, text
             assert "[smoothskin]" not in text, text
-            assert "[matl]\nactual-object.bmp\n0\n" in text, text
-            assert "[matl]\nactual-object.bmp\n1\n" in text, text
+            assert "[matl]\ntexture/actual-object.bmp\n0\n" in text, text
+            assert "[matl]\ntexture/actual-object.bmp\n1\n" in text, text
             assert "stale-data.bmp" not in text, text
             # Empty material slots must remain harmless to both real writers.
             result.mesh.data.materials.append(None)

@@ -19,6 +19,26 @@ def log(*args):
     print("[O3D_CFG_Parser]", *args)
 
 
+def texture_name(filepath, image):
+    raw = str(image.filepath or "").replace("\\", "/")
+    if not raw:
+        return ""
+    if raw.startswith("//"):
+        candidate = raw[2:]
+    elif os.path.isabs(raw):
+        root = os.path.dirname(os.path.abspath(filepath)) or os.curdir
+        try:
+            candidate = os.path.relpath(raw, root)
+        except ValueError:
+            candidate = os.path.basename(raw)
+    else:
+        candidate = raw
+    candidate = candidate.replace("\\", "/")
+    if candidate == ".." or candidate.startswith("../"):
+        candidate = os.path.basename(raw)
+    return candidate
+
+
 def read_generic_cfg_file(cfg_path):
     """
     Loads and parses a generic cfg file into a dictionary
@@ -543,10 +563,15 @@ def write_cfg_mesh(f, filepath, context, obj, smoothskin=None):
         log(f"Warning: [setbone] name '{name}' on object '{obj.name}' no longer matches "
             f"a vertex group with weights; OMSI will skip this bone.")
 
+    if smoothskin is None:
+        smoothskin = any(
+            sum(1 for group in vertex.groups if group.weight > 0) > 1
+            for vertex in obj.data.vertices
+        )
     write_additional_cfg_props(obj.data, f, skip_commands=("[smoothskin]",))
     if smoothskin:
         f.write("[smoothskin]\n\n")
-    write_cfg_materials(f, obj)
+    write_cfg_materials(f, obj, filepath)
 
 
 def col_float_to_int(col):
@@ -632,7 +657,8 @@ def write_cfg_light(f, filepath, context, obj):
     write_additional_cfg_props(obj.data, f)
 
 
-def write_cfg_materials(f, obj):
+def write_cfg_materials(f, obj, filepath=None):
+    filepath = filepath or ""
     for i, slot in enumerate(obj.material_slots):
         mat_blender = slot.material
         if mat_blender is None:
@@ -642,11 +668,11 @@ def write_cfg_materials(f, obj):
             f.write("----------\n")
             if "type" in mat_blender and mat_blender["type"] == "[matl_change]":
                 f.write("[matl_change]\n{0}\n{1}\n{2}\n\n".format(
-                    os.path.basename(mat.base_color_texture.image.filepath),
+                    texture_name(filepath, mat.base_color_texture.image),
                     i,
                     mat_blender["change_var"]))
             else:
-                f.write("[matl]\n{0}\n{1}\n\n".format(os.path.basename(mat.base_color_texture.image.filepath), i))
+                f.write("[matl]\n{0}\n{1}\n\n".format(texture_name(filepath, mat.base_color_texture.image), i))
 
             transmap = False
             alpha_mode = 0
@@ -670,17 +696,17 @@ def write_cfg_materials(f, obj):
 
             bump_map = blender_compat.find_bump_map(mat)
             if bump_map is not None:
-                bumpmap = os.path.basename(bump_map[0].filepath)
+                bumpmap = texture_name(filepath, bump_map[0])
                 bumpmap_strength = bump_map[1]
 
             if mat.emission_color_texture is not None and mat.emission_color_texture.image is not None:
-                emission_tex = os.path.basename(mat.emission_color_texture.image.filepath)
+                emission_tex = texture_name(filepath, mat.emission_color_texture.image)
 
             if alpha_mode > 0:
                 f.write("[matl_alpha]\n{0}\n\n".format(alpha_mode))
 
             if transmap:
-                f.write("[matl_transmap]\n{0}\n\n".format(os.path.basename(mat.alpha_texture.image.filepath)))
+                f.write("[matl_transmap]\n{0}\n\n".format(texture_name(filepath, mat.alpha_texture.image)))
 
             if envmap and specular > 0.01:
                 envmap_tex = "envmap.bmp"
@@ -691,7 +717,7 @@ def write_cfg_materials(f, obj):
 
                 if not transmap and mat.specular_texture is not None and mat.specular_texture.image is not None:
                     f.write(
-                        "[matl_envmap_mask]\n{0}\n\n".format(os.path.basename(mat.specular_texture.image.filepath)))
+                        "[matl_envmap_mask]\n{0}\n\n".format(texture_name(filepath, mat.specular_texture.image)))
 
             if bumpmap is not None:
                 f.write("[matl_bumpmap]\n{0}\n{1}\n\n".format(bumpmap, round(bumpmap_strength, 6)))
@@ -703,7 +729,7 @@ def write_cfg_materials(f, obj):
                 else:
                     f.write("[matl_nightmap]\n{0}\n\n".format(emission_tex))
 
-            write_additional_cfg_props(mat_blender, f)
+            write_additional_cfg_props(mat_blender, f, skip_commands=("[smoothskin]",))
 
 
 def write_cfg_object(context, f, filepath, obj, smoothskin=None):

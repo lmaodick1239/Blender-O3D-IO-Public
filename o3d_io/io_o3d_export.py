@@ -48,7 +48,8 @@ def _armature_bone_names(blender_obj):
     names = set()
     found = False
     for modifier in source.modifiers:
-        if modifier.type != "ARMATURE" or modifier.object is None:
+        if (modifier.type != "ARMATURE" or modifier.object is None
+                or not (modifier.show_viewport or modifier.show_render)):
             continue
         found = True
         names.update(bone.name for bone in modifier.object.data.bones)
@@ -76,7 +77,7 @@ def collect_o3d_bones(blender_obj, source_vertex_count, source_to_export, mesh=N
             for group in groups if influences[group.index]]
 
 
-def prepare_o3d_geometry(blender_obj, mesh, export_custom_normals=True, filter_helpers=True):
+def prepare_o3d_geometry(blender_obj, mesh, export_custom_normals=True, filter_helpers=True, allowed_names=None):
     """Prepare the exact serialized vertices, triangles and populated bone order."""
     blender_compat.prepare_export_mesh(mesh, export_custom_normals)
     uv_layer = mesh.uv_layers.active.data if mesh.uv_layers.active else None
@@ -96,7 +97,8 @@ def prepare_o3d_geometry(blender_obj, mesh, export_custom_normals=True, filter_h
             tri.append(index)
             source_to_export.setdefault(source, set()).add(index)
         tris.append([*tri, triangle.material_index])
-    allowed_names = _armature_bone_names(blender_obj) if filter_helpers else None
+    if filter_helpers and allowed_names is None:
+        allowed_names = _armature_bone_names(blender_obj)
     bones = collect_o3d_bones(
         blender_obj, len(mesh.vertices), source_to_export, mesh, allowed_names
     )
@@ -202,26 +204,6 @@ def validate_character_export(obj, context=None, global_matrix=None, export_cust
                 "smoothskin": geometry["smoothskin"]}
 
 
-def _texture_name(filepath, image):
-    raw = str(image.filepath or "").replace("\\", "/")
-    if not raw:
-        return ""
-    if raw.startswith("//"):
-        candidate = raw[2:]
-    elif os.path.isabs(raw):
-        root = os.path.dirname(os.path.abspath(filepath)) or os.curdir
-        try:
-            candidate = os.path.relpath(raw, root)
-        except ValueError:
-            candidate = os.path.basename(raw)
-    else:
-        candidate = raw
-    candidate = candidate.replace("\\", "/")
-    if candidate == ".." or candidate.startswith("../"):
-        candidate = os.path.basename(raw)
-    return candidate
-
-
 def _build_o3d_materials(filepath, materials):
     o3d_mats = []
     for material_slot in materials:
@@ -242,7 +224,7 @@ def _build_o3d_materials(filepath, materials):
         o3d_mat.extend(mat.emission_color[:3])
         o3d_mat.append(_o3d_specular_power(material, mat))
         if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
-            o3d_mat.append(_texture_name(filepath, mat.base_color_texture.image))
+            o3d_mat.append(o3d_cfg_parser.texture_name(filepath, mat.base_color_texture.image))
         else:
             o3d_mat.append("")
         o3d_mats.append(o3d_mat)
@@ -253,15 +235,18 @@ def _build_o3d_materials(filepath, materials):
     return o3d_mats
 
 
-def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, materials, o3d_version, export_custom_normals):
-    geometry = prepare_o3d_geometry(blender_obj, mesh, export_custom_normals)
+def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, materials, o3d_version,
+                export_custom_normals, allow_smoothskin=False, allowed_names=None):
+    geometry = prepare_o3d_geometry(
+        blender_obj, mesh, export_custom_normals, allowed_names=allowed_names
+    )
     long_triangle_indices = validate_o3d_geometry(
         geometry, o3d_version, character_runtime=bool(geometry["bones"])
     )
     verts, tris, bones = (geometry[key] for key in ("verts", "tris", "bones"))
     if len(materials) > 65535:
         raise ValueError("O3D supports at most 65535 materials")
-    if geometry["smoothskin"] and filepath.lower().endswith(".o3d"):
+    if geometry["smoothskin"] and not allow_smoothskin:
         log("WARNING: direct O3D export cannot express [smoothskin]; blended weights may load rigidly")
     o3d_mats = _build_o3d_materials(filepath, materials)
     os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
@@ -336,10 +321,13 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
         for index, (ob, path) in enumerate(outputs):
             log("Exporting " + ob.name + "...")
             bpy.context.window_manager.progress_update(index)
+            allowed_names = _armature_bone_names(ob)
             with prepared_export_mesh(ob, context, global_matrix) as (evaluated, mesh, matrix):
                 export_metadata[id(ob)] = export_mesh(
                     path, context, evaluated, mesh, matrix, evaluated.material_slots,
                     o3d_version, export_custom_normals,
+                    allow_smoothskin=not single_o3d,
+                    allowed_names=allowed_names,
                 )
         if not single_o3d:
             o3d_cfg_parser.write_cfg(
