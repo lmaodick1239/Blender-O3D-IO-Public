@@ -46,6 +46,9 @@ jobs:
             - name: "Validate extension manifest"
               run: blender --command extension validate .
 
+            - name: "Run codec tests"
+              run: python3 -m unittest discover -s tests -p 'test_o3dconvert.py' -v
+
             - name: "Run smoke test"
               shell: bash
               run: |

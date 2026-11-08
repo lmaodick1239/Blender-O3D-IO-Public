@@ -13,7 +13,9 @@ def log(*args):
 # Try to import o3d cryptography module (not available in public plugin release)
 try:
     from .o3d_crypto import init_rand, decrypt_vert, encrypt_vert
+    _CRYPTO_AVAILABLE = True
 except ImportError:
+    _CRYPTO_AVAILABLE = False
     log("[WARNING] o3d_crypto.py could not be loaded! O3D encryption and decryption will not work correctly.")
 
 
@@ -174,67 +176,148 @@ def import_transform(buff, offset):
            ), offset
 
 
-def import_o3d(packed_bytes):
+
+_SUPPORTED_VERSIONS = range(1, 8)
+
+
+def _validate_version(version):
+    if type(version) is not int or version not in _SUPPORTED_VERSIONS:
+        raise ValueError(f"O3D version must be an integer from 1 through 7, got {version!r}")
+
+
+def _encode_name(value, field):
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    try:
+        encoded = value.encode("cp1252")
+    except UnicodeEncodeError as error:
+        raise ValueError(f"{field} is not CP1252 encodable") from error
+    if len(encoded) > 255:
+        raise ValueError(f"{field} exceeds 255 CP1252 bytes")
+    return encoded
+
+
+def _validate_material(material):
+    if len(material) != 12:
+        raise ValueError("O3D materials must contain 11 floats and a texture name")
+    _encode_name(material[-1], "material texture name")
+    for value in material[:-1]:
+        if not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f"invalid O3D material value {value!r}")
+
+
+def _validate_export_inputs(vertex_list, triangle_list, material_list, bone_list,
+                            version, long_triangle_indices, encrypted,
+                            encryption_key):
+    _validate_version(version)
+    if not vertex_list:
+        raise ValueError("O3D export requires at least one vertex")
+    if not triangle_list:
+        raise ValueError("O3D export requires at least one triangle")
+    if version < 3:
+        long_triangle_indices = False
+        if len(vertex_list) > 65535 or len(triangle_list) > 65535:
+            raise ValueError(f"O3D version {version} supports at most 65535 vertices and triangles")
+    if any(
+        not isinstance(index, int) or index < 0 or index >= len(vertex_list)
+        for triangle in triangle_list for index in triangle[:3]
+    ):
+        raise ValueError("triangle index is outside the serialized vertex range")
+    if any(
+        not isinstance(triangle[3], int) or not 0 <= triangle[3] <= 65535
+        for triangle in triangle_list
+    ):
+        raise ValueError("triangle material index must fit in an unsigned 16-bit value")
+    if not long_triangle_indices and any(index > 65535 for triangle in triangle_list for index in triangle[:3]):
+        raise ValueError("16-bit triangle indices cannot exceed 65535")
+    if len(material_list) > 65535:
+        raise ValueError("O3D supports at most 65535 materials")
+    for material in material_list:
+        _validate_material(material)
+    if len(bone_list) > 65535:
+        raise ValueError("O3D supports at most 65535 bones")
+    for bone_name, influences in bone_list:
+        _encode_name(bone_name, f"bone name {bone_name!r}")
+        if len(influences) > 65535:
+            raise ValueError(f"bone {bone_name!r} has more than 65535 influences")
+        for vertex_index, weight in influences:
+            if not isinstance(vertex_index, int) or not 0 <= vertex_index <= 65535:
+                raise ValueError(f"bone {bone_name!r} has an invalid u16 vertex index {vertex_index!r}")
+            if vertex_index >= len(vertex_list):
+                raise ValueError(f"bone {bone_name!r} references vertex {vertex_index} outside the serialized mesh")
+            if not isinstance(weight, (int, float)) or not math.isfinite(weight) or weight < 0:
+                raise ValueError(f"bone {bone_name!r} has invalid weight {weight!r}")
+    if encrypted:
+        if version < 4:
+            raise ValueError("O3D encryption requires version 4 or newer")
+        if not isinstance(encryption_key, int) or not 0 <= encryption_key <= 0xffffffff:
+            raise ValueError("encryption key must be an unsigned 32-bit integer")
+        if encryption_key == 0xffffffff:
+            raise ValueError("0xffffffff is the unencrypted sentinel, not an encryption key")
+        if not _CRYPTO_AVAILABLE:
+            raise RuntimeError("O3D encryption support is unavailable")
+    return long_triangle_indices
+
+
+def import_o3d(packed_bytes, *, strict=False):
+    if len(packed_bytes) < 3:
+        raise ValueError("O3D header is truncated")
     header = struct.unpack_from("<BBB", packed_bytes, offset=0)
+    if header[0:2] != (0x84, 0x19):
+        raise ValueError(f"invalid O3D magic {header[0:2]!r}; expected (0x84, 0x19)")
+    _validate_version(header[2])
+
     off = 3
-    l_header = False
+    l_header = header[2] >= 3
     encrypted = False
     bonus_header = [0, 0xffffffff]
-    if header[0:2] == (0x84, 0x19):
-        if header[2] >= 3:
-            # Long header variant: the options byte is present from version 3 and
-            # the encryption key only from version 4. Sometimes encrypted.
-            bonus_header[0] = struct.unpack_from("<B", packed_bytes, offset=off)[0]
-            off += 1
-            # log("Extended header options: long_triangle_indices={0}; alt_encryption_seed={1}".format(
-            #    bonus_header[0] & 1 == 1, bonus_header[0] & 2 == 2))
-            if header[2] >= 4:
-                bonus_header[1] = struct.unpack_from("<I", packed_bytes, offset=off)[0]
-                off += 4
-                if bonus_header[1] != 0xffffffff:
-                    encrypted = True
-                    # log("Encrypted file detected!")
-            l_header = True
-    else:
-        log(
-            "WARNING: O3D file has an unsupported header (found={0}; expected=(0x84,0x19,0x01). File might not import "
-            "correctly...".format(
-                list(map(hex, header))))
+    if l_header:
+        if len(packed_bytes) < off + 1:
+            raise ValueError("O3D options header is truncated")
+        bonus_header[0] = struct.unpack_from("<B", packed_bytes, offset=off)[0]
+        off += 1
+        if header[2] >= 4:
+            if len(packed_bytes) < off + 4:
+                raise ValueError("O3D encryption header is truncated")
+            bonus_header[1] = struct.unpack_from("<I", packed_bytes, offset=off)[0]
+            off += 4
+            encrypted = bonus_header[1] != 0xffffffff
+            if encrypted and not _CRYPTO_AVAILABLE:
+                raise RuntimeError("O3D encryption support is unavailable")
 
     vertex_list = []
     triangle_list = []
     material_list = []
     bone_list = []
     transform = ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1))
-    while off < len(packed_bytes) - 1:
-        section = struct.unpack_from("<B", packed_bytes, offset=off)[0]
+    while off < len(packed_bytes):
+        section_offset = off
+        section = packed_bytes[off]
         off += 1
         if section == 0x17:
-            vertex_list, off = import_vertex_list(packed_bytes, off, l_header, encrypted, bonus_header[0] & 2 == 2,
-                                                  bonus_header[1], header[2])
-            # log("Loaded {0} vertices!".format(len(vertex_list)))
+            vertex_list, off = import_vertex_list(
+                packed_bytes, off, l_header, encrypted, bonus_header[0] & 2 == 2,
+                bonus_header[1], header[2]
+            )
+            if not vertex_list:
+                raise ValueError("O3D vertex section cannot be empty")
         elif section == 0x49:
-            triangle_list, off = import_triangle_list(packed_bytes, off, l_header, bonus_header[0] & 1 == 1)
-            # log("Loaded {0} triangles!".format(len(triangle_list)))
+            triangle_list, off = import_triangle_list(
+                packed_bytes, off, l_header, bonus_header[0] & 1 == 1
+            )
+            if not triangle_list:
+                raise ValueError("O3D triangle section cannot be empty")
         elif section == 0x26:
             material_list, off = import_material_list(packed_bytes, off, l_header)
-            # log("Loaded {0} materials!".format(len(material_list)))
         elif section == 0x54:
             bone_list, off = import_bone_list(packed_bytes, off)
-            # log("Loaded {0} bones!".format(len(bone_list)))
         elif section == 0x79:
             transform, off = import_transform(packed_bytes, off)
         else:
-            log("Unexpected section header encountered in o3d file: " + hex(section) + " at: " + hex(off))
-            break
-
-        # triangle_list, off = import_triangle_list(packed_bytes, off, l_header, bonus_header[0])
-        # # log("Loaded {0} triangles!".format(len(triangle_list)))
-        # material_list, off = import_material_list(packed_bytes, off, l_header)
-        # # log("Loaded {0} materials!".format(len(material_list)))
-        # bone_list, off = import_bone_list(packed_bytes, off)
-        # # log("Loaded {0} bones!".format(len(bone_list)))
-        # transform, off = import_transform(packed_bytes, off)
+            message = f"unexpected O3D section {section:#x} at offset {section_offset:#x}"
+            if strict:
+                raise ValueError(message)
+            log(message)
 
     return header, vertex_list, triangle_list, material_list, bone_list, transform, encrypted
 
@@ -268,23 +351,20 @@ def export_material(write, material):
     (diffuse_r, diffuse_g, diffuse_b, diffuse_a, specular_r, specular_g, specular_b, emission_r, emission_g, emission_b,
     specular_power, texture_name)
     """
+    encoded_name = _encode_name(material[-1], "material texture name")
     write("<fffffffffff", *material[:-1])
-    # write("<B", len(material[-1]))
-    write("<{0}p".format(len(material[-1])+1), material[-1].encode("cp1252"))
+    write("<B", len(encoded_name))
+    if encoded_name:
+        write(f"<{len(encoded_name)}s", encoded_name)
 
 
 def export_bone(write, bone):
     bone_name, influences = bone
 
-    # Validate bone name fits in one-byte length-prefixed encoding
-    encoded_name = bone_name.encode("cp1252")
-    if len(encoded_name) > 255:
-        raise ValueError(
-            f"Bone name '{bone_name}' is too long: {len(encoded_name)} bytes encoded. "
-            f"Maximum length is 255 bytes in cp1252 encoding."
-        )
-
-    write("<{0}p".format(len(encoded_name)+1), encoded_name)
+    encoded_name = _encode_name(bone_name, f"bone name {bone_name!r}")
+    write("<B", len(encoded_name))
+    if encoded_name:
+        write(f"<{len(encoded_name)}s", encoded_name)
 
     # Validate influence count fits in u16
     if len(influences) > 65535:
@@ -344,7 +424,7 @@ def export_vertex_list(write, vertex_list, encrypted, encryption_key, long_heade
     for v in vertex_list:
         if encrypted:
             v, prev_seed, prev_vpos_seed = encrypt_vert(v, encryption_key, alt_encryption_seed, prev_seed,
-                                                        prev_vpos_seed, version)
+                                                        prev_vpos_seed, len(vertex_list))
         export_vertex(write, v)
 
 
@@ -414,36 +494,34 @@ def export_transform(write, transform):
 def export_o3d(file, vertex_list, triangle_list, material_list, bone_list, transform, encrypted=False,
                encryption_key=0xffffffff, version=7, long_triangle_indices=True, alt_encryption_seed=True,
                invert_triangle_winding=False):
+    long_triangle_indices = _validate_export_inputs(
+        vertex_list, triangle_list, material_list, bone_list, version,
+        long_triangle_indices, encrypted, encryption_key,
+    )
+
     # Convenience function to pack and write bytes
     def write(fmt, *args):
         file.write(struct.pack(fmt, *args))
 
-    # Write header
     write("<BBB", 0x84, 0x19, version)
     long_header = version >= 3
     if version >= 3:
-        # Write extended header: the options byte is present from version 3 and
-        # the encryption key only from version 4.
         options_byte = (1 if long_triangle_indices else 0) | (2 if alt_encryption_seed else 0)
         if not encrypted:
-            # TODO: I think encryption is currently broken
             encryption_key = 0xffffffff
         if version >= 4:
             write("<BI", options_byte, encryption_key)
         else:
             write("<B", options_byte)
 
-    if version < 4:
-        if encrypted:
-            log("WARNING: O3D files with a version < 4 don't support encryption, the "
-                "file will be unreadable")
-
-    export_vertex_list(write, vertex_list, encrypted, encryption_key, long_header, alt_encryption_seed, version)
-    # log("Wrote {0} vertices!".format(len(vertex_list)))
-    export_triangle_list(write, triangle_list, long_triangle_indices, long_header, invert_triangle_winding)
-    # log("Wrote {0} triangles!".format(len(triangle_list)))
+    export_vertex_list(
+        write, vertex_list, encrypted, encryption_key, long_header,
+        alt_encryption_seed, version,
+    )
+    export_triangle_list(
+        write, triangle_list, long_triangle_indices, long_header,
+        invert_triangle_winding,
+    )
     export_material_list(write, material_list, long_header)
-    # log("Wrote {0} materials!".format(len(material_list)))
     export_bone_list(write, bone_list)
-    # log("Wrote {0} bones!".format(len(bone_list)))
     export_transform(write, transform)
