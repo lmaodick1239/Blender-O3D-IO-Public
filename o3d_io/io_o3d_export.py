@@ -204,7 +204,8 @@ def validate_character_export(obj, context=None, global_matrix=None, export_cust
                 "smoothskin": geometry["smoothskin"]}
 
 
-def _build_o3d_materials(filepath, materials):
+def _build_o3d_materials(filepath, materials, texture_filepath=None):
+    texture_filepath = texture_filepath or filepath
     o3d_mats = []
     for material_slot in materials:
         if material_slot.material is None:
@@ -224,7 +225,7 @@ def _build_o3d_materials(filepath, materials):
         o3d_mat.extend(mat.emission_color[:3])
         o3d_mat.append(_o3d_specular_power(material, mat))
         if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
-            o3d_mat.append(o3d_cfg_parser.texture_name(filepath, mat.base_color_texture.image))
+            o3d_mat.append(o3d_cfg_parser.texture_name(texture_filepath, mat.base_color_texture.image))
         else:
             o3d_mat.append("")
         o3d_mats.append(o3d_mat)
@@ -236,7 +237,8 @@ def _build_o3d_materials(filepath, materials):
 
 
 def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, materials, o3d_version,
-                export_custom_normals, allow_smoothskin=False, allowed_names=None):
+                export_custom_normals, allow_smoothskin=False, allowed_names=None,
+                texture_filepath=None):
     geometry = prepare_o3d_geometry(
         blender_obj, mesh, export_custom_normals, allowed_names=allowed_names
     )
@@ -248,7 +250,7 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
         raise ValueError("O3D supports at most 65535 materials")
     if geometry["smoothskin"] and not allow_smoothskin:
         log("WARNING: direct O3D export cannot express [smoothskin]; blended weights may load rigidly")
-    o3d_mats = _build_o3d_materials(filepath, materials)
+    o3d_mats = _build_o3d_materials(filepath, materials, texture_filepath)
     os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
     with open(filepath, "wb") as f:
         o3dconvert.export_o3d(
@@ -328,6 +330,7 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
                     o3d_version, export_custom_normals,
                     allow_smoothskin=not single_o3d,
                     allowed_names=allowed_names,
+                    texture_filepath=filepath if not single_o3d else path,
                 )
         if not single_o3d:
             o3d_cfg_parser.write_cfg(

@@ -170,6 +170,7 @@ def assert_textured_object_material_cfg(addon):
             bpy.ops.object.select_all(action="DESELECT")
             result.mesh.select_set(True)
             path = root / "model.cfg"
+            result.mesh["export_path"] = "nested/model.o3d"
             addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)
             text = path.read_text(encoding="utf-8")
             assert text.count("[setbone]\nMain\n-11\n") == 1, text
