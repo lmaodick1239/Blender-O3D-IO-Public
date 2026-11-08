@@ -21,6 +21,18 @@ def log(*args):
     print("[O3D_Export]", *args)
 
 
+def _o3d_specular_power(material, wrapper):
+    stored = material.get("o3d_specular_power")
+    baseline = material.get("o3d_specular_roughness")
+    if stored is not None and baseline is not None:
+        try:
+            if abs(float(wrapper.roughness) - float(baseline)) <= 1e-6:
+                return float(stored)
+        except (TypeError, ValueError):
+            pass
+    return max(0.0, 1.0 - float(wrapper.roughness))
+
+
 def default_o3d_material():
     """
     Neutral white material used for empty material slots and for objects Blender has no material on at all,
@@ -191,7 +203,7 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
             else:
                 o3d_mat.extend([mat.specular, mat.specular, mat.specular])
             o3d_mat.extend(mat.emission_color[:3])
-            o3d_mat.append(1 - mat.roughness)
+            o3d_mat.append(_o3d_specular_power(material_slot.material, mat))
             if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
                 o3d_mat.append(os.path.basename(mat.base_color_texture.image.filepath))
             else:

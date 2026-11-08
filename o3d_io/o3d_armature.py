@@ -66,7 +66,8 @@ def create_armature_for_mesh(
                     f"for {bone_name!r}: ({vertex_index!r}, {weight!r})"
                 )
                 continue
-            weights[vertex_index] = max(weights.get(vertex_index, 0.0), weight)
+            if vertex_index not in weights:
+                weights[vertex_index] = weight
 
     if not normalized:
         return None

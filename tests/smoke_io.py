@@ -1638,3 +1638,110 @@ def assert_unbound_setbone_warning(addon: ModuleType) -> None:
     assert unbound == {"Renamed", "Empty"}, f"expected {{'Renamed', 'Empty'}}, got {unbound}"
 
     bpy.data.objects.remove(source, do_unlink=True)
+
+
+def assert_embedded_material_round_trip(addon: ModuleType) -> None:
+    """Embedded alpha and raw specular power survive direct O3D import/export."""
+    vertices = [
+        (0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0),
+        (0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0),
+    ]
+    materials = [(1.0, 0.5, 0.25, 0.25, 0.1, 0.2, 0.3,
+                  0.0, 0.0, 0.0, 32.0, "")]
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-embedded-material-") as temporary:
+        source_path = Path(temporary) / "embedded.o3d"
+        with source_path.open("wb") as file:
+            addon.o3d_io.o3dconvert.export_o3d(
+                file, vertices, [(0, 1, 2, 0)], materials, [], None,
+            )
+        imported = addon.o3d_io.io_o3d_import.do_import(
+            str(source_path), bpy.context, False, "", False
+        )
+        try:
+            material = imported[0].data.materials[0]
+            wrapper = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
+            assert abs(wrapper.alpha - 0.25) < 0.001, wrapper.alpha
+            assert abs(material["o3d_specular_power"] - 32.0) < 0.001
+            exported_path = Path(temporary) / "embedded-export.o3d"
+            addon.o3d_io.io_o3d_export.do_export(
+                str(exported_path), bpy.context, Matrix.Identity(4), True, 7, True
+            )
+            exported = addon.o3d_io.o3dconvert.import_o3d(exported_path.read_bytes())
+            assert abs(exported[3][0][3] - 32.0) < 0.001, exported[3]
+            assert abs(exported[3][0][0][3] - 0.25) < 0.001, exported[3]
+        finally:
+            for obj in imported:
+                bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def assert_long_import_name_mapping(addon: ModuleType) -> None:
+    """Long and colliding file bone names map to distinct Blender groups."""
+    original_load_o3d = addon.o3d_io.io_o3d_import.load_o3d
+    prefix = "B" * 63
+    bones = [
+        (prefix + "1", [(0, 0.25)]),
+        (prefix + "2", [(0, 0.75)]),
+    ]
+
+    def stub_load_o3d(object_directory, path_to_file, split_normals):
+        mesh = bpy.data.meshes.new("Long Name Mesh")
+        mesh.from_pydata(
+            [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+            [], [(0, 1, 2)],
+        )
+        return [], [0], mesh, (None, None, None, [], bones, None, None), Matrix.Identity(4)
+
+    addon.o3d_io.io_o3d_import.load_o3d = stub_load_o3d
+    try:
+        with tempfile.TemporaryDirectory(prefix="blender-o3d-io-long-bones-") as temporary:
+            filepath = Path(temporary) / "long-bones.o3d"
+            filepath.write_bytes(b"stub")
+            imported = addon.o3d_io.io_o3d_import.do_import(
+                str(filepath), bpy.context, False, "", False
+            )
+            try:
+                mesh_obj = next(obj for obj in imported if obj.type == "MESH")
+                armature_obj = next(obj for obj in imported if obj.type == "ARMATURE")
+                assert len(mesh_obj.vertex_groups) == 2
+                weights = sorted(group.weight for group in mesh_obj.data.vertices[0].groups)
+                assert weights == [0.25, 0.75], weights
+                assert len(armature_obj.data.bones) == 2
+            finally:
+                for obj in imported:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+    finally:
+        addon.o3d_io.io_o3d_import.load_o3d = original_load_o3d
+
+
+def assert_singular_transform_geometry(addon: ModuleType) -> None:
+    """Singular transforms use identity object framing without coordinate inflation."""
+    vertices = [
+        (2.0, 3.0, 4.0, 0.0, 0.0, 1.0, 0.0, 0.0),
+        (3.0, 3.0, 4.0, 0.0, 0.0, 1.0, 1.0, 0.0),
+        (2.0, 4.0, 4.0, 0.0, 0.0, 1.0, 0.0, 1.0),
+    ]
+    singular = (0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0)
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-singular-geometry-") as temporary:
+        filepath = Path(temporary) / "singular.o3d"
+        with filepath.open("wb") as file:
+            addon.o3d_io.o3dconvert.export_o3d(
+                file, vertices, [(0, 1, 2, 0)],
+                [(1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "")],
+                [], singular,
+            )
+        imported = addon.o3d_io.io_o3d_import.do_import(
+            str(filepath), bpy.context, False, "", False
+        )
+        try:
+            obj = imported[0]
+            assert obj.matrix_basis == Matrix.Identity(4), obj.matrix_basis
+            coordinates = [tuple(vertex.co) for vertex in obj.data.vertices]
+            assert coordinates[0] == (2.0, 4.0, 3.0), coordinates
+            assert max(abs(value) for point in coordinates for value in point) < 10.0
+        finally:
+            for obj in imported:
+                bpy.data.objects.remove(obj, do_unlink=True)

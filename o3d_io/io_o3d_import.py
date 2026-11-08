@@ -28,6 +28,20 @@ def log(*args):
     print("[O3D_Import]", *args)
 
 
+def _safe_vertex_group_name(name, used_names, max_length=63):
+    base = str(name)[:max_length]
+    if not base:
+        return ""
+    candidate = base
+    suffix = 1
+    while candidate in used_names:
+        marker = f".{suffix:03d}"
+        candidate = f"{base[:max_length - len(marker)]}{marker}"
+        suffix += 1
+    used_names.add(candidate)
+    return candidate
+
+
 def resolve_import_filepaths(filepath, directory, filenames):
     supported_extensions = {".cfg", ".sco", ".o3d", ".rdy"}
     base_directory = os.path.abspath(directory or os.path.dirname(filepath))
@@ -202,15 +216,20 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
                 mesh.update()
 
                 # Generate bones
-                for bone in o3d[4]:
+                mapped_bones = []
+                original_bone_names = []
+                used_group_names = set()
+                for bone_index, bone in enumerate(o3d[4]):
                     bone_name = bone[0] if bone[0] else ""
 
-                    # Check if Blender supports this name
                     if not bone_name:
                         log(f"{path_to_file}: skipping bone: empty names are unsupported by Blender")
                         continue
 
-                    blender_obj.vertex_groups.new(name=bone_name)
+                    group_name = _safe_vertex_group_name(bone_name, used_group_names)
+                    group = blender_obj.vertex_groups.new(name=group_name)
+                    mapped_influences = []
+                    seen_influences = set()
                     for vert in bone[1]:
                         vertex_index = vert[0]
                         weight = vert[1]
@@ -233,11 +252,24 @@ def do_import(filepath, context, import_x, override_text_encoding, hide_lods, im
                                 f"weight {weight!r} is invalid (must be non-negative finite number)")
                             continue
 
-                        blender_obj.vertex_groups[bone_name].add([vertex_index], weight, "REPLACE")
+                        if vertex_index in seen_influences:
+                            continue
+                        seen_influences.add(vertex_index)
+                        group.add([vertex_index], weight, "REPLACE")
+                        mapped_influences.append((vertex_index, weight))
+
+                    mapped_bones.append((group_name, mapped_influences))
+                    original_bone_names.append((bone_index, bone_name, group_name))
+
+                if original_bone_names:
+                    mesh["o3d_bone_names"] = "\n".join(
+                        f"{index}\t{original}\t{mapped}"
+                        for index, original, mapped in original_bone_names
+                    )
 
                 # Create armature if bones are present
-                if o3d[4]:
-                    armature = o3d_armature.create_armature_for_mesh(blender_obj, o3d[4])
+                if mapped_bones:
+                    armature = o3d_armature.create_armature_for_mesh(blender_obj, mapped_bones)
                     if armature:
                         blender_objs.append(armature)
                     else:
@@ -450,12 +482,13 @@ def load_o3d(object_directory, path_to_file, split_normals):
     o3d_transform_matrix.transpose()
     # log("Imported matrix: \n{0}".format(o3d_transform_matrix))
     o3d_transform_matrix = axis_conversion_matrix @ o3d_transform_matrix @ axis_conversion_matrix
-    if o3d_transform_matrix.determinant() == 0:
+    if abs(o3d_transform_matrix.determinant()) <= 1e-8:
         log("WARNING: {0} has a non-invertible transform, importing it untransformed!".format(path_to_file))
-        i_o3d_transform_matrix = o3d_transform_matrix.inverted_safe()
+        o3d_transform_matrix = Matrix.Identity(4)
+        mesh_matrix = axis_conversion_matrix
     else:
         i_o3d_transform_matrix = o3d_transform_matrix.inverted()
-    mesh_matrix = i_o3d_transform_matrix @ axis_conversion_matrix
+        mesh_matrix = i_o3d_transform_matrix @ axis_conversion_matrix
     # log("Converted matrix: \n{0}".format(o3d_transform_matrix))
     # log("Inverted matrix: \n{0}".format(i_o3d_transform_matrix))
     # log("Mesh matrix: \n{0}".format(mesh_matrix))
@@ -505,7 +538,10 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
         blender_compat.enable_material_nodes(mat_blender)
         mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=False)
         mat.base_color = (diffuse_r, diffuse_g, diffuse_b)
+        mat.alpha = diffuse_a
         mat.roughness = 1 - spec_h
+        mat_blender["o3d_specular_power"] = float(spec_h)
+        mat_blender["o3d_specular_roughness"] = float(mat.roughness)
         if max(emit_r, emit_g, emit_b) > 0:
             mat.emission_color = (emit_r, emit_g, emit_b)
             mat.emission_strength = 1.0
