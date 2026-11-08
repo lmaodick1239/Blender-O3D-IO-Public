@@ -208,6 +208,39 @@ def assert_light_flare_flags_round_trip(addon: ModuleType) -> None:
     bpy.data.objects.remove(flare, do_unlink=True)
 
 
+def assert_light_flare_optional_texture(addon: ModuleType) -> None:
+    """An omitted flare texture must not exhaust the file or consume the next command."""
+    flares = (
+        ("[light_enh]", "1\n2\n3\n255\n128\n0\n0.5\n\n1\n0\n0\n0.25"),
+        ("[light_enh_2]", "1\n2\n3\n0\n1\n0\n0\n0\n1\n0\n0\n255\n128\n0\n0.5\n30\n60\n\n1\n0\n0\n0\n0.25"),
+    )
+    endings = (
+        ("", "", "Before flare"),
+        ("\n", "", "Before flare"),
+        ("\n\n", "", "Before flare"),
+        ("\nflare.bmp", "flare.bmp", "Before flare"),
+        ("\nflare.bmp\n[friendlyname]\nAfter flare\n", "flare.bmp", "After flare"),
+        ("\n[friendlyname]\nAfter flare\n", "", "After flare"),
+    )
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-flare-texture-") as temporary:
+        cfg_path = Path(temporary) / "flare.cfg"
+        for command, parameters in flares:
+            for ending, texture, friendlyname in endings:
+                cfg_path.write_text(
+                    f"[friendlyname]\nBefore flare\n{command}\n{parameters}{ending}",
+                    encoding="cp1252",
+                )
+                cfg_data, _ = addon.o3d_io.o3d_cfg_parser.read_cfg(str(cfg_path), "")
+                parsed = cfg_data[-1]
+                assert len(parsed["light_flares"]) == 1, (command, ending, parsed)
+                flare = parsed["light_flares"][0]
+                assert flare["type"] == command, flare
+                assert flare["texture"] == texture, (command, ending, flare)
+                assert flare["ramp_time"] == 0.25, flare
+                assert flare["brightness_var"] == "", flare
+                assert parsed["friendlyname"] == friendlyname, (command, ending, parsed)
+
+
 def assert_bulk_import(addon: ModuleType) -> None:
     source = create_source_object(addon)
     with tempfile.TemporaryDirectory(prefix="blender-o3d-io-bulk-") as temporary:

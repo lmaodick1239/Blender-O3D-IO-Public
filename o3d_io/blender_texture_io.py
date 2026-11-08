@@ -117,7 +117,7 @@ def load_image(base_file_path, texture_path, abs_path=False):
     if tex_file is not None and os.path.isfile(tex_file):
         # TODO: Alpha_8_UNORM DDS files are not supported by Blender
         image = bpy.data.images.load(tex_file,
-                                     check_existing=True)
+                                     check_existing=False)
 
         is_dds = tex_file[-3:].lower() == "dds"
 

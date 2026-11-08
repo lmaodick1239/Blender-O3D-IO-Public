@@ -61,6 +61,8 @@ Blender-O3D-IO includes a fast o3d file importer and exporter with full support 
 
 Imported model, config, texture, spline, and terrain paths are resolved without regard to filename or directory casing, including on Linux. Existing files keep their original names; exact matches take priority, and regional-codepage fallbacks remain supported.
 
+Each O3D material keeps its own Blender material slot and face assignments, including repeated texture references. Images are loaded separately rather than merged by filename. Missing textures retain separate unloaded image references with their original paths for relinking; they never fall back to the first available texture. CFG material settings are matched by texture path and material index.
+
 ## Import diagnostics
 
 After the `Loaded ...` console line, each model import prints tallies of unreadable meshes and missing textures, grouped by filename with occurrence counts and unique-file totals. Repeated references are counted separately, the most frequent failures appear first, and counts reset for each imported model or configuration. Existing warnings still appear as files are processed.
@@ -147,6 +149,8 @@ EMPTY objects in the correct position with the all of the properties of the flar
 Properties" section of the "Object Properties" tab for that object (with the exception of colour, texture, and size 
 which are controlled from the object data properties (color is controlled from 
 "Object Properties->Viewport Display->Color")).
+
+For `[light_enh]` and `[light_enh_2]`, a blank or omitted texture uses `licht.bmp`, including when the flare is the final entry in the CFG.
 
 ### Lights
 All point lights are exported as `[interiorlight]` objects. Only the following properties are exported:

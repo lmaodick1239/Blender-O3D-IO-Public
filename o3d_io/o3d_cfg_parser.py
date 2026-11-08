@@ -81,8 +81,9 @@ def read_cfg(filepath, override_text_encoding):
                 "SD85\SD85_spiegel.o3d": {
                     "viewpoint": ...
                     "matls": {
-                        "SD84-85_03.bmp": {
-                            "diffuse": "SD84-85_03.bmp",
+                        ("sd84-85_03.bmp", 0): {
+                            "diffuse": ("SD84-85_03.bmp", 0),
+                            "mat_id": 0,
                             "envmap": 0.5,
                             "last_line": 4673
                         },
@@ -95,7 +96,7 @@ def read_cfg(filepath, override_text_encoding):
     :param override_text_encoding: the text encoding to use to read the file instead of utf8/cp1252
     :return: (An array of model file paths (.o3d/.x),
       An array of light entity names,
-      The cfg_data dictionary: {lod: {mesh/path: {'matls': {texture_path:{ material properties...}}, mesh properties}}},
+      The cfg_data dictionary: {lod: {mesh/path: {'matls': {(texture_path, mat_id):{ material properties...}}, mesh properties}}},
       The root folder of the material).
     """
     filepath = resolve_case_insensitive_path(filepath)
@@ -249,7 +250,7 @@ def read_cfg(filepath, override_text_encoding):
 
         elif current_command == "[light_enh]":
             if param_ind == -1:
-                cfg_data[current_lod]["light_flares"].append({"type": "[light_enh]"})
+                cfg_data[current_lod]["light_flares"].append({"type": "[light_enh]", "texture": ""})
                 light_flare = cfg_data[current_lod]["light_flares"][-1]
                 light_flare["x_pos"] = float(next(iter_lines)[1])
                 light_flare["y_pos"] = float(next(iter_lines)[1])
@@ -263,11 +264,12 @@ def read_cfg(filepath, override_text_encoding):
                 light_flare["z_offset"] = float(next(iter_lines)[1])
                 light_flare["effect"] = int(next(iter_lines)[1])
                 light_flare["ramp_time"] = float(next(iter_lines)[1])
-                light_flare["texture"] = next(iter_lines)[1]
+            elif param_ind == 0:
+                light_flare["texture"] = line
 
         elif current_command == "[light_enh_2]":
             if param_ind == -1:
-                cfg_data[current_lod]["light_flares"].append({"type": "[light_enh_2]"})
+                cfg_data[current_lod]["light_flares"].append({"type": "[light_enh_2]", "texture": ""})
                 light_flare = cfg_data[current_lod]["light_flares"][-1]
                 light_flare["x_pos"] = float(next(iter_lines)[1])
                 light_flare["y_pos"] = float(next(iter_lines)[1])
@@ -292,19 +294,24 @@ def read_cfg(filepath, override_text_encoding):
                 light_flare["effect"] = int(next(iter_lines)[1])
                 light_flare["cone_effect"] = int(next(iter_lines)[1]) == 1
                 light_flare["ramp_time"] = float(next(iter_lines)[1])
-                light_flare["texture"] = next(iter_lines)[1]
+            elif param_ind == 0:
+                light_flare["texture"] = line
 
         elif current_command == "[matl]" or current_command == "[matl_change]":
             if param_ind == 0:
                 matl = line.lower()
-                cfg_data[current_lod]["meshes"][current_mesh]["matls"][matl] = {
+                current_mat = (matl, None)
+                cfg_data[current_lod]["meshes"][current_mesh]["matls"][current_mat] = {
                     "diffuse": (line, i),
                     "type": current_command,
                     "cfg_data": []
                 }
-                current_mat = matl
             elif param_ind == 1:
-                cfg_data[current_lod]["meshes"][current_mesh]["matls"][current_mat]["mat_id"] = int(line)
+                matls = cfg_data[current_lod]["meshes"][current_mesh]["matls"]
+                material = matls.pop(current_mat)
+                material["mat_id"] = int(line)
+                current_mat = (material["diffuse"][0].lower(), material["mat_id"])
+                matls[current_mat] = material
             elif current_command == "[matl_change]" and param_ind == 2:
                 cfg_data[current_lod]["meshes"][current_mesh]["matls"][current_mat]["change_var"] = line
 

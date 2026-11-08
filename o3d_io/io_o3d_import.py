@@ -20,7 +20,7 @@ from . import blender_compat, o3dconvert, o3d_armature
 # from . import log
 from mathutils import Matrix, Vector
 from .o3d_cfg_parser import read_cfg
-from .blender_texture_io import load_texture_into_new_slot, load_image, missing_texture_files
+from .blender_texture_io import TextureSlotWrapper, load_texture_into_new_slot, load_image, missing_texture_files
 from .omsi_paths import platform_related_path, resolve_case_insensitive_path
 
 
@@ -433,6 +433,8 @@ def load_o3d(object_directory, path_to_file, split_normals):
     materials = o3d[3]
 
     mesh.from_pydata(vertex_pos, edges, face_list)
+    # Keep material IDs attached to their faces when validation removes invalid geometry.
+    mesh.polygons.foreach_set("material_index", matl_ids)
 
     mesh.uv_layers.new(name="UV Map")
 
@@ -468,6 +470,7 @@ def load_o3d(object_directory, path_to_file, split_normals):
         for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
             mesh.uv_layers[0].data[loop_idx].uv = uvs[vert_idx]
 
+    matl_ids = [face.material_index for face in mesh.polygons]
     return materials, matl_ids, mesh, o3d, o3d_transform_matrix
 
 
@@ -484,7 +487,7 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
     """
 
     # Create materials
-    for matl in materials:
+    for mat_index, matl in enumerate(materials):
         # log(matl)
         diffuse_r = matl[0][0]
         diffuse_g = matl[0][1]
@@ -524,7 +527,12 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
         blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
 
         # Load the diffuse texture and assign it to a new texture slot
-        diff_tex = load_texture_into_new_slot(cfg_file_path, matl[4], mat)
+        diff_tex = load_texture_into_new_slot(cfg_file_path, matl[4], mat) if matl[4] else None
+        if diff_tex is None and matl[4]:
+            image = bpy.data.images.new(matl[4], width=1, height=1)
+            image.source = 'FILE'
+            image.filepath = matl[4]
+            diff_tex = TextureSlotWrapper(image)
         if diff_tex:
             mat.base_color_texture.image = diff_tex.texture.image
 
@@ -532,9 +540,7 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
             diff_tex.texture.image.colorspace_settings.name = 'sRGB'
             diff_tex.texture.image.alpha_mode = "NONE"
             # Read the material config to see if we need to apply transparency
-            key = matl[4].lower()
-            # cfg_materials should always contain an entry for the key, but if no [matl] tag is defined it won't
-            # have a "diffuse" item
+            key = (matl[4].lower(), mat_index)
             if key in cfg_materials and "diffuse" in cfg_materials[key]:
                 if "alpha" in cfg_materials[key] and cfg_materials[key]["alpha"][0] > 0:
                     # Material uses alpha stored in diffuse texture alpha channel

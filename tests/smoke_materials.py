@@ -88,6 +88,120 @@ def assert_terrain_material_compatibility(addon: ModuleType) -> None:
     )
 
 
+def assert_import_preserves_material_slots(addon: ModuleType) -> None:
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-slots-") as temporary:
+        directory = Path(temporary)
+        texture_dir = directory / "texture"
+        for name in ("present.png", "a/panel.png", "b/panel.png"):
+            path = texture_dir / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            image = bpy.data.images.new(name, width=1, height=1)
+            image.filepath_raw = str(path)
+            image.file_format = "PNG"
+            image.save()
+            bpy.data.images.remove(image)
+
+        names = ("present.png", "present.png", "missing.png", "missing.png",
+                 "a/panel.png", "b/panel.png", "")
+        material_ids = [3, 0, 5, 1, 2, 4, 6]
+        vertices = []
+        triangles = []
+        for index, material_id in enumerate(material_ids):
+            start = len(vertices)
+            vertices.extend([
+                (index * 2, 0, 0, 0, 0, 1, 0, 0),
+                (index * 2 + 1, 0, 0, 0, 0, 1, 1, 0),
+                (index * 2, 1, 0, 0, 0, 1, 0, 1),
+            ])
+            triangles.append((start, start + 1, start + 2, material_id))
+        materials = [(1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, name) for name in names]
+        with (directory / "slots.o3d").open("wb") as file:
+            addon.o3d_io.o3dconvert.export_o3d(
+                file, vertices, triangles, materials, [], None
+            )
+        cfg_path = directory / "slots.sco"
+        cfg_path.write_text(
+            "[mesh]\nslots.o3d\n\n"
+            "[matl]\npresent.png\n0\n[matl_alpha]\n1\n\n"
+            "[matl]\npresent.png\n1\n[matl_alpha]\n2\n\n"
+            "[matl]\nmissing.png\n2\n[matl_alpha]\n1\n\n"
+            "[matl]\nmissing.png\n3\n[matl_alpha]\n2\n\n",
+            encoding="cp1252",
+        )
+        imported = addon.o3d_io.io_o3d_import.do_import(
+            str(cfg_path), bpy.context, False, "", False
+        )
+        try:
+            mesh = imported[0].data
+            assert len(mesh.materials) == 7
+            assert len({material.as_pointer() for material in mesh.materials}) == 7
+            assert [face.material_index for face in mesh.polygons] == material_ids
+            images = []
+            for index, material in enumerate(mesh.materials):
+                wrapper = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
+                image = wrapper.base_color_texture.image if wrapper.base_color_texture else None
+                if index == 6:
+                    assert image is None
+                else:
+                    assert image is not None, (index, names[index])
+                    images.append(image)
+            assert len({image.as_pointer() for image in images}) == 6
+            for image in (images[0], images[1], images[4], images[5]):
+                assert len(image.pixels) == 4
+                assert image.has_data
+            assert not images[2].has_data and not images[3].has_data
+            assert images[2].filepath == images[3].filepath == "missing.png"
+            assert Path(images[4].filepath).parent.name == "a"
+            assert Path(images[5].filepath).parent.name == "b"
+            assert [addon.o3d_io.blender_compat.get_material_alpha_mode(material)
+                    for material in mesh.materials[:4]] == ["CLIP", "HASHED", "CLIP", "HASHED"]
+            assert mesh.materials[2]["type"] == "[matl]"
+            blend_path = directory / "slots.blend"
+            bpy.data.libraries.write(str(blend_path), {mesh})
+            with bpy.data.libraries.load(str(blend_path)) as (source, target):
+                target.meshes = source.meshes
+            saved_mesh = target.meshes[0]
+            assert len(saved_mesh.materials) == 7
+            assert [face.material_index for face in saved_mesh.polygons] == material_ids
+            saved_images = [
+                node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
+                .base_color_texture.image
+                for material in saved_mesh.materials[:6]
+            ]
+            assert len({image.as_pointer() for image in saved_images}) == 6
+            assert saved_images[2].filepath == saved_images[3].filepath == "missing.png"
+        finally:
+            for obj in imported:
+                bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def assert_import_preserves_validated_face_materials(addon: ModuleType) -> None:
+    with tempfile.TemporaryDirectory(prefix="blender-o3d-io-face-slots-") as temporary:
+        path = Path(temporary) / "faces.o3d"
+        vertices = [
+            (0, 0, 0, 0, 0, 1, 0, 0),
+            (1, 0, 0, 0, 0, 1, 1, 0),
+            (0, 1, 0, 0, 0, 1, 0, 1),
+            (1, 1, 0, 0, 0, 1, 1, 1),
+        ]
+        materials = [(1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, "")] * 3
+        with path.open("wb") as file:
+            addon.o3d_io.o3dconvert.export_o3d(
+                file, vertices, [(0, 0, 0, 0), (0, 1, 2, 1), (1, 3, 2, 2)],
+                materials, [], None,
+            )
+        imported = addon.o3d_io.io_o3d_import.do_import(
+            str(path), bpy.context, False, "", False
+        )
+        try:
+            mesh = imported[0].data
+            assert len(mesh.materials) == 3
+            assert [face.material_index for face in mesh.polygons] == [1, 2]
+        finally:
+            for obj in imported:
+                bpy.data.objects.remove(obj, do_unlink=True)
+
+
 def assert_bump_map(addon: ModuleType) -> None:
     material = bpy.data.materials.new("O3D Bump Material")
     addon.o3d_io.blender_compat.enable_material_nodes(material)
