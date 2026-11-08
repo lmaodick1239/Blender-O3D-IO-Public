@@ -630,7 +630,10 @@ def write_cfg_light(f, filepath, context, obj):
 
 
 def write_cfg_materials(f, obj):
-    for i, mat_blender in enumerate(obj.data.materials):
+    for i, slot in enumerate(obj.material_slots):
+        mat_blender = slot.material
+        if mat_blender is None:
+            continue
         mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=True)
         if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
             f.write("----------\n")
@@ -763,35 +766,44 @@ def write_cfg(filepath, objs, context, selection_only):
                 "\t\tBEGIN MODEL DATA\n"
                 "###############################################################\n\n")
 
-        # Now write each lod and each mesh within those lods
-        collection_names = [x.name for x in bpy.data.collections]
-        lods = [(x, float(x[4:])) for x in collection_names if x.startswith("LOD")]
-        lods = sorted(lods, key=lambda x: x[1], reverse=True)
-        non_lods = [o for x in collection_names for o in bpy.data.collections[x].all_objects if
-                    not x.startswith("LOD")]
+        # Use active-scene membership, including hidden imported lower levels.
+        selected = set(context.selected_objects) if selection_only else None
+        eligible = [obj for obj in context.scene.objects
+                    if obj.type in {"MESH", "LIGHT", "LAMP", "EMPTY"}
+                    and "skip_export" not in obj and (selected is None or obj in selected)]
+        eligible_set = set(eligible)
+        buckets, visited = {}, set()
+        pending = [context.scene.collection]
+        while pending:
+            collection = pending.pop()
+            if collection in visited:
+                continue
+            visited.add(collection)
+            pending.extend(collection.children)
+            if not collection.name.startswith("LOD_"):
+                continue
+            try:
+                factor = float(collection.name[4:])
+                if not math.isfinite(factor) or factor < 0:
+                    raise ValueError()
+            except ValueError:
+                log(f"Warning: ignoring invalid LOD collection name {collection.name!r}")
+                continue
+            buckets.setdefault(factor, set()).update(
+                eligible_set.intersection(collection.all_objects))
 
-        non_lods.extend(context.scene.collection.objects)
+        lod_objects = set().union(*buckets.values()) if buckets else set()
+        for obj in eligible:
+            if obj not in lod_objects:
+                write_cfg_object(context, f, filepath, obj)
 
-        for obj in non_lods:
-            if selection_only:
-                if not obj.select_get():
-                    continue
-
-            # log("Exporting {0}...".format(obj.name))
-            write_cfg_object(context, f, filepath, obj)
-
-        for lod in lods:
+        for factor, members in sorted(buckets.items(), reverse=True):
+            if not members:
+                continue
             f.write("\n###############################################################\n"
                     "\t\tBEGIN LOD {0}\n"
-                    "###############################################################\n\n".format(lod[1]))
-            f.write("[LOD]\n{0}\n\n".format(lod[1]))
-
-            objs = bpy.data.collections[lod[0]].all_objects
-
-            for obj in objs:
-                if selection_only:
-                    if not obj.select_get():
-                        continue
-
-                # log("Exporting {0}...".format(obj.name))
-                write_cfg_object(context, f, filepath, obj)
+                    "###############################################################\n\n".format(factor))
+            f.write("[LOD]\n{0}\n\n".format(factor))
+            for obj in eligible:
+                if obj in members:
+                    write_cfg_object(context, f, filepath, obj)

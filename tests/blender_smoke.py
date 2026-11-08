@@ -11,9 +11,54 @@ import bpy
 import smoke_io
 import smoke_paths
 import smoke_materials
+import smoke_character
+import smoke_character_panel
+import smoke_character_review
+import smoke_character_repair
+import smoke_character_fix_round_1
+import smoke_character_fix_round_2
+import smoke_character_final_fix
+import smoke_lod
 from smoke_support import load_addon
 
 CHECKS = [
+    smoke_character.assert_toon_reset,
+    smoke_character.assert_material_flatten,
+    smoke_character.assert_bone_name_mapping,
+    smoke_character.assert_weight_merge,
+    smoke_character.assert_auto_armature_build,
+    smoke_character.assert_template_conversion,
+    smoke_character.assert_extra_bones,
+    smoke_character.assert_conversion_export_round_trip,
+    smoke_character.assert_conversion_rollback_and_source_delete,
+    smoke_character.assert_conversion_runtime_validation,
+    smoke_character_repair.assert_conversion_input_guards,
+    smoke_character_repair.assert_source_detection_evidence,
+    smoke_character_repair.assert_canonical_joint_geometry,
+    smoke_character_repair.assert_sparse_auto_mapping,
+    smoke_character_repair.assert_template_extras_and_rest_clone,
+    smoke_character_repair.assert_conversion_parent_material_paths,
+    smoke_character_repair.assert_serialized_runtime_limits,
+    smoke_character_repair.assert_owned_rollback_and_deletion,
+    smoke_character_repair.assert_basis_and_evaluated_blend_preservation,
+    smoke_character_repair.assert_missing_weighted_target_refuses,
+    smoke_character_repair.assert_conversion_empty_context_restored,
+    smoke_character_fix_round_1.assert_deletion_external_id_users,
+    smoke_character_fix_round_1.assert_textured_object_material_cfg,
+    smoke_character_fix_round_1.assert_pre_v3_section_count_preservation,
+    smoke_character_fix_round_1.assert_group_modifier_refusal,
+    smoke_character_fix_round_1.assert_resolved_export_path_containment,
+    smoke_character_fix_round_1.assert_nonfinite_rig_preflight,
+    smoke_character_fix_round_2.assert_nested_group_modifier_refusal,
+    *smoke_lod.CHECKS,
+    *smoke_character_final_fix.CHECKS,
+    *smoke_character_panel.CHECKS,
+    *smoke_character_review.CHECKS,
+    smoke_io.assert_skin_distinct_coincident_export,
+    smoke_io.assert_evaluated_topology_skin_export,
+    smoke_io.assert_invalid_export_preserves_file,
+    smoke_io.assert_export_context_restoration,
+    smoke_paths.assert_safe_export_mesh_paths,
     smoke_materials.assert_material_compatibility,
     smoke_materials.assert_spline_material_compatibility,
     smoke_materials.assert_solid_material_compatibility,
@@ -69,6 +114,7 @@ def run() -> None:
     for check in CHECKS:
         check(addon)
     addon.unregister()
+    smoke_character_panel.assert_character_panel_unregistered(addon)
     print("BLENDER_O3D_IO_SMOKE_OK", bpy.app.version_string)
 
 

@@ -2,6 +2,9 @@
 #  Copyright (c) 2022-2023 Thomas Mathieson.
 # ==============================================================================
 import os
+import ntpath
+import re
+import unicodedata
 
 
 def platform_related_path(path):
@@ -25,6 +28,35 @@ def join_omsi_path(base, relative):
     :return: the joined path using this platform's separators
     """
     return os.path.join(base, platform_related_path(relative).lstrip(os.sep))
+
+
+def safe_export_path(base, relative):
+    """Resolve an OMSI relative output without traversal or Windows drive escapes."""
+    relative = str(relative)
+    if ntpath.splitdrive(relative)[0] or ".." in relative.replace("\\", "/").split("/"):
+        raise ValueError(f"Unsafe OMSI export path: {relative!r}")
+    path = join_omsi_path(base, relative)
+    resolved_base, resolved_path = os.path.realpath(base), os.path.realpath(path)
+    if os.path.commonpath((resolved_base, resolved_path)) != resolved_base:
+        raise ValueError(f"Export path escapes selected root: {relative!r}")
+    return path
+
+
+def unique_export_path(source, objects, suffix="converted"):
+    """Return a fresh ASCII basename, comparing OMSI paths case-insensitively."""
+    original = str(source.get("export_path", source.name + ".o3d"))
+    stem = ntpath.splitext(ntpath.basename(original.replace("/", "\\")))[0]
+    stem = unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode("ascii")
+    stem = re.sub(r'[^A-Za-z0-9_-]+', "_", stem).strip("_ .") or "character"
+    stem = stem[:100]
+    used = {ntpath.normpath(str(obj.get("export_path", obj.name + ".o3d"))).lstrip("\\/").casefold()
+            for obj in objects}
+    base = f"{stem}_{suffix}"
+    candidate, index = base + ".o3d", 1
+    while candidate.casefold() in used:
+        candidate = f"{base}_{index}.o3d"
+        index += 1
+    return candidate
 
 
 # OMSI configs are written in the author's local codepage. A Turkish or Cyrillic filename read as

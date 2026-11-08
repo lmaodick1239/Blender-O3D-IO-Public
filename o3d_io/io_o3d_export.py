@@ -4,13 +4,15 @@
 
 import os
 import time
+from contextlib import contextmanager
+from math import isfinite
 
 import numpy as np
 
 import bmesh
 import bpy
 from mathutils import Matrix
-from . import blender_compat, o3d_cfg_parser, o3dconvert
+from . import blender_compat, o3d_cfg_parser, o3dconvert, omsi_paths
 
 from bpy_extras import node_shader_utils
 
@@ -29,102 +31,145 @@ def default_o3d_material():
     return [1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ""]
 
 
-def collect_o3d_bones(blender_obj, source_vertex_count, source_to_export):
-    """
-    Collect validated bone weights mapped to exported vertex indices.
+def collect_o3d_bones(blender_obj, source_vertex_count, source_to_export, mesh=None):
+    """Map evaluated deform weights to every serialized UV/normal split."""
+    mesh = mesh if mesh is not None else blender_obj.data
+    influences = {group.index: {} for group in blender_obj.vertex_groups}
+    for vertex in mesh.vertices:
+        for entry in vertex.groups:
+            if entry.group not in influences or not isfinite(entry.weight) or entry.weight <= 0:
+                continue
+            for index in source_to_export.get(vertex.index, ()):
+                influences[entry.group].setdefault(index, entry.weight)
+    return [(group.name, sorted(influences[group.index].items()))
+            for group in blender_obj.vertex_groups if influences[group.index]]
 
-    Args:
-        blender_obj: Blender object with vertex groups
-        source_vertex_count: Number of vertices in the source mesh
-        source_to_export: dict mapping source vertex index to list of export vertex indices
 
-    Returns:
-        List of (bone_name, [(export_index, weight), ...]) tuples
-    """
-    bones = []
-    for v_group in blender_obj.vertex_groups:
-        influences = []
+def prepare_o3d_geometry(blender_obj, mesh, export_custom_normals=True):
+    """Prepare the exact serialized vertices, triangles and populated bone order."""
+    blender_compat.prepare_export_mesh(mesh, export_custom_normals)
+    uv_layer = mesh.uv_layers.active.data if mesh.uv_layers.active else None
+    weighted = any(vertex.groups for vertex in mesh.vertices)
+    verts, tris, vert_map, source_to_export = [], [], {}, {}
+    for triangle in mesh.loop_triangles:
+        tri = []
+        for source, loop, normal in zip(triangle.vertices, triangle.loops, triangle.split_normals):
+            co = tuple(mesh.vertices[source].co)
+            normal = tuple(normal)
+            uv = tuple(uv_layer[loop].uv) if uv_layer is not None else (0, 0)
+            key = (co, normal, uv, source if weighted else None)
+            if key not in vert_map:
+                vert_map[key] = len(verts)
+                verts.append([*co, *(-value for value in normal), uv[0], 1 - uv[1]])
+            index = vert_map[key]
+            tri.append(index)
+            source_to_export.setdefault(source, set()).add(index)
+        tris.append([*tri, triangle.material_index])
+    bones = collect_o3d_bones(blender_obj, len(mesh.vertices), source_to_export, mesh)
+    return {"verts": verts, "tris": tris, "bones": bones, "source_to_export": source_to_export}
 
-        # Query weights from source vertex indices
-        for source_idx in range(source_vertex_count):
-            try:
-                weight = v_group.weight(source_idx)
 
-                # Validate weight
-                if not (isinstance(weight, (int, float)) and weight >= 0.0 and weight != float('inf') and weight != float('-inf') and weight == weight):
-                    log(f"Warning: Skipping invalid weight {weight} for object '{blender_obj.name}', group '{v_group.name}', vertex {source_idx}")
-                    continue
+def validate_o3d_geometry(geometry, o3d_version=7, character_runtime=False):
+    """Validate file grammar; optionally enforce stricter OMSI human skin limits."""
+    verts, tris, bones = (geometry[key] for key in ("verts", "tris", "bones"))
+    if o3d_version < 3:
+        if len(verts) > 65535:
+            raise ValueError(f"O3D version {o3d_version} supports at most 65535 vertices")
+        if len(tris) > 65535:
+            raise ValueError(f"O3D version {o3d_version} supports at most 65535 triangles")
+    max_index = max((index for tri in tris for index in tri[:3]), default=0)
+    if o3d_version < 3 and max_index > 65535:
+        raise ValueError(f"O3D version {o3d_version} does not support triangle indices above 65535")
+    if len(bones) > 65535:
+        raise ValueError("O3D supports at most 65535 file bones")
+    dominant = {}
+    for bone_index, (name, entries) in enumerate(bones):
+        try:
+            encoded = name.encode("cp1252")
+        except UnicodeEncodeError as error:
+            raise ValueError(f"Bone name {name!r} is not CP1252 encodable") from error
+        if len(encoded) > 255:
+            raise ValueError(f"Bone name {name!r} exceeds 255 CP1252 bytes")
+        if len(entries) > 65535:
+            raise ValueError(f"Bone {name!r} has more than 65535 influences")
+        for index, weight in entries:
+            if not 0 <= index <= 65535:
+                raise ValueError(f"Vertex group {name!r} has weighted vertex index {index}, above the 65535 limit")
+            if index >= len(verts):
+                raise ValueError(f"Vertex group {name!r} has weighted vertex index {index}, "
+                                 f"outside the {len(verts)} serialized vertices")
+            if not isfinite(weight) or weight <= 0:
+                raise ValueError(f"Invalid influence for bone {name!r}")
+            if weight > dominant.get(index, (0, 0))[0]:
+                dominant[index] = (weight, bone_index)
+    if character_runtime and bones:
+        if len(verts) > 65535:
+            raise ValueError("OMSI supports at most 65535 serialized skinned vertices")
+        if any(index >= 128 for _, index in dominant.values()):
+            raise ValueError("dominant exported bone index must be below 128")
+    return max_index > 65535
 
-                # Map to all corresponding export indices
-                if source_idx in source_to_export:
-                    for export_idx in source_to_export[source_idx]:
-                        influences.append((export_idx, weight))
-            except RuntimeError:
-                # Vertex not in this group
-                pass
 
-        # Only include groups with at least one valid influence
-        if influences:
-            bones.append((v_group.name, influences))
+@contextmanager
+def prepared_export_mesh(obj, context=None, global_matrix=None):
+    """Yield evaluated, triangulated rest geometry and restore modifier flags."""
+    context = context or bpy.context
+    states = [(modifier, modifier.show_viewport, modifier.show_render)
+              for modifier in obj.modifiers if modifier.type == "ARMATURE"]
+    evaluated = mesh = None
+    try:
+        for modifier, _, _ in states:
+            modifier.show_viewport = modifier.show_render = False
+        evaluated = obj.evaluated_get(context.evaluated_depsgraph_get())
+        mesh = evaluated.to_mesh(preserve_all_data_layers=True, depsgraph=context.evaluated_depsgraph_get())
+        axis = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
+        matrix = axis @ obj.matrix_world @ axis
+        matrix.transpose()
+        mesh.transform(obj.matrix_world)
+        mesh.transform(axis)
+        if obj.matrix_world.is_negative:
+            mesh.flip_normals()
+        bm = bmesh.new()
+        try:
+            bm.from_mesh(mesh)
+            if global_matrix is not None:
+                bm.transform(global_matrix)
+            bmesh.ops.triangulate(bm, faces=bm.faces)
+            bm.to_mesh(mesh)
+        finally:
+            bm.free()
+        yield evaluated, mesh, [value for row in matrix for value in row]
+    finally:
+        if mesh is not None:
+            evaluated.to_mesh_clear()
+        for modifier, viewport, render in states:
+            modifier.show_viewport, modifier.show_render = viewport, render
 
-    return bones
 
+def validate_character_export(obj, context=None, global_matrix=None, export_custom_normals=True):
+    """Validate exactly what export serializes, without writing or changing context."""
+    with prepared_export_mesh(obj, context, global_matrix) as (evaluated, mesh, _):
+        geometry = prepare_o3d_geometry(evaluated, mesh, export_custom_normals)
+        validate_o3d_geometry(geometry, character_runtime=True)
+        counts = {}
+        for _, entries in geometry["bones"]:
+            for index, weight in entries:
+                if weight > 0:
+                    counts[index] = counts.get(index, 0) + 1
+        return {"vertices": len(geometry["verts"]),
+                "bones": tuple(name for name, _ in geometry["bones"]),
+                "smoothskin": any(count > 1 for count in counts.values())}
 
 
 def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, materials, o3d_version, export_custom_normals):
-    # Create o3d file
+    geometry = prepare_o3d_geometry(blender_obj, mesh, export_custom_normals)
+    long_triangle_indices = validate_o3d_geometry(geometry, o3d_version)
+    verts, tris, bones = (geometry[key] for key in ("verts", "tris", "bones"))
+    if len(materials) > 65535:
+        raise ValueError("O3D supports at most 65535 materials")
+    # Validate skin, geometry and section counts before opening a destination.
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     with open(filepath, "wb") as f:
-        has_uvs = len(mesh.uv_layers) > 0
-        if has_uvs:
-            uv_layer = mesh.uv_layers.active.data[:]
-        else:
-            uv_layer = None
-
-        # Extract mesh data
-        tris = []
-        verts = []  # Array of (xp, yp, zp, xn, yn, zn, u, v)
-        vert_map = {}
-        vert_count = 0
-        source_to_export = {}  # Map source vertex index to list of export vertex indices
-
-        blender_compat.prepare_export_mesh(mesh, export_custom_normals)
-        for tri_loop in mesh.loop_triangles:
-            tri = []
-            tris.append(tri)
-
-            for tri_vert, loop, normal in zip(tri_loop.vertices, tri_loop.loops, tri_loop.split_normals):
-                vert = mesh.vertices[tri_vert]
-                v_co = vert.co[:]
-                v_nrm = normal[:]
-                if uv_layer is not None:
-                    v_uv = uv_layer[loop].uv[:2]
-                else:
-                    v_uv = (0, 0)
-
-                if (v_co, v_nrm, v_uv) in vert_map:
-                    export_idx = vert_map[(v_co, v_nrm, v_uv)]
-                    tri.append(export_idx)
-                    # Map source vertex to this existing export vertex
-                    if tri_vert not in source_to_export:
-                        source_to_export[tri_vert] = []
-                    if export_idx not in source_to_export[tri_vert]:
-                        source_to_export[tri_vert].append(export_idx)
-                else:
-                    vert_map[(v_co, v_nrm, v_uv)] = vert_count
-                    verts.append(
-                        [v_co[0], v_co[1], v_co[2],
-                         -v_nrm[0], -v_nrm[1], -v_nrm[2],
-                         v_uv[0], 1 - v_uv[1]])
-                    tri.append(vert_count)
-                    # Map source vertex to this new export vertex
-                    if tri_vert not in source_to_export:
-                        source_to_export[tri_vert] = []
-                    source_to_export[tri_vert].append(vert_count)
-                    vert_count += 1
-
-            tri.append(tri_loop.material_index)
-
         # Construct embedded material array
         o3d_mats = []
         for material_slot in materials:
@@ -155,35 +200,6 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
         if not o3d_mats:
             o3d_mats.append(default_o3d_material())
 
-        # Construct bones with validated weights mapped to export vertices
-        bones = collect_o3d_bones(blender_obj, len(mesh.vertices), source_to_export)
-
-        # 32-bit triangle indices are driven by triangle indices only. Bone
-        # influence indices are always 16-bit in OMSI, regardless of options bit 0.
-        max_triangle_index = max((idx for tri in tris for idx in tri[:3]), default=0)
-        long_triangle_indices = max_triangle_index > 65535
-
-        # Reject wide triangle indices for pre-v3 formats
-        if o3d_version < 3 and long_triangle_indices:
-            raise ValueError(
-                f"O3D version {o3d_version} does not support triangle indices above 65535. "
-                f"Maximum triangle index in this mesh is {max_triangle_index}. "
-                f"Use version 3 or higher, or reduce the vertex count."
-            )
-
-        # OMSI addresses bone influences with a 16-bit index, so weighted vertices
-        # above index 65535 cannot be skinned. Reject before writing the bone
-        # section. (The file is opened above, so like the pre-v3 rejection this
-        # can leave a partial file behind on failure.)
-        for bone_name, influences in bones:
-            for idx, _ in influences:
-                if idx > 65535:
-                    raise ValueError(
-                        f"Vertex group '{bone_name}' has weighted vertex index {idx}, "
-                        f"above the 65535 limit OMSI uses for bone influences. "
-                        f"Reduce the vertex count or move weights to lower vertices."
-                    )
-
         o3dconvert.export_o3d(f, verts, tris, o3d_mats, bones, transform_matrix,
                               version=o3d_version,
                               encrypted=False, encryption_key=0x0,
@@ -204,6 +220,8 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
     """
     obj_root = os.path.dirname(filepath)
     start_time = time.time()
+    active = context.view_layer.objects.active
+    mode = active.mode if active else "OBJECT"
 
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -213,120 +231,48 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
     else:
         obs = context.scene.objects
 
-    deps_graph = context.evaluated_depsgraph_get()
-
+    obs = list(obs)
     bpy.context.window_manager.progress_begin(0, len(obs))
-
-    single_o3d = False
-    if filepath[-3:] == "o3d":
-        single_o3d = True
-
-    index = 0
-    exported_paths = set()
-    for ob in obs:
-        if "skip_export" in ob:
-            log("Skipping {0}...".format(ob.name))
-            index += 1
-            continue
-
-        log("Exporting " + ob.name + "...")
-        bpy.context.window_manager.progress_update(index)
-
-        # Identify Armature modifiers before evaluation to export rest-space geometry
-        armature_modifiers = []
-        if hasattr(ob, 'modifiers'):
-            for mod in ob.modifiers:
-                if mod.type == 'ARMATURE':
-                    armature_modifiers.append(mod)
-
-        # Store original visibility states for all Armature modifiers
-        original_modifier_states = []
-        for mod in armature_modifiers:
-            original_modifier_states.append({
-                'modifier': mod,
-                'show_viewport': mod.show_viewport,
-                'show_render': mod.show_render
-            })
-
-        try:
-            # Temporarily disable Armature modifiers to obtain rest-space geometry
-            for mod in armature_modifiers:
-                mod.show_viewport = False
-                mod.show_render = False
-
-            # Obtain a local dependency graph for armature-disabled evaluation
-            # Do not overwrite the shared deps_graph used by later objects
-            local_deps_graph = context.evaluated_depsgraph_get() if armature_modifiers else deps_graph
-
-            ob_eval = ob.evaluated_get(local_deps_graph)
-
-            me = None
-            try:
-                me = ob_eval.to_mesh()
-            except RuntimeError:
-                # Cannot convert to mesh, skip this object
-                index += 1
+    single_o3d = filepath.lower().endswith(".o3d")
+    try:
+        outputs, lexical_destinations, resolved_destinations = [], {}, {}
+        cfg_lexical_key = os.path.abspath(filepath).casefold() if not single_o3d else None
+        cfg_resolved_key = os.path.realpath(filepath).casefold() if not single_o3d else None
+        # Validate every candidate before any geometry/CFG file can be opened.
+        for ob in obs:
+            if "skip_export" in ob or ob.type not in {"MESH", "CURVE", "SURFACE", "FONT", "META"}:
                 continue
-
-            try:
-                axis_conversion_matrix = Matrix((
-                    (1, 0, 0, 0),
-                    (0, 0, 1, 0),
-                    (0, 1, 0, 0),
-                    (0, 0, 0, 1)
-                ))
-
-                o3d_matrix = axis_conversion_matrix @ ob.matrix_world @ axis_conversion_matrix
-                o3d_matrix.transpose()
-                me.transform(ob.matrix_world)
-                me.transform(axis_conversion_matrix)
-                if ob.matrix_world.is_negative:
-                    me.flip_normals()
-
-                log("Exported matrix: \n{0}".format(o3d_matrix))
-
-                bm = bmesh.new()
-                bm.from_mesh(me)
-
-                if global_matrix is not None:
-                    bm.transform(global_matrix)
-
-                bmesh.ops.triangulate(bm, faces=bm.faces)
-
-                bm.to_mesh(me)
-                bm.free()
-
-                # Export individual model
-                if "export_path" in ob:
-                    path = os.path.join(obj_root, ob["export_path"])
-                else:
-                    path = os.path.join(obj_root, ob.name + ".o3d")
-
-                if single_o3d:
-                    if len(obs) == 1:
-                        path = filepath
-                    else:
-                        path = os.path.join(obj_root, os.path.basename(filepath)[:-4] + "-" + ob.name + ".o3d")
-
-                # Export the mesh if it hasn't already been exported
-                if path not in exported_paths:
-                    exported_paths.add(path)
-                    export_mesh(path, context, ob_eval, me, [x for y in o3d_matrix for x in y], ob_eval.material_slots,
-                                o3d_version, export_custom_normals)
-            finally:
-                # Clean up evaluated mesh whenever to_mesh() succeeded
-                if me is not None:
-                    ob_eval.to_mesh_clear()
-
-            index += 1
-        finally:
-            # Restore original modifier visibility states
-            for state in original_modifier_states:
-                state['modifier'].show_viewport = state['show_viewport']
-                state['modifier'].show_render = state['show_render']
-
-    if not single_o3d:
-        cfg_materials = o3d_cfg_parser.write_cfg(filepath, obs, context, use_selection)
-
-    bpy.context.window_manager.progress_end()
+            if single_o3d and len(obs) == 1:
+                path = omsi_paths.safe_export_path(obj_root, os.path.basename(filepath))
+            else:
+                relative = (os.path.basename(filepath)[:-4] + "-" + ob.name + ".o3d" if single_o3d
+                            else str(ob.get("export_path", ob.name + ".o3d")))
+                path = omsi_paths.safe_export_path(obj_root, relative)
+            # abspath normalizes lexical paths without losing symlink spellings.
+            lexical_key = os.path.abspath(path).casefold()
+            resolved_key = os.path.realpath(path).casefold()
+            if lexical_key == cfg_lexical_key or resolved_key == cfg_resolved_key:
+                raise ValueError(f"Output path for {ob.name!r} collides with CFG destination {filepath!r}")
+            previous_lexical = lexical_destinations.get(lexical_key)
+            previous_resolved = resolved_destinations.get(resolved_key)
+            for previous in (previous_lexical, previous_resolved):
+                if previous is not None and previous != ob:
+                    raise ValueError(f"Output paths for {previous.name!r} and {ob.name!r} collide at {path!r}")
+            if previous_lexical is not None or previous_resolved is not None:
+                continue
+            lexical_destinations[lexical_key] = resolved_destinations[resolved_key] = ob
+            outputs.append((ob, path))
+        for index, (ob, path) in enumerate(outputs):
+            log("Exporting " + ob.name + "...")
+            bpy.context.window_manager.progress_update(index)
+            with prepared_export_mesh(ob, context, global_matrix) as (evaluated, mesh, matrix):
+                export_mesh(path, context, evaluated, mesh, matrix, evaluated.material_slots,
+                            o3d_version, export_custom_normals)
+        if not single_o3d:
+            o3d_cfg_parser.write_cfg(filepath, obs, context, use_selection)
+    finally:
+        bpy.context.window_manager.progress_end()
+        if active is not None and mode != "OBJECT":
+            context.view_layer.objects.active = active
+            bpy.ops.object.mode_set(mode=mode)
     log("Exported {0} models in {1} seconds!".format(len(obs), time.time() - start_time))

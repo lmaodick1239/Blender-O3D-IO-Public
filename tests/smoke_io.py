@@ -15,6 +15,104 @@ from mathutils import Matrix, Vector
 from smoke_support import create_source_object
 
 
+def assert_skin_distinct_coincident_export(addon: ModuleType) -> None:
+    """Coincident triangles with different skin must remain disjoint on disk."""
+    bpy.ops.object.select_all(action="DESELECT")
+    data = bpy.data.meshes.new("Coincident skin")
+    data.from_pydata([(0, 0, 0), (1, 0, 0), (0, 1, 0)] * 2, [], [(0, 1, 2), (3, 4, 5)])
+    obj = bpy.data.objects.new("Coincident skin", data)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.select_set(True)
+    for name, vertices in (("Main", [0, 1, 2]), ("Head", [3, 4, 5])):
+        obj.vertex_groups.new(name=name).add(vertices, 1, "REPLACE")
+    try:
+        with tempfile.TemporaryDirectory(prefix="o3d-skin-identity-") as temporary:
+            path = Path(temporary) / "skin.o3d"
+            addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)
+            parsed = addon.o3d_io.o3dconvert.import_o3d(path.read_bytes())
+            assert len(parsed[1]) == 6, f"skin-distinct vertices welded: {len(parsed[1])}"
+            bones = dict(parsed[4])
+            assert bones["Main"] == [(0, 1.0), (1, 1.0), (2, 1.0)]
+            assert bones["Head"] == [(3, 1.0), (4, 1.0), (5, 1.0)]
+    finally:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def assert_evaluated_topology_skin_export(addon: ModuleType) -> None:
+    """Array-generated vertices must carry evaluated weights, including UV seams."""
+    bpy.ops.object.select_all(action="DESELECT")
+    data = bpy.data.meshes.new("Evaluated skin")
+    data.from_pydata([(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)], [], [(0, 1, 2), (0, 2, 3)])
+    uv = data.uv_layers.new()
+    for loop, value in zip(uv.data, [(0, 0), (1, 0), (1, 1), (0.5, 0.5), (1, 1), (0, 1)]):
+        loop.uv = value
+    obj = bpy.data.objects.new("Evaluated skin", data)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.select_set(True)
+    obj.vertex_groups.new(name="Main").add([0, 1, 2, 3], 0.25, "REPLACE")
+    obj.vertex_groups.new(name="Head").add([0, 1, 2, 3], 0.75, "REPLACE")
+    array = obj.modifiers.new("Array", "ARRAY")
+    array.count = 2
+    try:
+        with tempfile.TemporaryDirectory(prefix="o3d-evaluated-skin-") as temporary:
+            path = Path(temporary) / "skin.o3d"
+            addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)
+            parsed = addon.o3d_io.o3dconvert.import_o3d(path.read_bytes())
+            assert len(parsed[1]) == 10, len(parsed[1])
+            bones = dict(parsed[4])
+            assert bones["Main"] == [(index, 0.25) for index in range(10)]
+            assert bones["Head"] == [(index, 0.75) for index in range(10)]
+    finally:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def assert_export_context_restoration(addon: ModuleType) -> None:
+    """Export restores caller edit mode on successful writes and validation errors."""
+    source = create_source_object(addon)
+    source.vertex_groups.new(name="Main").add([0, 1, 2], 1, "REPLACE")
+    bpy.ops.object.mode_set(mode="EDIT")
+    try:
+        with tempfile.TemporaryDirectory(prefix="o3d-context-") as temporary:
+            path = Path(temporary) / "mesh.o3d"
+            addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)
+            assert source.mode == "EDIT"
+            assert bpy.context.view_layer.objects.active == source
+            assert bpy.context.selected_objects == [source]
+            bpy.ops.object.mode_set(mode="OBJECT")
+            source.vertex_groups["Main"].name = "漢"
+            bpy.ops.object.mode_set(mode="EDIT")
+            try:
+                addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("invalid name accepted")
+            assert source.mode == "EDIT"
+    finally:
+        if bpy.context.object and bpy.context.object.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.data.objects.remove(source, do_unlink=True)
+
+
+def assert_invalid_export_preserves_file(addon: ModuleType) -> None:
+    """Name validation must precede opening an existing output file."""
+    source = create_source_object(addon)
+    source.vertex_groups.new(name="漢").add([0, 1, 2], 1, "REPLACE")
+    try:
+        with tempfile.TemporaryDirectory(prefix="o3d-invalid-preserve-") as temporary:
+            path = Path(temporary) / "existing.o3d"
+            path.write_bytes(b"keep existing output")
+            try:
+                addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)
+            except ValueError as error:
+                assert "CP1252" in str(error)
+            else:
+                raise AssertionError("non-CP1252 output accepted")
+            assert path.read_bytes() == b"keep existing output"
+    finally:
+        bpy.data.objects.remove(source, do_unlink=True)
+
+
 def assert_armature_helper(addon: ModuleType) -> None:
     addon.o3d_io.o3d_armature = importlib.import_module(addon.o3d_io.__name__ + ".o3d_armature")
     mesh = bpy.data.meshes.new("O3D Armature Source Mesh")

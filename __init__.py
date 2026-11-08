@@ -37,7 +37,7 @@ bl_info = {
 
 ADDON_VERSION = (1, 3, 4)
 
-from .o3d_io import io_o3d_import, io_o3d_export, io_omsi_tile, io_omsi_map_panel
+from .o3d_io import io_o3d_import, io_o3d_export, io_omsi_tile, io_omsi_map_panel, omsi_character_panel
 import bpy
 from mathutils import Matrix
 
@@ -360,6 +360,7 @@ classes = [
 def register():
     all_classes = classes[:]
     all_classes.extend(io_omsi_map_panel.get_classes())
+    all_classes.extend(omsi_character_panel.get_classes())
     log("Registering Blender-O3D-IO version: {0}...".format(ADDON_VERSION))
     for cls in all_classes:
         try:
@@ -369,6 +370,7 @@ def register():
             log("Failed to register {0}".format(cls))
 
     io_omsi_map_panel.register()
+    omsi_character_panel.register()
 
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
@@ -376,15 +378,16 @@ def register():
 
 
 def unregister():
+    omsi_character_panel.unregister()
+    io_omsi_map_panel.unregister()
     all_classes = classes[:]
     all_classes.extend(io_omsi_map_panel.get_classes())
+    all_classes.extend(omsi_character_panel.get_classes())
     for cls in all_classes[::-1]:
         try:
             bpy.utils.unregister_class(cls)
         except:
             log("Failed to unregister {0}".format(cls))
-
-    io_omsi_map_panel.unregister()
 
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)

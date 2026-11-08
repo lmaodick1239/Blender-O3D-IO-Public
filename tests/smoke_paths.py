@@ -9,6 +9,31 @@ from types import ModuleType
 import bpy
 
 
+def assert_safe_export_mesh_paths(addon: ModuleType) -> None:
+    """OMSI leading separators stay under export root; traversal/drive paths refuse."""
+    from mathutils import Matrix
+    from smoke_support import create_source_object
+
+    source = create_source_object(addon)
+    try:
+        with tempfile.TemporaryDirectory(prefix="o3d-safe-paths-") as temporary:
+            root = Path(temporary)
+            source["export_path"] = "/nested/Seat.o3d"
+            addon.o3d_io.io_o3d_export.do_export(str(root / "model.cfg"), bpy.context, Matrix.Identity(4), True, 7)
+            assert (root / "nested" / "Seat.o3d").is_file()
+            assert "[mesh]\n/nested/Seat.o3d\n" in (root / "model.cfg").read_text(encoding="utf-8")
+            for invalid in ("../outside.o3d", r"a\..\outside.o3d", "C:/outside.o3d"):
+                source["export_path"] = invalid
+                try:
+                    addon.o3d_io.io_o3d_export.do_export(str(root / "invalid.cfg"), bpy.context, Matrix.Identity(4), True, 7)
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError(f"unsafe export path accepted: {invalid}")
+    finally:
+        bpy.data.objects.remove(source, do_unlink=True)
+
+
 def assert_leading_separator_mesh_path(addon: ModuleType) -> None:
     """Issue #72: a [mesh] path written with a leading separator resolved to the drive root."""
     join = addon.o3d_io.omsi_paths.join_omsi_path
