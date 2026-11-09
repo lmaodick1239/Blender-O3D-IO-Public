@@ -2,8 +2,11 @@
 --python-exit-code 1 --python tests/smoke_human.py [-- --check NAME].
 Real Blender fixtures; never resave the supplied integration scene.
 """
+from contextlib import contextmanager
+import builtins
 import importlib
 import math
+import os
 import sys
 import tempfile
 import traceback
@@ -436,11 +439,401 @@ def assert_supplied_physics(addon, human):
     print('HUMAN_SUPPLIED_PHYSICS_OK', result['body_count'], result['joint_count'], result['joint_categories'])
 
 
+def source_snapshot():
+    """Source IDs, rest data, pose, context and modifier flags must be untouched."""
+    ids = [*bpy.data.objects, *bpy.data.meshes, *bpy.data.armatures, *bpy.data.images,
+           *bpy.data.materials, *bpy.data.scenes, *bpy.data.collections,
+           *(material.node_tree for material in bpy.data.materials if material.node_tree)]
+    properties = [(item.as_pointer(),
+                   repr({key: item[key].to_dict() if hasattr(item[key], 'to_dict') else
+                         item[key].to_list() if hasattr(item[key], 'to_list') else item[key]
+                         for key in item.keys()})) for item in ids]
+    objects = [(obj.as_pointer(), obj.name, obj.data.as_pointer() if obj.data else None,
+                tuple(value for row in obj.matrix_world for value in row), obj.mode,
+                obj.select_get(), obj.hide_get(),
+                [(mod.name, mod.show_viewport, mod.show_render) for mod in obj.modifiers],
+                [(bone.name, tuple(value for row in bone.matrix_basis for value in row))
+                 for bone in obj.pose.bones] if obj.type == 'ARMATURE' else [])
+               for obj in bpy.context.scene.objects]
+    vertices = [(mesh.as_pointer(), [(tuple(v.co), [(g.group, g.weight) for g in v.groups])
+                                    for v in mesh.vertices]) for mesh in bpy.data.meshes]
+    active = bpy.context.view_layer.objects.active
+    return repr((properties, objects, vertices, active.as_pointer() if active else None))
+
+
+@contextmanager
+def export_fixture(addon):
+    collections = (bpy.data.objects, bpy.data.meshes, bpy.data.armatures,
+                   bpy.data.materials, bpy.data.images, bpy.data.collections)
+    before = [set(items) for items in collections]
+    rig, mesh, source = fixture(addon)
+    mesh['export_path'] = 'body.o3d'
+    try:
+        yield rig, mesh, source
+    finally:
+        if bpy.context.object and bpy.context.object.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        for items, saved in zip(collections, before):
+            for item in set(items) - saved:
+                items.remove(item, do_unlink=True)
+
+
+def select_only(*objects):
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in objects:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = objects[0] if objects else None
+
+
+def copy_mesh(mesh, name, collection=None):
+    obj = mesh.copy()
+    obj.data = mesh.data.copy()
+    obj.name = name
+    (collection or bpy.context.scene.collection).objects.link(obj)
+    obj['export_path'] = name + '.o3d'
+    return obj
+
+
+REQUIRED_OVERRIDES = {'neck': (-.01, 1.55), 'finger': (.75, -.02, 1.38)}
+
+
+def disk_snapshot(root):
+    return {str(path.relative_to(root)): ('link', str(path.readlink())) if path.is_symlink()
+            else ('file', path.read_bytes()) if path.is_file() else ('directory',)
+            for path in root.rglob('*')}
+
+
+def assert_export_bundle(addon, human):
+    """Real serialized bones, per-LOD bindings and source immutability."""
+    with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        mesh.vertex_groups.new(name='Hip').add([0, 1, 2], .3, 'REPLACE')
+        mesh.vertex_groups.new(name='OA_L')  # Empty canonical groups must not get bindings.
+        mesh.vertex_groups.new(name='helper😀').add([0], .5, 'REPLACE')
+        mesh.data['cfg_data'] = [['[setbone]', 'stale_mesh', '42'], ['[smoothskin]'], ['[visible]', '1']]
+        material = bpy.data.materials.new('Human preserved material')
+        material.use_nodes = True
+        image = bpy.data.images.new('Human texture', width=1, height=1)
+        image.filepath = str(root / 'texture' / 'body.bmp')
+        texture = material.node_tree.nodes.new('ShaderNodeTexImage')
+        texture.image = image
+        shader = material.node_tree.nodes.get('Principled BSDF')
+        material.node_tree.links.new(texture.outputs['Color'], shader.inputs['Base Color'])
+        material['cfg_data'] = [['[setbone]', 'stale_material', '99'], ['[smoothskin]'], ['[matl_noZwrite]']]
+        mesh.data.materials.append(material)
+        high = bpy.data.collections.new('LOD_0.92')
+        low_collection = bpy.data.collections.new('LOD_0.23')
+        bpy.context.scene.collection.children.link(high)
+        bpy.context.scene.collection.children.link(low_collection)
+        bpy.context.scene.collection.objects.unlink(mesh)
+        high.objects.link(mesh)
+        low = copy_mesh(mesh, 'body_low', low_collection)
+        low['omsi_lod_level'] = 1
+        low.vertex_groups.remove(low.vertex_groups['Hip'])
+        low.vertex_groups.remove(low.vertex_groups['helper😀'])
+        # Pose, disabled modifier flag and edit mode must survive both preflight/export.
+        rig.pose.bones['Main'].location.z = 3
+        mesh.modifiers[0].show_render = False
+        select_only(rig)
+        bpy.ops.object.mode_set(mode='POSE')
+        bpy.context.view_layer.update()
+        before = source_snapshot()
+        result = human.export_human(str(root / 'character.hum'), bpy.context, rig, [mesh, low],
+                                    overrides=REQUIRED_OVERRIDES, scale=2)
+        assert source_snapshot() == before
+        assert Path(result['hum_path']).is_file() and Path(result['cfg_path']).is_file()
+        assert {Path(path).name for path in result['mesh_paths']} == {'body.o3d', 'body_low.o3d'}
+        assert all(Path(path).is_file() for path in result['mesh_paths'])
+        payload = Path(result['hum_path']).read_bytes()
+        assert b'[model]\r\ncharacter.cfg\r\n' in payload
+        lines = payload.decode('cp1252').splitlines()
+        links = lines.index('[links]') + 1
+        close([float(value) for value in lines[links + 14:links + 16]], (-.01, 1.55))
+        close([float(value) for value in lines[links + 19:links + 22]], (.75, -.02, 1.38))
+        cfg = Path(result['cfg_path']).read_bytes().decode('cp1252')
+        assert 'stale_mesh' not in cfg and 'stale_material' not in cfg
+        assert '[visible]\n1' in cfg and '[matl_noZwrite]' in cfg
+        assert cfg.count('[smoothskin]') == 1, cfg
+        slots = importlib.import_module(addon.__name__ + '.o3d_io.mmd_rig').CANONICAL_SLOTS
+        for part, expected in ((mesh, {'Main', 'Hip'}), (low, {'Main'})):
+            parsed = addon.o3d_io.o3dconvert.import_o3d((root / part['export_path']).read_bytes())
+            names = {bone[0] for bone in parsed[4]}
+            assert names == expected, names
+            block = cfg.split('[mesh]\n' + part['export_path'] + '\n', 1)[1].split('[LOD]', 1)[0]
+            for name in names:
+                assert f'[setbone]\n{name}\n{slots[name]}\n' in block, block
+            assert '[setbone]\nOA_L\n' not in block
+        assert any(abs(vertex[0][1] - 3.6) < 1e-5 for vertex in
+                   addon.o3d_io.o3dconvert.import_o3d((root / 'body.o3d').read_bytes())[1])
+        assert isinstance(result['warnings'], list)
+
+
+def assert_export_candidates(addon, human):
+    with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        low_collection = bpy.data.collections.new('LOD_0.37')
+        bpy.context.scene.collection.children.link(low_collection)
+        low = copy_mesh(mesh, 'candidate_low', low_collection)
+        low['omsi_lod_level'] = 1
+        low.hide_set(True)
+        sibling = copy_mesh(mesh, 'candidate_sibling')
+        unrelated = copy_mesh(mesh, 'candidate_unrelated')
+        unrelated.modifiers.clear()
+        skipped = copy_mesh(mesh, 'candidate_skipped')
+        skipped['skip_export'] = False  # Existing generic convention is key presence.
+        collider = copy_mesh(mesh, 'candidate_physics')
+        select_only(collider)
+        bpy.ops.rigidbody.object_add()
+        joint_mesh = copy_mesh(mesh, 'candidate_joint')
+        select_only(joint_mesh)
+        bpy.ops.rigidbody.constraint_add()
+        select_only(rig, collider, joint_mesh)
+        before = source_snapshot()
+        assert set(human.human_meshes(bpy.context, rig)) == {mesh, low, sibling}
+        assert source_snapshot() == before
+        select_only(rig, unrelated)
+        assert human.human_meshes(bpy.context, rig) == [], 'explicit unrelated mesh must not expand scope'
+        select_only(mesh, rig, collider, joint_mesh, unrelated)
+        assert human.human_meshes(bpy.context, rig) == [mesh]
+        assert set(human.human_meshes(bpy.context, rig, selection_only=False)) == {mesh, low, sibling}
+        result = human.export_human(str(root / 'scope.hum'), bpy.context, rig,
+                                    [mesh, collider, joint_mesh, unrelated, skipped],
+                                    overrides=REQUIRED_OVERRIDES)
+        assert {path.name for path in root.rglob('*.o3d')} == {'body.o3d'}
+        cfg = Path(result['cfg_path']).read_bytes().decode('cp1252')
+        assert cfg.count('[mesh]') == 1 and '[mesh]\nbody.o3d\n' in cfg
+        assert not any(obj['export_path'] in cfg for obj in (low, sibling, collider, joint_mesh, unrelated, skipped))
+        assert human.physics_diagnostics(rig, [mesh])['body_count'] == 0
+        select_only(rig, source)
+        refuses(lambda: human.human_meshes(bpy.context, rig), 'rig')
+        foreign = copy_mesh(mesh, 'foreign_rig')
+        foreign.modifiers[0].object = source
+        select_only(mesh, foreign)
+        refuses(lambda: human.human_meshes(bpy.context, rig), 'rig')
+        dual = mesh.modifiers.new('Other rig', 'ARMATURE')
+        dual.object = source
+        refuses(lambda: human.export_human(str(root / 'multiple.hum'), bpy.context, rig, [mesh],
+                                           overrides=REQUIRED_OVERRIDES), 'rig')
+        assert not (root / 'multiple.hum').exists()
+        mesh.modifiers.remove(dual)
+        # Membership, not bpy.data, excludes meshes in other scenes.
+        bpy.context.scene.collection.objects.unlink(foreign)
+        select_only(rig)
+        assert foreign not in human.human_meshes(bpy.context, rig)
+
+
+def assert_export_preflight(addon, human):
+    """Every refusal leaves the entire pre-existing file set untouched."""
+    with export_fixture(addon) as (rig, mesh, source):
+        second = copy_mesh(mesh, 'late_body')
+        def attempt(paths=('body.o3d', 'late_body.o3d'), *, setup=None, overrides=None,
+                    settings=None, filename='character.hum', overwrite=True, version=7):
+            mesh['export_path'], second['export_path'] = paths
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                for name in ('character.hum', 'character.cfg', 'body.o3d', 'late_body.o3d'):
+                    (root / name).write_bytes(b'SENTINEL\x00\xff ' + name.encode())
+                if setup:
+                    setup(root)
+                before, source_before = disk_snapshot(root), source_snapshot()
+                refuses(lambda: human.export_human(str(root / filename), bpy.context, rig, [mesh, second],
+                                                   overrides=REQUIRED_OVERRIDES if overrides is None else overrides,
+                                                   settings=settings, overwrite=overwrite, o3d_version=version))
+                assert disk_snapshot(root) == before
+                assert source_snapshot() == source_before
+        for existing in ('character.hum', 'character.cfg', 'body.o3d', 'late_body.o3d', 'BODY.O3D'):
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / existing).write_bytes(b'overwrite sentinel')
+                before = disk_snapshot(root)
+                refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context, rig, [mesh, second],
+                                                   overrides=REQUIRED_OVERRIDES), 'overwrite')
+                assert disk_snapshot(root) == before
+        attempt(overrides={})
+        attempt(overrides=dict(REQUIRED_OVERRIDES, hip=(0, 0, 1)))
+        attempt(settings={'voice': 'M2\n[mass]'})
+        attempt(settings={'mass_kg': float('nan')})
+        attempt(filename='😀.hum')
+        attempt(filename='bad\nname.hum')
+        attempt(version=999)
+        for paths in (('same.o3d', 'SAME.O3D'), ('nested/same.o3d', r'nested\same.o3d'),
+                      ('body.o3d', 'CHARACTER.HUM'), ('body.o3d', 'CHARACTER.CFG'),
+                      ('body.o3d', '../escape.o3d'), ('body.o3d', 'bad\npath.o3d'),
+                      ('body.o3d', '😀.o3d'), ('body.o3d', 'x[mesh].o3d'),
+                      ('body.o3d', 'character.hum/inner.o3d'),
+                      ('body.o3d', 'character.cfg/inner.o3d'),
+                      ('fresh.o3d', 'fresh.o3d/inner.o3d')):
+            attempt(paths)
+        def aliases(root):
+            (root / 'actual.o3d').write_bytes(b'alias sentinel')
+            (root / 'one.o3d').symlink_to('actual.o3d')
+            (root / 'two.o3d').symlink_to('actual.o3d')
+        attempt(('one.o3d', 'two.o3d'), setup=aliases)
+        def masked_case(root):
+            (root / 'actual.o3d').write_bytes(b'masked lexical sentinel')
+            (root / 'same.o3d').symlink_to('actual.o3d')
+        attempt(('same.o3d', 'SAME.O3D'), setup=masked_case)
+        for destination in ('character.hum', 'character.cfg'):
+            def alias_bundle(root, destination=destination):
+                (root / 'bundle_alias.o3d').symlink_to(destination)
+            attempt(('body.o3d', 'bundle_alias.o3d'), setup=alias_bundle)
+        with tempfile.TemporaryDirectory() as outside:
+            def escape(root):
+                (root / 'escape').symlink_to(outside, target_is_directory=True)
+            attempt(('body.o3d', 'escape/out.o3d'), setup=escape)
+            assert not list(Path(outside).iterdir())
+        # A bad late material/bone/geometry/CFG string must not truncate the first file.
+        select_only(rig)
+        bpy.ops.object.mode_set(mode='EDIT')
+        extra = rig.data.edit_bones.new('😀')
+        extra.head, extra.tail = (0, 0, 1), (0, 0, 1.1)
+        bpy.ops.object.mode_set(mode='OBJECT')
+        second.vertex_groups.new(name='😀').add([0], .5, 'REPLACE')
+        attempt()
+        second.vertex_groups.remove(second.vertex_groups['😀'])
+        material = bpy.data.materials.new('Unserializable human material')
+        material['o3d_layered_material'] = True
+        second.data.materials.append(material)
+        attempt()
+        second.data.materials.clear()
+        second.data.vertices[0].co.x = float('nan')
+        attempt()
+        second.data.vertices[0].co.x = 0
+        second.data['cfg_data'] = [['[visible]', '1\n[mesh]\nevil.o3d']]
+        attempt()
+        del second.data['cfg_data']
+        scene = bpy.context.scene
+        saved = scene.get('friendlyname')
+        scene['friendlyname'] = '😀'
+        attempt()
+        if saved is None:
+            del scene['friendlyname']
+        else:
+            scene['friendlyname'] = saved
+        saved_cfg = [list(block) for block in scene['cfg_data']] if 'cfg_data' in scene else None
+        scene['cfg_data'] = [['[setbone]', 'Main\n[mesh]\nevil.o3d', '-11']]
+        attempt()
+        if saved_cfg is None:
+            del scene['cfg_data']
+        else:
+            scene['cfg_data'] = saved_cfg
+
+
+def assert_export_transform_preflight(addon, human):
+    """Finite vertices do not imply a finite serialized object-frame matrix."""
+    with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        for vertex in mesh.data.vertices:
+            vertex.co *= 1e-10
+        mesh.scale = (1e10,) * 3
+        bpy.context.view_layer.update()
+        measurements = human.measure_human(rig, [mesh], overrides=REQUIRED_OVERRIDES, scale=1e30)
+        assert not measurements['errors'], measurements
+        before = source_snapshot()
+        refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context, rig, [mesh],
+                                           overrides=REQUIRED_OVERRIDES, scale=1e30))
+        assert not list(root.iterdir()) and source_snapshot() == before
+
+
+def assert_export_texture_preflight(addon, human):
+    """Non-base CFG texture names share the same prewrite trust boundary."""
+    with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        material = bpy.data.materials.new('Human texture preflight')
+        material.use_nodes = True
+        mesh.data.materials.append(material)
+        shader = material.node_tree.nodes.get('Principled BSDF')
+        base = material.node_tree.nodes.new('ShaderNodeTexImage')
+        base.image = bpy.data.images.new('Base texture', width=1, height=1)
+        base.image.filepath = 'base.bmp'
+        material.node_tree.links.new(base.outputs['Color'], shader.inputs['Base Color'])
+        alpha = material.node_tree.nodes.new('ShaderNodeTexImage')
+        alpha.image = bpy.data.images.new('Alpha texture', width=1, height=1)
+        material.node_tree.links.new(alpha.outputs['Color'], shader.inputs['Alpha'])
+        for filename in ('alpha\n[mesh].bmp', 'alpha\x85.bmp', 'alpha😀.bmp'):
+            alpha.image.filepath = filename
+            for name in ('character.hum', 'character.cfg', 'body.o3d'):
+                (root / name).write_bytes(b'texture preflight sentinel')
+            before, source_before = disk_snapshot(root), source_snapshot()
+            refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context, rig, [mesh],
+                                               overrides=REQUIRED_OVERRIDES, overwrite=True))
+            assert disk_snapshot(root) == before and source_snapshot() == source_before
+
+
+def assert_export_io_failure(addon, human):
+    """Inject only at the real destination open, never the serializer API."""
+    with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        cfg = root / 'failure.cfg'
+        cfg.write_bytes(b'CFG sentinel')
+        body = root / 'body.o3d'
+        body.write_bytes(b'geometry sentinel')
+        select_only(rig)
+        bpy.ops.object.mode_set(mode='POSE')
+        mesh.modifiers[0].show_render = False
+        before = source_snapshot()
+        real_open = builtins.open
+        def fail_destination(path, mode='r', *args, **kwargs):
+            if os.path.abspath(os.fspath(path)) == str(body) and 'w' in mode:
+                raise OSError('injected model destination open failure')
+            return real_open(path, mode, *args, **kwargs)
+        builtins.open = fail_destination
+        try:
+            try:
+                human.export_human(str(root / 'failure.hum'), bpy.context, rig, [mesh],
+                                   overrides=REQUIRED_OVERRIDES, overwrite=True)
+            except OSError as error:
+                assert 'injected' in str(error)
+            else:
+                raise AssertionError('injected file open failure was swallowed')
+        finally:
+            builtins.open = real_open
+        assert body.read_bytes() == b'geometry sentinel' and cfg.read_bytes() == b'CFG sentinel'
+        assert not (root / 'failure.hum').exists()
+        assert source_snapshot() == before
+        # A write error can leave a partial O3D: no multi-file rollback is claimed.
+        class FailingWriter:
+            def __init__(self, stream):
+                self.stream = stream
+            def __enter__(self):
+                self.stream.__enter__()
+                return self
+            def __exit__(self, *args):
+                return self.stream.__exit__(*args)
+            def write(self, payload):
+                self.stream.write(payload[:1])
+                raise OSError('injected model serialization write failure')
+        def fail_write(path, mode='r', *args, **kwargs):
+            stream = real_open(path, mode, *args, **kwargs)
+            return FailingWriter(stream) if os.path.abspath(os.fspath(path)) == str(body) and 'w' in mode else stream
+        builtins.open = fail_write
+        try:
+            try:
+                human.export_human(str(root / 'failure.hum'), bpy.context, rig, [mesh],
+                                   overrides=REQUIRED_OVERRIDES, overwrite=True)
+            except OSError as error:
+                assert 'serialization write failure' in str(error)
+            else:
+                raise AssertionError('injected serializer destination write failure was swallowed')
+        finally:
+            builtins.open = real_open
+        assert cfg.read_bytes() == b'CFG sentinel' and not (root / 'failure.hum').exists()
+        assert body.read_bytes() == b'\x84'  # Real first codec byte, not a fabricated output.
+        assert source_snapshot() == before
+        # Consent permits real replacement of the existing complete bundle.
+        result = human.export_human(str(root / 'failure.hum'), bpy.context, rig, [mesh],
+                                    overrides=REQUIRED_OVERRIDES, overwrite=True)
+        assert Path(result['hum_path']).is_file() and body.read_bytes() != b'geometry sentinel'
+
+
 CHECKS = [assert_serializer, assert_measurements, assert_missing_and_overrides,
           assert_conversion_metadata, assert_template_metadata, assert_stale,
           assert_alignment_and_transforms, assert_symmetry, assert_bounds_and_physics,
           assert_nested_collection_lods, assert_multiple_collection_lods,
-          assert_coordinate_golden, assert_save_reload, assert_supplied_physics]
+          assert_coordinate_golden, assert_save_reload,
+          assert_export_bundle, assert_export_candidates, assert_export_preflight,
+          assert_export_transform_preflight, assert_export_texture_preflight,
+          assert_export_io_failure, assert_supplied_physics]
 
 
 def run():

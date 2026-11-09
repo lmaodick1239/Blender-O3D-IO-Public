@@ -265,7 +265,8 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
     return {"smoothskin": geometry["smoothskin"], "bones": tuple(bones)}
 
 
-def do_export(filepath, context, global_matrix, use_selection, o3d_version, export_custom_normals=True):
+def do_export(filepath, context, global_matrix, use_selection, o3d_version, export_custom_normals=True,
+              *, objects=None, human_bindings=False):
     """
     Exports the selected CFG/SCO/O3D file
     :param o3d_version: O3D version to export the file as
@@ -283,7 +284,9 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT')
 
-    if use_selection:
+    if objects is not None:
+        obs = objects
+    elif use_selection:
         obs = context.selected_objects
     else:
         obs = context.scene.objects
@@ -336,6 +339,10 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
             o3d_cfg_parser.write_cfg(
                 filepath, obs, context, use_selection,
                 smoothskin_by_object=export_metadata,
+                objects_override=obs if objects is not None else None,
+                human_bindings_by_object={key: tuple(name for name, _ in data["bones"])
+                                          for key, data in export_metadata.items()}
+                if human_bindings else None,
             )
     finally:
         bpy.context.window_manager.progress_end()

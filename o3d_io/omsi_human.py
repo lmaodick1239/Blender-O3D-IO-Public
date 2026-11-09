@@ -11,7 +11,9 @@ import json
 from math import isfinite
 from numbers import Real
 import ntpath
+import os
 import unicodedata
+from io import BytesIO, StringIO
 
 from mathutils import Matrix, Vector
 
@@ -308,6 +310,227 @@ def serialize_hum(cfg_name, measurements, settings=None) -> bytes:
               ('[walk_param]', [_number(value) for value in walk]), ('[voice]', [voice]),
               ('[mass]', [_number(values['mass_kg'] / 1000)])]
     return ('\r\n\r\n'.join('\r\n'.join([tag, *lines]) for tag, lines in blocks) + '\r\n').encode('cp1252')
+
+
+def _mesh_rigs(obj):
+    rigs = {modifier.object for modifier in obj.modifiers
+            if modifier.type == 'ARMATURE' and modifier.object is not None}
+    parent = obj.parent
+    while parent is not None:
+        if parent.type == 'ARMATURE':
+            rigs.add(parent)
+        parent = parent.parent
+    return rigs
+
+
+def _human_candidates(context, armature, objects):
+    scene_objects = set(context.scene.objects)
+    if armature is None or armature.type != 'ARMATURE' or armature not in scene_objects:
+        raise ValueError('Select one human rig in the current scene')
+    meshes = []
+    for obj in dict.fromkeys(objects):
+        if obj not in scene_objects or 'skip_export' in obj or obj.rigid_body or obj.rigid_body_constraint:
+            continue
+        if obj.type == 'ARMATURE' and obj != armature:
+            raise ValueError('Human export requires one rig, not multiple unrelated rigs')
+        if obj.type != 'MESH':
+            continue
+        rigs = _mesh_rigs(obj)
+        if rigs and rigs != {armature}:
+            raise ValueError(f'{obj.name}: unrelated or multiple human rigs')
+        if rigs == {armature}:
+            meshes.append(obj)
+    return meshes
+
+
+def human_meshes(context, armature, *, selection_only=True) -> list:
+    """Select bound scene meshes without changing selection, including hidden LODs.
+
+    Explicit mesh selection retains its scope. Armature-only selection expands
+    to that rig's bound scene meshes; physics/skip_export helpers never count.
+    """
+    if not selection_only:
+        # Other rigs may coexist in a scene, but never enter this human's bundle.
+        candidates = [obj for obj in context.scene.objects
+                      if obj.type == 'MESH' and armature in _mesh_rigs(obj)]
+        return _human_candidates(context, armature, candidates)
+    selected = list(context.selected_objects)
+    meshes = _human_candidates(context, armature, selected)
+    explicit_meshes = any(obj.type == 'MESH' and 'skip_export' not in obj
+                          and not obj.rigid_body and not obj.rigid_body_constraint for obj in selected)
+    if explicit_meshes:
+        return meshes
+    if armature in selected:
+        return human_meshes(context, armature, selection_only=False)
+    return []
+
+
+def _cfg_value(value, label, *, command=False):
+    """Validate source values, not generated newlines/tags, before any file opens."""
+    if isinstance(value, str):
+        if any(unicodedata.category(char).startswith('C') or
+               (char in '[]' and not command) for char in value):
+            raise ValueError(f'{label}: controls or configuration injection are not allowed')
+        try:
+            value.encode('cp1252')
+        except UnicodeEncodeError as error:
+            raise ValueError(f'{label}: text must be CP1252 encodable') from error
+    elif isinstance(value, Real):
+        if not isfinite(value):
+            raise ValueError(f'{label}: numbers must be finite')
+    elif hasattr(value, 'items'):
+        for key, item in value.items():
+            _cfg_value(item, f'{label}.{key}')
+    elif hasattr(value, '__iter__'):
+        for item in value:
+            _cfg_value(item, label)
+    else:
+        raise ValueError(f'{label}: unsupported CFG value')
+
+
+def _human_cfg_props(owner, *, skip_skin=True):
+    for block in owner.get('cfg_data', ()):
+        if not block:
+            raise ValueError('Empty preserved CFG command')
+        command = str(block[0]).strip().lower()
+        if skip_skin and command in ('[setbone]', '[smoothskin]'):
+            continue  # The human renderer replaces these at mesh/material scope.
+        _cfg_value(block[0], 'Preserved CFG command', command=True)
+        if not (command.startswith('[') and command.endswith(']')
+                and '[' not in command[1:] and ']' not in command[:-1]):
+            raise ValueError('Invalid preserved CFG command')
+        for value in block[1:]:
+            _cfg_value(value, 'Preserved CFG parameter')
+
+
+def _human_output_paths(filepath, meshes, overwrite):
+    from . import omsi_paths
+    hum_path = os.path.abspath(os.fspath(filepath))
+    root, basename = os.path.split(hum_path)
+    _safe_text(basename, 'HUM filename')
+    if ntpath.splitext(basename)[1].lower() != '.hum':
+        raise ValueError('Human destination must have a .hum extension')
+    cfg_name = ntpath.splitext(basename)[0] + '.cfg'
+    # serialize_hum validates the same relative-path grammar for the model name.
+    paths = [omsi_paths.safe_export_path(root, basename),
+             omsi_paths.safe_export_path(root, cfg_name)]
+    for obj in meshes:
+        relative = _safe_text(str(obj.get('export_path', obj.name + '.o3d')), 'Mesh output path')
+        normalized = relative.replace('/', '\\')
+        if (ntpath.isabs(normalized) or ntpath.splitdrive(normalized)[0]
+                or any(part in ('', '..') for part in normalized.split('\\'))
+                or any(char in normalized for char in ':*?"<>|')):
+            raise ValueError(f'Unsafe human mesh export path: {relative!r}')
+        paths.append(omsi_paths.safe_export_path(root, relative))
+    lexical, resolved = set(), set()
+    def overlaps(key, previous):
+        return any(key == other or key.startswith(other + os.sep)
+                   or other.startswith(key + os.sep) for other in previous)
+    for path in paths:
+        lexical_key, resolved_key = os.path.abspath(path).casefold(), os.path.realpath(path).casefold()
+        # Also honor existing case-insensitive names/symlinks on POSIX hosts.
+        existing = omsi_paths.resolve_case_insensitive_path(path)
+        existing_key = os.path.realpath(existing).casefold()
+        resolved_root = os.path.realpath(root)
+        if os.path.commonpath((resolved_root, os.path.realpath(existing))) != resolved_root:
+            raise ValueError(f'Human output path escapes selected root: {path!r}')
+        if overlaps(lexical_key, lexical) or overlaps(resolved_key, resolved) or overlaps(existing_key, resolved):
+            raise ValueError(f'Human bundle output paths collide at {path!r}')
+        parent = os.path.dirname(existing)
+        while parent != os.path.dirname(parent):
+            if os.path.lexists(parent) and not os.path.isdir(parent):
+                raise ValueError(f'Human output parent path is not a directory: {parent!r}')
+            parent = os.path.dirname(parent)
+        lexical.add(lexical_key)
+        resolved.update((resolved_key, existing_key))
+        if os.path.isdir(existing):
+            raise ValueError(f'Human output path is an existing directory: {path!r}')
+        if not overwrite and (os.path.lexists(path) or os.path.lexists(existing)):
+            raise ValueError(f'Human output already exists; explicit overwrite consent required: {path!r}')
+    return paths, cfg_name
+
+
+def export_human(filepath, context, armature, meshes, *, settings=None, overrides=None,
+                 scale=1.0, overwrite=False, confirm_stale=False, o3d_version=7,
+                 export_custom_normals=True) -> dict:
+    """Preflight a complete HUM/CFG/O3D bundle and publish HUM last.
+
+    All validation/overwrite refusal happens before destination files are opened.
+    Later OS write failures may leave partial model files: this is not a
+    multi-file transaction. Source IDs, selection, pose and flags stay untouched.
+    Landmark overrides are already final scaled file vectors, not scaled twice.
+    """
+    from . import io_o3d_export, o3d_cfg_parser, o3dconvert
+    meshes = _human_candidates(context, armature, meshes)
+    measurements = measure_human(armature, meshes, overrides=overrides, scale=scale,
+                                 context=context, confirm_stale=confirm_stale)
+    paths, cfg_name = _human_output_paths(filepath, meshes, overwrite)
+    payload = serialize_hum(cfg_name, measurements, settings)
+    hum_path, cfg_path, *mesh_paths = paths
+    global_matrix = Matrix.Scale(_scalar(scale), 4)
+    metadata = {}
+    for obj, path in zip(meshes, mesh_paths):
+        _validate_transform(obj)
+        _human_cfg_props(obj.data)
+        # Capture the same allowlist as do_export before rest evaluation hides modifiers.
+        allowed_names = io_o3d_export._armature_bone_names(obj)
+        with prepared_export_mesh(obj, context, global_matrix) as (evaluated, mesh, matrix):
+            _cfg_value(matrix, 'Serialized O3D transform')
+            geometry = io_o3d_export.prepare_o3d_geometry(
+                evaluated, mesh, export_custom_normals, allowed_names=allowed_names)
+            long_indices = io_o3d_export.validate_o3d_geometry(geometry, o3d_version, character_runtime=True)
+            if not all(isfinite(value) for vertex in geometry['verts'] for value in vertex):
+                raise ValueError(f'{obj.name}: nonfinite serialized human geometry')
+            for name, _ in geometry['bones']:
+                _safe_text(name, 'Serialized bone name')
+            materials = io_o3d_export._build_o3d_materials(path, evaluated.material_slots, cfg_path)
+            for material in materials:
+                _cfg_value(material[-1], 'Material texture path')
+            for slot in evaluated.material_slots:
+                if slot.material is not None:
+                    material = slot.material
+                    _human_cfg_props(material)
+                    for key in ('type', 'change_var', 'envmap_tex'):
+                        if key in material:
+                            _cfg_value(material[key], key, command=key == 'type')
+                    wrapper = o3d_cfg_parser.o3d_node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
+                    for key in ('base_color_texture', 'alpha_texture', 'specular_texture', 'emission_color_texture'):
+                        texture = getattr(wrapper, key, None)
+                        if texture is not None and texture.image is not None:
+                            _cfg_value(o3d_cfg_parser.texture_name(cfg_path, texture.image), 'CFG texture path')
+                    bump = io_o3d_export.blender_compat.find_bump_map(wrapper)
+                    if bump is not None:
+                        _cfg_value(o3d_cfg_parser.texture_name(cfg_path, bump[0]), 'CFG bump texture path')
+                        _cfg_value(bump[1], 'CFG bump strength')
+            # Exercise the real binary codec, including packing/range validation,
+            # in memory. The subsequent shared exporter uses the same data path.
+            try:
+                o3dconvert.export_o3d(BytesIO(), geometry['verts'], geometry['tris'], materials,
+                                      geometry['bones'], matrix, version=o3d_version,
+                                      long_triangle_indices=long_indices, invert_triangle_winding=True)
+            except (OverflowError, TypeError) as error:
+                raise ValueError(f'{obj.name}: invalid serialized human geometry: {error}') from error
+            metadata[id(obj)] = {'smoothskin': geometry['smoothskin'],
+                                 'bones': tuple(name for name, _ in geometry['bones'])}
+    scene = context.scene
+    for key in ('groups', 'friendlyname', 'tree'):
+        if key in scene:
+            _cfg_value(scene[key], key)
+    _human_cfg_props(scene, skip_skin=False)
+    stream = StringIO()
+    o3d_cfg_parser._write_cfg_stream(
+        stream, cfg_path, context, False, objects_override=meshes, smoothskin_by_object=metadata,
+        human_bindings_by_object={key: data['bones'] for key, data in metadata.items()})
+    try:
+        stream.getvalue().encode('cp1252')
+    except UnicodeEncodeError as error:
+        raise ValueError('Model CFG must be CP1252 encodable') from error
+    io_o3d_export.do_export(cfg_path, context, global_matrix, False, o3d_version,
+                           export_custom_normals, objects=meshes, human_bindings=True)
+    with open(hum_path, 'wb') as stream:
+        stream.write(payload)
+    return {'hum_path': hum_path, 'cfg_path': cfg_path, 'mesh_paths': mesh_paths,
+            'warnings': measurements['warnings']}
 
 
 def physics_diagnostics(armature, objects) -> dict:
