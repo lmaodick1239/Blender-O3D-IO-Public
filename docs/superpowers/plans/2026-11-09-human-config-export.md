@@ -1,6 +1,6 @@
 # Panel-Led Human Configuration Export Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add rig-derived `.hum` generation and a complete Export Human action directly to the OMSI Character Tools panel.
 
@@ -48,7 +48,7 @@
 - `serialize_hum(cfg_name, measurements, settings=None) -> bytes`: validate measurements/settings/string safety and return CP1252/CRLF text, not write files.
 - `physics_diagnostics(armature, objects) -> dict`: body/joint counts, explicit bone associations and secondary joint categories; no physics-derived measurements.
 
-- [ ] **Step 1: Write failing core checks and standalone runner.** Use actual Blender armature/mesh fixtures, not mocks of the production functions. A serializer check must assert the exact output block shape:
+- [x] **Step 1: Write failing core checks and standalone runner.** Use actual Blender armature/mesh fixtures, not mocks of the production functions. A serializer check must assert the exact output block shape:
 
 ```python
 measurements = {'errors': [], 'warnings': [], 'height': 1.8,
@@ -64,9 +64,9 @@ assert len([line for line in lines[start:end] if line.strip()]) == 22
 
 Add meaningful checks for source metadata surviving source deletion, template metadata using target rather than source rest points, missing neck/fingers versus numeric overrides, stale rest edits, true MMD names versus dummy/shadow helpers, symmetry/off-center warnings, invalid transforms, positive geometry/settings, and string/control-character rejection.
 
-- [ ] **Step 2: Run RED.** Run `blender --background --factory-startup --disable-autoexec --python tests/smoke_human.py`. Record expected feature-missing assertion/import failure, with exit status and Blender traceback; use `--python-exit-code 1` for every new test run so exceptions cannot masquerade as a successful process.
+- [x] **Step 2: Run RED.** Run `blender --background --factory-startup --disable-autoexec --python tests/smoke_human.py`. Record expected feature-missing assertion/import failure, with exit status and Blender traceback; use `--python-exit-code 1` for every new test run so exceptions cannot masquerade as a successful process.
 
-- [ ] **Step 3: Implement the minimal core and conversion hook.** Use the local native parser evidence in `docs/research/evidence/omsi-bones/func-00624b40.c` plus the shipped-file documentation to establish input XYZ versus internal XZY. Keep file serialization ordered XYZ; write a golden fixture projecting a measured rest point to exported O3D coordinates and compare them numerically with nonzero Y and Z. Use the existing `prepared_export_mesh` context manager for evaluated rest bounds, excluding physics and lower LOD duplicates; do not apply object scale or display units twice. Use a deterministic rest-geometry fingerprint for staleness. Capture metadata before the conversion callback/source-deletion commit so rollback still removes failed outputs. Use explicit missing-point errors instead of synthesized hand-tail anatomy.
+- [x] **Step 3: Implement the minimal core and conversion hook.** Use the local native parser evidence in `docs/research/evidence/omsi-bones/func-00624b40.c` plus the shipped-file documentation to establish input XYZ versus internal XZY. Keep file serialization ordered XYZ; write a golden fixture projecting a measured rest point to exported O3D coordinates and compare them numerically with nonzero Y and Z. Use the existing `prepared_export_mesh` context manager for evaluated rest bounds, excluding physics and lower LOD duplicates; do not apply object scale or display units twice. Use a deterministic rest-geometry fingerprint for staleness. Capture metadata before the conversion callback/source-deletion commit so rollback still removes failed outputs. Use explicit missing-point errors instead of synthesized hand-tail anatomy.
 
 A minimal scalar formatter must reject nonfinite values before formatting:
 
@@ -80,8 +80,8 @@ def _number(value):
     return format(value, '.9g')
 ```
 
-- [ ] **Step 4: Run GREEN and regression checks.** Run the new human script with `--python-exit-code 1`, `python3 -m unittest discover -s tests -p 'test_*.py'`, and the existing Blender smoke script. Include exact RED/GREEN commands and final pass markers in the report. Verify metadata survives a temporary save/reload without touching the supplied fixture.
-- [ ] **Step 5: Self-review and commit only task files.** `git diff --check`; stage the three task files and commit `feat(human): derive and serialize rig geometry`. Report public signatures, coordinate proof, test evidence, and any unresolved concern.
+- [x] **Step 4: Run GREEN and regression checks.** Run the new human script with `--python-exit-code 1`, `python3 -m unittest discover -s tests -p 'test_*.py'`, and the existing Blender smoke script. Include exact RED/GREEN commands and final pass markers in the report. Verify metadata survives a temporary save/reload without touching the supplied fixture.
+- [x] **Step 5: Self-review and commit only task files.** `git diff --check`; stage the three task files and commit `feat(human): derive and serialize rig geometry`. Report public signatures, coordinate proof, test evidence, and any unresolved concern.
 
 ## Task 2: Safe Human Export Through Shared O3D/CFG Backends
 
@@ -95,7 +95,7 @@ def _number(value):
 - `export_human(filepath, context, armature, meshes, *, settings=None, overrides=None, scale=1.0, overwrite=False, confirm_stale=False, o3d_version=7, export_custom_normals=True) -> dict`: preflight all outputs and serialized geometry, export model via shared backend, publish HUM last. Return `hum_path`, `cfg_path`, `mesh_paths`, `warnings`.
 - Extend `do_export` with optional keyword-only `objects=None, human_bindings=False`; default existing calls retain behavior. Extend `write_cfg` with optional `objects_override=None, human_bindings_by_object=None`; explicit human objects must constrain CFG independently of scene selection.
 
-- [ ] **Step 1: Write RED export checks.** Use temporary output directories and real serialized O3D/CFG files. Begin with a real fixture and final file checks:
+- [x] **Step 1: Write RED export checks.** Use temporary output directories and real serialized O3D/CFG files. Begin with a real fixture and final file checks:
 
 ```python
 result = human.export_human(str(root / 'character.hum'), bpy.context,
@@ -111,8 +111,8 @@ Add checks for unrelated/selected rigid-body/joint exclusion from both CFG and O
 
 Add failure checks that put sentinel bytes at destinations and prove unchanged bytes after overwrite refusal, invalid landmarks/settings, case-insensitive lexical/resolved collisions, traversal/symlink escape, multiple rigs, unencodable model names, and an injected model serialization failure. Fault injection is permitted only at the actual file-I/O boundary; assertions must inspect preserved files and absent HUM output, not mock call counts.
 
-- [ ] **Step 2: Run RED.** Run the new human script with `--python-exit-code 1`; verify the failure names the missing export API or observable candidate leak, not a malformed fixture.
-- [ ] **Step 3: Implement safe orchestration and explicit serializer plumbing.** The current CFG writer ignores its deprecated `objs` parameter and rebuilds candidates from scene selection: add the explicit override and thread it all the way through LOD buckets. Use actual serialized bone names for canonical slot emission and skip conflicting preserved skin commands at both mesh and material levels only in human mode. Reuse `CANONICAL_SLOTS`; do not duplicate its numeric table.
+- [x] **Step 2: Run RED.** Run the new human script with `--python-exit-code 1`; verify the failure names the missing export API or observable candidate leak, not a malformed fixture.
+- [x] **Step 3: Implement safe orchestration and explicit serializer plumbing.** The current CFG writer ignores its deprecated `objs` parameter and rebuilds candidates from scene selection: add the explicit override and thread it all the way through LOD buckets. Use actual serialized bone names for canonical slot emission and skip conflicting preserved skin commands at both mesh and material levels only in human mode. Reuse `CANONICAL_SLOTS`; do not duplicate its numeric table.
 
 Preflight object geometry and all casefolded lexical/resolved output destinations, including HUM/CFG collisions with mesh paths, before any file opens. Validate CP1252 strings and numbers before writes. Require `overwrite=True` for any existing destination in the generated set. For human-mode CFG defaults, use local scene groups/friendlyname fallbacks rather than inserting persistent source scene properties. Publish the prepared HUM bytes only after shared mesh/CFG export succeeds:
 
@@ -126,8 +126,8 @@ with open(hum_path, 'wb') as stream:
 
 Do not promise multi-file transactional rollback for later OS write failures. Preserve context/pose/modifier flags and never use source-property mutations as an argument-passing mechanism.
 
-- [ ] **Step 4: Run GREEN and generic regressions.** Run human checks, codec tests, existing Blender smoke with `--python-exit-code 1`, and `git diff --check`. Report fresh commands and pass markers; distinguish expected existing negative-test diagnostics from new errors.
-- [ ] **Step 5: Self-review and commit only task files.** Commit `feat(human): export safe HUM and model bundle`. Report exact public interfaces and any file-I/O limitations.
+- [x] **Step 4: Run GREEN and generic regressions.** Run human checks, codec tests, existing Blender smoke with `--python-exit-code 1`, and `git diff --check`. Report fresh commands and pass markers; distinguish expected existing negative-test diagnostics from new errors.
+- [x] **Step 5: Self-review and commit only task files.** Commit `feat(human): export safe HUM and model bundle`. Report exact public interfaces and any file-I/O limitations.
 
 ## Task 3: Character Tools Panel, Native Operators, and Full Workflow
 
@@ -137,7 +137,7 @@ Do not promise multi-file transactional rollback for later OS write failures. Pr
 
 **Produces:** Rig-owned `Object.omsi_human_settings` property group, native operators `omsi.refresh_human_measurements`, `omsi.human_preflight`, `omsi.export_human`, and child panel `VIEW3D_PT_omsi_character_human` under `VIEW3D_PT_omsi_character` after Mesh LODs.
 
-- [ ] **Step 1: Write failing panel/operator checks.** Extend the existing real Blender registration and recording-layout pattern. Test defaults and rig-owned persistence, correct parent/category/order, visible Refresh/Readiness/Export actions, collapsed detailed landmark/walking controls, target labeling, no draw-time measurement/evaluation, no compatible target disabling, stale/missing data display, and independent settings for two rigs. Verify native operator execution, cancellation/error state restoration, unregister cleanup, and actual file output from `bpy.ops.omsi.export_human(filepath=..., ...)`.
+- [x] **Step 1: Write failing panel/operator checks.** Extend the existing real Blender registration and recording-layout pattern. Test defaults and rig-owned persistence, correct parent/category/order, visible Refresh/Readiness/Export actions, collapsed detailed landmark/walking controls, target labeling, no draw-time measurement/evaluation, no compatible target disabling, stale/missing data display, and independent settings for two rigs. Verify native operator execution, cancellation/error state restoration, unregister cleanup, and actual file output from `bpy.ops.omsi.export_human(filepath=..., ...)`.
 
 ```python
 assert hasattr(bpy.ops.omsi, 'export_human')
@@ -150,8 +150,8 @@ assert (root / 'panel.hum').is_file() and (root / 'panel.cfg').is_file()
 
 Reuse actual `UILayout` recording conventions from `tests/smoke_character_panel.py`. The test fixture must set real source pointers and required landmark overrides, not bypass the actual context/selection resolver.
 
-- [ ] **Step 2: Run RED.** Run human checks with `--python-exit-code 1`; confirm the missing RNA/operator/panel assertion fails before writing production UI code.
-- [ ] **Step 3: Implement native controls without new web UI or dependencies.** Keep data on the target armature using a registered Object pointer property; registration must add its property-group class before installing pointers and unregister must remove pointers before classes. The existing scene source fields resolve the target; do not introduce another global settings store. Show the settings/measurement status read-only until an explicit action evaluates geometry. Use per-landmark numeric override controls following the eight field groups, respecting vector lengths. Cache findings for display; full validation still runs on export.
+- [x] **Step 2: Run RED.** Run human checks with `--python-exit-code 1`; confirm the missing RNA/operator/panel assertion fails before writing production UI code.
+- [x] **Step 3: Implement native controls without new web UI or dependencies.** Keep data on the target armature using a registered Object pointer property; registration must add its property-group class before installing pointers and unregister must remove pointers before classes. The existing scene source fields resolve the target; do not introduce another global settings store. Show the settings/measurement status read-only until an explicit action evaluates geometry. Use per-landmark numeric override controls following the eight field groups, respecting vector lengths. Cache findings for display; full validation still runs on export.
 
 The panel action uses an ExportHelper `.hum` picker, with generated-set overwrite consent reset on each new invocation (`SKIP_SAVE` or equivalent per-invocation state). Expose scale, Selection Only, normals, and O3D version only as needed for the shared export call. On errors return CANCELLED and restore WAIT cursor in `finally`; context/UI input errors must be reported clearly, not swallowed. Invalid/missing targets must never fall back to a preserved MMD rig or another character.
 
@@ -164,9 +164,9 @@ import smoke_human
 CHECKS.extend(smoke_human.CHECKS)
 ```
 
-- [ ] **Step 4: Update user documentation.** Replace the tutorial's unconditional manual-only claim with the actual Character Tools section, refresh/override/readiness/export sequence, `.hum` destination picker, sibling file layout, CP1252/22-value format, supported rig/alignment limits, and in-game acceptance checklist. Keep the manual template as an alternative. Add a concise README feature/workflow note without unrelated cleanup.
-- [ ] **Step 5: Run full GREEN, fixture integration, and cleanup checks.** Run codec tests; standalone human checks; full Blender smoke with `--python-exit-code 1`; and a read-only `tests/Untitled2.blend` integration probe in a separate Blender process with autoexec disabled. The probe must inspect the known 51 bodies/34 secondary joints, convert a temporary in-memory working character, and either export a valid bundle or report explicitly required overrides, never substitute collider measurements. Hash the fixture before/after to prove it was not resaved. Verify RNA/operator cleanup after unregister and no changes under the older worktree. Run `git diff --check`.
-- [ ] **Step 6: Self-review and commit.** Commit `feat(human): add Character Tools export panel`. Provide paths and test evidence in the task report. Do not claim in-game correctness or addon hot reload in an existing Blender process.
+- [x] **Step 4: Update user documentation.** Replace the tutorial's unconditional manual-only claim with the actual Character Tools section, refresh/override/readiness/export sequence, `.hum` destination picker, sibling file layout, CP1252/22-value format, supported rig/alignment limits, and in-game acceptance checklist. Keep the manual template as an alternative. Add a concise README feature/workflow note without unrelated cleanup.
+- [x] **Step 5: Run full GREEN, fixture integration, and cleanup checks.** Run codec tests; standalone human checks; full Blender smoke with `--python-exit-code 1`; and a read-only `tests/Untitled2.blend` integration probe in a separate Blender process with autoexec disabled. The probe must inspect the known 51 bodies/34 secondary joints, convert a temporary in-memory working character, and either export a valid bundle or report explicitly required overrides, never substitute collider measurements. Hash the fixture before/after to prove it was not resaved. Verify RNA/operator cleanup after unregister and no changes under the older worktree. Run `git diff --check`.
+- [x] **Step 6: Self-review and commit.** Commit `feat(human): add Character Tools export panel`. Provide paths and test evidence in the task report. Do not claim in-game correctness or addon hot reload in an existing Blender process.
 
 ## Review and Completion
 
