@@ -307,6 +307,73 @@ def assert_bounds_and_physics(addon, human):
     assert array.show_viewport
 
 
+def assert_nested_collection_lods(addon, human):
+    rig, mesh, source = fixture(addon)
+    human.capture_landmarks(source, rig)
+    primary = bpy.data.collections.new('LOD_1')
+    lower = bpy.data.collections.new('LOD_0.5')
+    try:
+        root = bpy.context.scene.collection
+        root.children.link(primary)
+        root.children.link(lower)
+        root.objects.unlink(mesh)
+        primary.objects.link(mesh)
+        low = mesh.copy()
+        low.data = mesh.data.copy()
+        low.data.vertices[1].co.z = 20
+        lower.objects.link(low)
+        # Separate lower buckets are excluded from the primary 1.8-high bounds.
+        result = human.measure_human(rig, [mesh, low])
+        assert not result['errors'], result
+        assert abs(result['height'] - 1.8) < 1e-5, result
+        # Nested factors are ambiguous, just as in mesh_lod target validation.
+        primary.children.link(lower)
+        root.children.unlink(lower)
+        result = human.measure_human(rig, [mesh, low])
+        assert result['errors'], result
+        assert any(low.name in error and 'LOD' in error for error in result['errors']), result
+        assert result['height'] is None and result['links'] is None, result
+        refuses(lambda: human.serialize_hum('nested.cfg', result))
+    finally:
+        bpy.data.collections.remove(lower)
+        bpy.data.collections.remove(primary)
+
+
+def assert_multiple_collection_lods(addon, human):
+    rig, mesh, source = fixture(addon)
+    human.capture_landmarks(source, rig)
+    primary = bpy.data.collections.new('LOD_1')
+    lower = bpy.data.collections.new('LOD_0.5')
+    child = bpy.data.collections.new('Human Parts')
+    try:
+        root = bpy.context.scene.collection
+        root.children.link(primary)
+        root.children.link(lower)
+        primary.children.link(child)
+        root.objects.unlink(mesh)
+        primary.objects.link(mesh)
+        child.objects.link(mesh)
+        # Multiple ownership paths with the same factor remain valid.
+        result = human.measure_human(rig, [mesh])
+        assert not result['errors'], result
+        assert abs(result['height'] - 1.8) < 1e-5, result
+        for shared_child in (False, True):
+            if shared_child:
+                lower.objects.unlink(mesh)
+                lower.children.link(child)
+            else:
+                lower.objects.link(mesh)
+            result = human.measure_human(rig, [mesh])
+            assert result['errors'], result
+            assert any(mesh.name in error and 'LOD' in error for error in result['errors']), result
+            assert result['height'] is None and result['links'] is None, result
+            refuses(lambda: human.serialize_hum('multiple.cfg', result))
+    finally:
+        bpy.data.collections.remove(child)
+        bpy.data.collections.remove(lower)
+        bpy.data.collections.remove(primary)
+
+
 def assert_coordinate_golden(addon, human):
     rig, mesh, source = fixture(addon)
     human.capture_landmarks(source, rig)
@@ -372,6 +439,7 @@ def assert_supplied_physics(addon, human):
 CHECKS = [assert_serializer, assert_measurements, assert_missing_and_overrides,
           assert_conversion_metadata, assert_template_metadata, assert_stale,
           assert_alignment_and_transforms, assert_symmetry, assert_bounds_and_physics,
+          assert_nested_collection_lods, assert_multiple_collection_lods,
           assert_coordinate_golden, assert_save_reload, assert_supplied_physics]
 
 

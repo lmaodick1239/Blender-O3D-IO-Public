@@ -143,6 +143,9 @@ def _primary_meshes(armature, objects, context, warnings):
     paths = _scene_paths(context.scene)
     factors = {obj: set().union(*(paths.get(collection, set()) for collection in obj.users_collection))
                for obj in candidates}
+    for obj, values in factors.items():
+        if len(values) > 1:
+            raise ValueError(f'{obj.name}: conflicting LOD collection factors; use one LOD bucket')
     highest = max((factor for values in factors.values() for factor in values), default=None)
     return [obj for obj in candidates if not factors[obj] or highest in factors[obj]]
 
