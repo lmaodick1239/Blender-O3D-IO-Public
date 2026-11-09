@@ -428,8 +428,18 @@ def _human_output_paths(filepath, meshes, overwrite):
                    or other.startswith(key + os.sep) for other in previous)
     for path in paths:
         lexical_key, resolved_key = os.path.abspath(path).casefold(), os.path.realpath(path).casefold()
-        # Also honor existing case-insensitive names/symlinks on POSIX hosts.
-        existing = omsi_paths.resolve_case_insensitive_path(path)
+        # Keep the longest case-insensitive existing prefix when the leaf (or
+        # several trailing directories) is new. The generic importer resolver
+        # deliberately returns the original path on any missing component.
+        existing, missing = path, []
+        while True:
+            matched = omsi_paths.resolve_case_insensitive_path(existing)
+            parent, leaf = os.path.split(existing)
+            if os.path.lexists(matched) or parent == existing:
+                existing = os.path.join(matched, *reversed(missing))
+                break
+            missing.append(leaf)
+            existing = parent
         existing_key = os.path.realpath(existing).casefold()
         resolved_root = os.path.realpath(root)
         if os.path.commonpath((resolved_root, os.path.realpath(existing))) != resolved_root:
@@ -459,9 +469,14 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
     Later OS write failures may leave partial model files: this is not a
     multi-file transaction. Source IDs, selection, pose and flags stay untouched.
     Landmark overrides are already final scaled file vectors, not scaled twice.
+    Active/participating mesh or armature Edit mode is refused without flushing
+    source edits: measurement and the shared exporter must see the same state.
     """
     from . import io_o3d_export, o3d_cfg_parser, o3dconvert
     meshes = _human_candidates(context, armature, meshes)
+    for obj in (context.view_layer.objects.active, armature, *meshes):
+        if obj is not None and obj.type in {'MESH', 'ARMATURE'} and obj.mode == 'EDIT':
+            raise ValueError(f'{obj.name}: switch to Object Mode before human export; pending edits are unsupported')
     measurements = measure_human(armature, meshes, overrides=overrides, scale=scale,
                                  context=context, confirm_stale=confirm_stale)
     paths, cfg_name = _human_output_paths(filepath, meshes, overwrite)

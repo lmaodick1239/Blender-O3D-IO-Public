@@ -13,6 +13,7 @@ import traceback
 from pathlib import Path
 
 import bpy
+import bmesh
 from mathutils import Matrix, Vector
 
 HERE = Path(__file__).resolve().parent
@@ -531,7 +532,7 @@ def assert_export_bundle(addon, human):
         low['omsi_lod_level'] = 1
         low.vertex_groups.remove(low.vertex_groups['Hip'])
         low.vertex_groups.remove(low.vertex_groups['helper😀'])
-        # Pose, disabled modifier flag and edit mode must survive both preflight/export.
+        # Pose and disabled modifier flags must survive both preflight/export.
         rig.pose.bones['Main'].location.z = 3
         mesh.modifiers[0].show_render = False
         select_only(rig)
@@ -566,6 +567,73 @@ def assert_export_bundle(addon, human):
         assert any(abs(vertex[0][1] - 3.6) < 1e-5 for vertex in
                    addon.o3d_io.o3dconvert.import_o3d((root / 'body.o3d').read_bytes())[1])
         assert isinstance(result['warnings'], list)
+
+
+def _assert_export_mesh_edit_refusal(addon, human, pending_height):
+    with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        other = copy_mesh(mesh, 'object_mode_body')
+        for name in ('character.hum', 'character.cfg', 'body.o3d', 'object_mode_body.o3d'):
+            (root / name).write_bytes(b'Edit-mode sentinel ' + name.encode())
+        select_only(mesh)
+        bpy.ops.object.mode_set(mode='EDIT')
+        edit = bmesh.from_edit_mesh(mesh.data)
+        edit.verts.ensure_lookup_table()
+        edit.verts[1].co.z = pending_height
+        close(mesh.data.vertices[1].co, (.1, 0, 1.8))  # The pending edit is not flushed.
+        # Refuse participating edits even with another active object, and active
+        # unrelated edits even when all participating objects are in Object mode.
+        for active, meshes in ((mesh, [mesh]), (rig, [mesh]), (mesh, [other])):
+            bpy.context.view_layer.objects.active = active
+            before, source_before = disk_snapshot(root), source_snapshot()
+            pending_before = repr([tuple(vertex.co) for vertex in edit.verts])
+            refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context, rig, meshes,
+                                               overrides=REQUIRED_OVERRIDES, overwrite=True),
+                    'switch to Object Mode')
+            assert disk_snapshot(root) == before and source_snapshot() == source_before
+            assert mesh.mode == 'EDIT' and edit.is_valid
+            assert repr([tuple(vertex.co) for vertex in edit.verts]) == pending_before
+        bpy.context.view_layer.objects.active = mesh  # Restore context for fixture cleanup.
+
+
+def assert_export_finite_edit_preflight(addon, human):
+    """Pending finite height edits must not produce mismatched HUM/O3D files."""
+    _assert_export_mesh_edit_refusal(addon, human, 2.8)
+
+
+def assert_export_nan_edit_preflight(addon, human):
+    """Pending NaN edits must never escape preflight and replace sentinel bytes."""
+    _assert_export_mesh_edit_refusal(addon, human, float('nan'))
+
+
+def assert_export_rig_edit_preflight(addon, human):
+    with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        for name in ('character.hum', 'character.cfg', 'body.o3d'):
+            (root / name).write_bytes(b'Armature Edit-mode sentinel')
+        for editing in (rig, source):
+            select_only(editing)
+            bpy.ops.object.mode_set(mode='EDIT')
+            editing.data.edit_bones[0].head.z += .1
+            pending_before = repr([(bone.name, tuple(bone.head), tuple(bone.tail))
+                                   for bone in editing.data.edit_bones])
+            rest_before = repr([(bone.name, tuple(bone.head_local), tuple(bone.tail_local))
+                                for bone in editing.data.bones])
+            # Participating target rig, nonactive target rig, and unrelated active rig.
+            for active in (editing, mesh) if editing == rig else (editing,):
+                bpy.context.view_layer.objects.active = active
+                before, source_before = disk_snapshot(root), source_snapshot()
+                refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context, rig, [mesh],
+                                                   overrides=REQUIRED_OVERRIDES, overwrite=True),
+                        'switch to Object Mode')
+                assert disk_snapshot(root) == before and source_snapshot() == source_before
+                assert editing.mode == 'EDIT'
+                assert repr([(bone.name, tuple(bone.head), tuple(bone.tail))
+                             for bone in editing.data.edit_bones]) == pending_before
+                assert repr([(bone.name, tuple(bone.head_local), tuple(bone.tail_local))
+                             for bone in editing.data.bones]) == rest_before
+            bpy.context.view_layer.objects.active = editing
+            bpy.ops.object.mode_set(mode='OBJECT')
 
 
 def assert_export_candidates(addon, human):
@@ -719,6 +787,37 @@ def assert_export_preflight(addon, human):
             scene['cfg_data'] = saved_cfg
 
 
+def _assert_export_alias_parent_refusal(addon, human, suffix):
+    with export_fixture(addon) as (rig, mesh, source):
+        second = copy_mesh(mesh, 'alias_body')
+        for paths in ((f'actual/{suffix}', f'ALIAS/{suffix}'),
+                      (f'ALIAS/{suffix}', f'actual/{suffix}'),
+                      (f'actual/{suffix}', f'ALIAS/{suffix}/child.o3d'),
+                      (f'ALIAS/{suffix}/child.o3d', f'actual/{suffix}')):
+            mesh['export_path'], second['export_path'] = paths
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / 'actual').mkdir()
+                (root / 'alias').symlink_to('actual', target_is_directory=True)
+                for name in ('character.hum', 'character.cfg', 'sentinel.o3d'):
+                    (root / name).write_bytes(b'Alias-parent sentinel ' + name.encode())
+                before, source_before = disk_snapshot(root), source_snapshot()
+                refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context, rig,
+                                                   [mesh, second], overrides=REQUIRED_OVERRIDES,
+                                                   overwrite=True), 'collide')
+                assert disk_snapshot(root) == before and source_snapshot() == source_before
+
+
+def assert_export_alias_parent_preflight(addon, human):
+    """Mixed-case symlink parents still alias when their output leaf is new."""
+    _assert_export_alias_parent_refusal(addon, human, 'new.o3d')
+
+
+def assert_export_alias_suffix_preflight(addon, human):
+    """Resolve matched parents before appending multiple missing components."""
+    _assert_export_alias_parent_refusal(addon, human, 'missing/deeper/new.o3d')
+
+
 def assert_export_transform_preflight(addon, human):
     """Finite vertices do not imply a finite serialized object-frame matrix."""
     with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
@@ -831,7 +930,10 @@ CHECKS = [assert_serializer, assert_measurements, assert_missing_and_overrides,
           assert_alignment_and_transforms, assert_symmetry, assert_bounds_and_physics,
           assert_nested_collection_lods, assert_multiple_collection_lods,
           assert_coordinate_golden, assert_save_reload,
-          assert_export_bundle, assert_export_candidates, assert_export_preflight,
+          assert_export_bundle, assert_export_finite_edit_preflight,
+          assert_export_nan_edit_preflight, assert_export_rig_edit_preflight,
+          assert_export_candidates, assert_export_preflight,
+          assert_export_alias_parent_preflight, assert_export_alias_suffix_preflight,
           assert_export_transform_preflight, assert_export_texture_preflight,
           assert_export_io_failure, assert_supplied_physics]
 
