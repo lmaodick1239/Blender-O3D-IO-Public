@@ -8,7 +8,7 @@ from bpy.props import (BoolProperty, EnumProperty, FloatProperty, FloatVectorPro
 from bpy_extras.io_utils import ExportHelper
 
 from . import mmd_materials, mmd_rig, mesh_lod, omsi_human
-from .omsi_paths import unique_export_path
+from .omsi_paths import safe_export_path, unique_export_path
 
 
 def _mesh(self, obj):
@@ -582,12 +582,13 @@ class HumanPreflight(bpy.types.Operator):
             target, settings, meshes, values, overrides = _human_inputs(context)
             # No destination has been chosen yet. Reuse the complete reviewed
             # preparation against a disposable root, without creating model files.
-            reserved = {str(obj.get('export_path', obj.name + '.o3d')).replace('\\', '/').split('/')[0].casefold()
-                        for obj in meshes}
-            stem = '__readiness__'
-            while stem + '.hum' in reserved or stem + '.cfg' in reserved:
-                stem += '_'
             with tempfile.TemporaryDirectory(prefix='omsi-human-readiness-') as root:
+                reserved = {os.path.relpath(safe_export_path(root,
+                                obj.get('export_path', obj.name + '.o3d')), root).split(os.sep)[0].casefold()
+                            for obj in meshes}
+                stem = '__readiness__'
+                while stem + '.hum' in reserved or stem + '.cfg' in reserved:
+                    stem += '_'
                 result = omsi_human.export_human(os.path.join(root, stem + '.hum'),
                     context, target, meshes, settings=values, overrides=overrides,
                     scale=settings.scale, confirm_stale=settings.confirm_stale,

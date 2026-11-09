@@ -1228,8 +1228,13 @@ def assert_human_native_scope(addon, human):
 def assert_human_readiness_no_write(addon, human):
     # Removing the no-write boundary must fail this real native readiness check.
     rig, mesh, source, settings = panel_fixture(addon, human, metadata=True)
-    # Readiness has no chosen HUM name; it must not reserve a valid mesh directory.
-    mesh['export_path'] = '__readiness__.hum/model.o3d'
+    # Readiness must reserve normalized top-level paths, not raw '.' tokens.
+    paths = ('__readiness__.hum/model.o3d', './__readiness__.hum/model.o3d',
+             r'.\__readiness__.hum\model.o3d', '././__READINESS__.CFG/./model.o3d',
+             r'.\.\__READINESS__.CFG\.\model.o3d')
+    before = (bpy.context.view_layer.objects.active, tuple(bpy.context.selected_objects),
+              bpy.context.scene.frame_current, rig.mode, rig.data.pose_position,
+              [(mod.show_viewport, mod.show_render) for mod in mesh.modifiers])
     real_open = builtins.open
     def no_outputs(path, mode='r', *args, **kwargs):
         if any(char in mode for char in 'wax+'):
@@ -1237,10 +1242,23 @@ def assert_human_readiness_no_write(addon, human):
         return real_open(path, mode, *args, **kwargs)
     builtins.open = no_outputs
     try:
-        assert bpy.ops.omsi.human_preflight() == {'FINISHED'}
+        with tempfile.TemporaryDirectory(prefix='omsi-human-valid-readiness-') as temporary:
+            for relative in paths:
+                mesh['export_path'] = relative
+                source_before = source_snapshot()
+                result = human.export_human(str(Path(temporary) / 'valid.hum'),
+                    bpy.context, rig, [mesh], preflight_only=True)
+                assert not result['measurements']['errors'], relative
+                assert source_snapshot() == source_before
+                assert not list(Path(temporary).iterdir())
+                assert bpy.ops.omsi.human_preflight() == {'FINISHED'}, relative
+                assert not settings.errors and settings.has_measurement, relative
+                assert before == (bpy.context.view_layer.objects.active, tuple(bpy.context.selected_objects),
+                    bpy.context.scene.frame_current, rig.mode, rig.data.pose_position,
+                    [(mod.show_viewport, mod.show_render) for mod in mesh.modifiers])
+                print('HUMAN_READINESS_NORMALIZED_PATH_OK', repr(relative))
     finally:
         builtins.open = real_open
-    assert not settings.errors and settings.has_measurement
 
 
 def assert_supplied_panel_bundle(addon, human):
