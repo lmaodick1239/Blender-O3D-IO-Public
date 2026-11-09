@@ -1,9 +1,13 @@
 """OMSI character sidebar; low-level tools remain usable without the UI."""
-import bpy
-from bpy.props import (BoolProperty, EnumProperty, FloatVectorProperty, IntProperty,
-                       PointerProperty, StringProperty)
+import os
+import tempfile
 
-from . import mmd_materials, mmd_rig, mesh_lod
+import bpy
+from bpy.props import (BoolProperty, EnumProperty, FloatProperty, FloatVectorProperty,
+                       IntProperty, PointerProperty, StringProperty)
+from bpy_extras.io_utils import ExportHelper
+
+from . import mmd_materials, mmd_rig, mesh_lod, omsi_human
 from .omsi_paths import unique_export_path
 
 
@@ -412,6 +416,7 @@ class VIEW3D_PT_omsi_character_convert(bpy.types.Panel):
 
 
 class VIEW3D_PT_omsi_character_lods(bpy.types.Panel):
+    bl_order = 30
     bl_label = 'Mesh LODs'
     bl_parent_id = 'VIEW3D_PT_omsi_character'
     bl_space_type = 'VIEW_3D'
@@ -430,17 +435,293 @@ class VIEW3D_PT_omsi_character_lods(bpy.types.Panel):
         layout.operator('omsi.character_preflight')
 
 
+def _human_changed(self, context):
+    self.status = 'Settings changed; refresh/check again'
+
+
+class OMSIHumanSettings(bpy.types.PropertyGroup):
+    voice: StringProperty(name='Voice', default='M2', update=_human_changed)
+    mass_kg: FloatProperty(name='Mass (kg)', default=70, update=_human_changed)
+    seat_height: FloatProperty(name='Seat Height', default=.9, update=_human_changed)
+    feetdist: FloatProperty(name='Feet Distance', default=.04, update=_human_changed)
+    use_height_override: BoolProperty(name='Override Height', update=_human_changed)
+    height_override: FloatProperty(name='Height', default=1.8, update=_human_changed)
+    walk_params: FloatVectorProperty(name='Walking Parameters', size=5,
+        default=(1.4, 80, 1, 1, 0), update=_human_changed)
+    show_walking: BoolProperty(name='Advanced Walking Parameters')
+    show_landmarks: BoolProperty(name='Landmark Overrides')
+    confirm_stale: BoolProperty(name='Use Stale Source Landmarks',
+        description='Explicitly accept captured neck/finger points after rest edits; overrides are safer',
+        update=_human_changed)
+    scale: FloatProperty(name='Export Scale', default=1, update=_human_changed)
+    selection_only: BoolProperty(name='Selection Only', default=True, update=_human_changed)
+    export_custom_normals: BoolProperty(name='Custom Normals', default=True, update=_human_changed)
+    o3d_version: EnumProperty(name='O3D Version', default='7', items=(
+        ('7', '7 (OMSI 2)', ''), ('3', '3', ''), ('1', '1 (Legacy)', '')), update=_human_changed)
+    status: StringProperty(default='Not measured; refresh/check before export')
+    errors: StringProperty()
+    warnings: StringProperty()
+    measured_height: FloatProperty()
+    has_measurement: BoolProperty()
+    measured_landmarks: StringProperty()
+
+
+_HUMAN_LANDMARKS = ('hip', 'knee', 'waist', 'shoulder', 'elbow', 'neck', 'hand', 'finger')
+for _name in _HUMAN_LANDMARKS:
+    OMSIHumanSettings.__annotations__['use_' + _name + '_override'] = BoolProperty(
+        name='Override ' + _name.title(), update=_human_changed)
+    OMSIHumanSettings.__annotations__[_name + '_override'] = FloatVectorProperty(
+        name=_name.title() + (' Y/Z' if _name in ('waist', 'neck') else ' X/Y/Z'),
+        size=2 if _name in ('waist', 'neck') else 3, update=_human_changed)
+
+
+def _human_target(context):
+    """Resolve existing source pointers without filling them or guessing another rig."""
+    props = context.scene.omsi_character_data
+    mesh, target = props.source_mesh, props.source_armature
+    if target is None:
+        obj = mesh if mesh is not None else context.object
+        if obj is not None and obj.type == 'ARMATURE':
+            target = obj
+        elif obj is not None and obj.type == 'MESH':
+            rigs = omsi_human._mesh_rigs(obj)
+            if len(rigs) == 1:
+                target = next(iter(rigs))
+    if target is None or target.type != 'ARMATURE' or target.name not in context.scene.objects:
+        raise ValueError('Choose a compatible target in the existing Source Mesh/Armature fields')
+    if mesh is not None and omsi_human._mesh_rigs(mesh) != {target}:
+        raise ValueError('Source Mesh is not bound exclusively to the target armature')
+    if set(mmd_rig.CANONICAL_NAMES) - set(target.data.bones.keys()):
+        raise ValueError(f'{target.name}: not a compatible canonical OMSI target; convert the source first')
+    if target.library or target.override_library or not target.is_editable:
+        raise ValueError(f'{target.name}: human settings require a local editable target')
+    return target
+
+
+def _human_values(settings):
+    values = {name: getattr(settings, name) for name in
+              ('voice', 'mass_kg', 'seat_height', 'feetdist', 'walk_params')}
+    overrides = {name: tuple(getattr(settings, name + '_override')) for name in _HUMAN_LANDMARKS
+                 if getattr(settings, 'use_' + name + '_override')}
+    if settings.use_height_override:
+        overrides['height'] = settings.height_override
+    return values, overrides
+
+
+def _human_inputs(context):
+    target = _human_target(context)
+    settings = target.omsi_human_settings
+    meshes = omsi_human.human_meshes(context, target, selection_only=settings.selection_only)
+    # Match the backend refusal before any readiness/refresh evaluation.
+    for obj in (context.view_layer.objects.active, target, *meshes):
+        if obj is not None and obj.type in {'MESH', 'ARMATURE'} and obj.mode == 'EDIT':
+            raise ValueError(f'{obj.name}: switch to Object Mode before human export; pending edits are unsupported')
+    values, overrides = _human_values(settings)
+    return target, settings, meshes, values, overrides
+
+
+def _human_scope_warnings(context):
+    helpers = [obj.name for obj in context.selected_objects
+               if obj.rigid_body or obj.rigid_body_constraint or 'skip_export' in obj]
+    return ['Excluded selected helpers: ' + ', '.join(helpers)] if helpers else []
+
+
+def _cache_human(settings, result, status):
+    settings.errors = '\n'.join(result['errors'])
+    settings.warnings = '\n'.join(result['warnings'])
+    settings.has_measurement = result['height'] is not None
+    if settings.has_measurement:
+        settings.measured_height = result['height']
+    settings.measured_landmarks = '\n'.join(
+        f"{name.title()}: " + ', '.join(format(value, '.5g') for value in point)
+        for name, point in result['landmarks'].items())
+    settings.status = status
+
+
+def _human_failure(context, error):
+    # Never write cached findings onto a fallback/source rig after target refusal.
+    try:
+        settings = _human_target(context).omsi_human_settings
+    except ValueError:
+        return
+    settings.errors = str(error)
+    settings.status = 'Human export needs attention'
+
+
+class RefreshHumanMeasurements(bpy.types.Operator):
+    """Read rest geometry explicitly, preserving every user override"""
+    bl_idname = 'omsi.refresh_human_measurements'
+    bl_label = 'Refresh Measurements'
+
+    def execute(self, context):
+        context.window.cursor_set('WAIT')
+        try:
+            target, settings, meshes, values, overrides = _human_inputs(context)
+            result = omsi_human.measure_human(target, meshes, overrides=overrides,
+                scale=settings.scale, context=context, confirm_stale=settings.confirm_stale)
+            result['warnings'].extend(_human_scope_warnings(context))
+            _cache_human(settings, result, 'Measurements need attention' if result['errors'] else 'Measurements refreshed')
+            self.report({'WARNING'} if result['errors'] else {'INFO'}, settings.status)
+            return {'FINISHED'}
+        except (ValueError, TypeError, RuntimeError) as error:
+            _human_failure(context, error)
+            self.report({'ERROR'}, str(error))
+            return {'CANCELLED'}
+        finally:
+            context.window.cursor_set('DEFAULT')
+
+
+class HumanPreflight(bpy.types.Operator):
+    """Check human inputs before choosing the final destination"""
+    bl_idname = 'omsi.human_preflight'
+    bl_label = 'Check Export Readiness'
+
+    def execute(self, context):
+        context.window.cursor_set('WAIT')
+        try:
+            target, settings, meshes, values, overrides = _human_inputs(context)
+            # No destination has been chosen yet. Reuse the complete reviewed
+            # preparation against a disposable root, without creating model files.
+            reserved = {str(obj.get('export_path', obj.name + '.o3d')).replace('\\', '/').split('/')[0].casefold()
+                        for obj in meshes}
+            stem = '__readiness__'
+            while stem + '.hum' in reserved or stem + '.cfg' in reserved:
+                stem += '_'
+            with tempfile.TemporaryDirectory(prefix='omsi-human-readiness-') as root:
+                result = omsi_human.export_human(os.path.join(root, stem + '.hum'),
+                    context, target, meshes, settings=values, overrides=overrides,
+                    scale=settings.scale, confirm_stale=settings.confirm_stale,
+                    o3d_version=int(settings.o3d_version),
+                    export_custom_normals=settings.export_custom_normals, preflight_only=True)
+            result['measurements']['warnings'].extend(_human_scope_warnings(context))
+            _cache_human(settings, result['measurements'],
+                'Readiness passed; chosen destination is revalidated on export')
+            self.report({'INFO'}, settings.status)
+            return {'FINISHED'}
+        except (ValueError, TypeError, RuntimeError, OSError) as error:
+            _human_failure(context, error)
+            self.report({'ERROR'}, 'Human readiness refused: ' + str(error))
+            return {'CANCELLED'}
+        finally:
+            context.window.cursor_set('DEFAULT')
+
+
+class ExportHuman(bpy.types.Operator, ExportHelper):
+    """Write the sibling HUM/CFG/O3D set using the shared human backend"""
+    bl_idname = 'omsi.export_human'
+    bl_label = 'Export Human'
+    filename_ext = '.hum'
+    filter_glob: StringProperty(default='*.hum', options={'HIDDEN'})
+    overwrite: BoolProperty(name='Overwrite Entire Generated File Set', default=False, options={'SKIP_SAVE'},
+        description='Consent to replace any existing HUM, sibling CFG and referenced O3D files')
+
+    def invoke(self, context, event):
+        self.overwrite = False
+        try:
+            _human_target(context)
+        except ValueError as error:
+            self.report({'ERROR'}, str(error))
+            return {'CANCELLED'}
+        return ExportHelper.invoke(self, context, event)
+
+    def draw(self, context):
+        self.layout.prop(self, 'overwrite')
+        self.layout.label(text='Consent covers HUM + sibling CFG + all O3D files')
+        self.layout.label(text='Export settings belong to the target in Character Tools')
+
+    def execute(self, context):
+        context.window.cursor_set('WAIT')
+        try:
+            target, settings, meshes, values, overrides = _human_inputs(context)
+            result = omsi_human.export_human(self.filepath, context, target, meshes,
+                settings=values, overrides=overrides, scale=settings.scale,
+                overwrite=self.overwrite, confirm_stale=settings.confirm_stale,
+                o3d_version=int(settings.o3d_version), export_custom_normals=settings.export_custom_normals)
+            settings.errors = ''
+            settings.warnings = '\n'.join(result['warnings'] + _human_scope_warnings(context))
+            settings.status = 'Exported: ' + result['hum_path']
+            self.report({'INFO'}, settings.status)
+            return {'FINISHED'}
+        except (ValueError, TypeError, RuntimeError) as error:
+            _human_failure(context, error)
+            self.report({'ERROR'}, 'Human export refused: ' + str(error))
+            return {'CANCELLED'}
+        except OSError as error:
+            _human_failure(context, error)
+            self.report({'ERROR'}, 'Human export I/O failure (partial model files may remain): ' + str(error))
+            return {'CANCELLED'}
+        finally:
+            context.window.cursor_set('DEFAULT')
+
+
+class VIEW3D_PT_omsi_character_human(bpy.types.Panel):
+    bl_label = 'Human Configuration & Export'
+    bl_parent_id = 'VIEW3D_PT_omsi_character'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'OMSI'
+    bl_order = 40
+
+    def draw(self, context):
+        layout = self.layout
+        try:
+            target = _human_target(context)
+        except ValueError as error:
+            layout.label(text=str(error), icon='ERROR')
+            row = layout.column()
+            row.enabled = False
+            for action in ('refresh_human_measurements', 'human_preflight', 'export_human'):
+                row.operator('omsi.' + action)
+            return
+        settings = target.omsi_human_settings
+        layout.label(text='Target: ' + target.name, icon='ARMATURE_DATA')
+        for name in ('voice', 'mass_kg', 'seat_height', 'feetdist', 'use_height_override'):
+            layout.prop(settings, name)
+        if settings.use_height_override:
+            layout.prop(settings, 'height_override')
+        layout.operator('omsi.refresh_human_measurements')
+        layout.label(text=settings.status)
+        if settings.has_measurement:
+            layout.label(text=f'Last measured height: {settings.measured_height:.5g}')
+        layout.label(text='Cached feedback; recheck after rest/mesh edits')
+        for message in settings.errors.splitlines():
+            layout.label(text=message, icon='ERROR')
+        for message in settings.warnings.splitlines():
+            layout.label(text=message, icon='INFO')
+        layout.prop(settings, 'show_walking', icon='TRIA_DOWN' if settings.show_walking else 'TRIA_RIGHT', emboss=False)
+        if settings.show_walking:
+            for index in range(5):
+                layout.prop(settings, 'walk_params', index=index, text=f'Walk Parameter {index + 1}')
+        layout.prop(settings, 'show_landmarks', icon='TRIA_DOWN' if settings.show_landmarks else 'TRIA_RIGHT', emboss=False)
+        if settings.show_landmarks:
+            layout.label(text='Final scaled file coordinates; paired X must be positive')
+            for name in _HUMAN_LANDMARKS:
+                layout.prop(settings, 'use_' + name + '_override')
+                if getattr(settings, 'use_' + name + '_override'):
+                    layout.prop(settings, name + '_override')
+            layout.prop(settings, 'confirm_stale')
+            for message in settings.measured_landmarks.splitlines():
+                layout.label(text=message)
+        for name in ('scale', 'selection_only', 'export_custom_normals', 'o3d_version'):
+            layout.prop(settings, name)
+        layout.operator('omsi.human_preflight')
+        layout.operator('omsi.export_human')
+
+
 def get_classes():
-    return (OMSICharacterProps, ResetMMDToon, FlattenMMDMaterials, ConvertMMDToOMSI,
-            GenerateMeshLODs, CharacterPreflight, VIEW3D_PT_omsi_character,
-            VIEW3D_PT_omsi_character_materials, VIEW3D_PT_omsi_character_convert,
-            VIEW3D_PT_omsi_character_lods)
+    return (OMSICharacterProps, OMSIHumanSettings, ResetMMDToon, FlattenMMDMaterials, ConvertMMDToOMSI,
+            GenerateMeshLODs, CharacterPreflight, RefreshHumanMeasurements, HumanPreflight, ExportHuman,
+            VIEW3D_PT_omsi_character, VIEW3D_PT_omsi_character_materials, VIEW3D_PT_omsi_character_convert,
+            VIEW3D_PT_omsi_character_lods, VIEW3D_PT_omsi_character_human)
 
 
 def register():
     bpy.types.Scene.omsi_character_data = PointerProperty(type=OMSICharacterProps)
+    bpy.types.Object.omsi_human_settings = PointerProperty(type=OMSIHumanSettings)
 
 
 def unregister():
+    if hasattr(bpy.types.Object, 'omsi_human_settings'):
+        del bpy.types.Object.omsi_human_settings
     if hasattr(bpy.types.Scene, 'omsi_character_data'):
         del bpy.types.Scene.omsi_character_data

@@ -1,14 +1,14 @@
 # Convert an MMD Character to an OMSI Human
 
-This tutorial takes an MMD character imported into Blender and turns it into an OMSI human asset. It uses the current `OMSI > OMSI Character Tools` panel for the Blender part, then uses a copied shipped OMSI human as the starting point for the manual `.hum` file.
+This tutorial takes an MMD character imported into Blender and turns it into an OMSI human asset. Use **OMSI > OMSI Character Tools > Human Configuration & Export** for the complete HUM/CFG/O3D bundle. A copied shipped human remains an alternative for manual configuration.
 
 The workflow produces three different kinds of files:
 
 - `.o3d` files contain exported meshes, vertex groups, and weights.
 - `.cfg` is the model configuration written by Blender. It lists the `.o3d` meshes, LODs, materials, and `[setbone]` bindings.
-- `.hum` is the human configuration edited separately. It points to the model `.cfg` and supplies human geometry, procedural joint pivots, walking defaults, voice, and mass.
+- `.hum` is the human configuration. It points to the model `.cfg` and supplies human geometry, procedural joint pivots, walking defaults, voice, and mass.
 
-The Character Tools panel does **not** write `.hum` files. Blender generates the `.o3d` and `.cfg`; you author the `.hum` from a shipped example.
+The panel's **Export Human** action writes all three together. Generic model export remains unchanged and does not generate a HUM.
 
 ## Before you start
 
@@ -24,9 +24,9 @@ Make a separate working copy of the MMD source, its textures, and any reference 
 
 ### The two jobs in this workflow
 
-**Blender job:** prepare materials, convert the MMD armature and weights, optionally generate LODs, run readiness checks, and export a selected `.cfg` with its `.o3d` files.
+**Blender job:** prepare materials, convert the MMD armature and weights, optionally generate LODs, refresh measurements/resolve overrides, run human readiness, and export the HUM/CFG/O3D bundle.
 
-**Manual OMSI job:** copy a shipped `.hum`, change its model path and human measurements, and make sure every exported LOD has the canonical human bindings in its CFG.
+**Manual OMSI job:** install the generated files and textures, inspect references and canonical bindings, and test procedural animation in game. Optionally author a HUM using the manual template instead of the panel.
 
 An exported armature does not serialize a Blender hierarchy, rest matrices, animation clips, or human joint pivots. OMSI obtains the human's procedural pivots from `[links]` in the `.hum` file.
 
@@ -81,33 +81,25 @@ LOD factors are minimum screen-size values, not distances in metres. They must d
 
 For a simpler first test, use one level with factor `0`; there is no requirement to invent a middle level. For two levels, use factors `0.2 / 0` and one reduced ratio. Select the converted character, keep old reduced levels deselected, and click **Generate LODs**. The source remains the full-detail level.
 
-## Part 3: Check readiness and export
+## Part 3: Measure, check readiness, and export a human
 
-Click **Check Export Readiness** before exporting. Readiness checks are read-only, but they are a gate: fix every reported `ERROR` before export. Resolve warnings that describe content you did not intentionally choose.
+Open **Human Configuration & Export**, immediately after **Mesh LODs**. Confirm the **Target** label: the existing Source Mesh/Source Armature pointers must refer to the converted canonical rig, not the preserved MMD source. Settings belong to that target rig and survive saving/reopening; switching characters does not share a scene-wide voice, mass or overrides.
 
-Typical findings include:
+1. Switch the active and participating objects to **Object Mode**. Pending mesh/armature Edit Mode data is refused by the backend before measurement or output writes.
+2. Select the intended converted meshes/LOD family with **Selection Only** enabled. Selecting only the canonical rig expands to its bound scene meshes and LODs, not preserved source rigs, unrelated geometry, rigid bodies or joints. Disable Selection Only to include all meshes bound exclusively to the target.
+3. Click **Refresh Measurements**. This explicitly evaluates rest-space geometry; merely drawing the panel does not. Cached findings and height are shown until the next action, so refresh/check again after changing rest geometry or meshes. Refresh never replaces your numeric overrides.
+4. Resolve missing/stale points in the collapsed **Landmark Overrides** group. The 13-bone canonical rig alone does not contain a true neck or finger-root pivot. Conversion preserves actual source points when available; existing/template rigs without them require explicit overrides. Rest edits make preserved points stale: replace neck/finger with measured overrides or deliberately enable **Use Stale Source Landmarks**. Collider centers, arbitrary bone tails, stock geometry and zero placeholders are not anatomical fallbacks.
+5. Overrides are **final scaled HUM-file coordinates**, not armature-local coordinates. Waist and neck use Y/Z; the other six paired groups use X/Y/Z with positive symmetric X distance. Export scale applies to derived geometry once, never to overrides again. Height override is also in final export units; changing height alone does not rescale joint pivots. The backend supports upright rest geometry, X-symmetric pairs and an X=0 centerline; align the character before export. Mirroring, shear, nonuniform scale, and incompatible forward/up axes are refused.
+6. Edit **Voice**, **Mass (kg)**, **Seat Height**, **Feet Distance**, optional **Override Height**, and the collapsed **Advanced Walking Parameters**. Starting defaults are M2, 70 kg, 0.90, 0.04, and walking values 1.4/80/1/1/0, not predictions from physics masses. Export Scale, Selection Only, Custom Normals and O3D Version are target-owned controls too.
+7. Run this section's **Check Export Readiness**. It reuses complete human backend preparation without writing model files: anatomy, settings/CP1252, transforms, skin/geometry/runtime limits and bundle paths are checked. Fix errors; inspect asymmetric/ground/stale warnings. The **Mesh LODs** section's older readiness action remains useful for weight normalization, helper groups, shape keys, MMD shaders, unbound extras and missing unpacked images.
+8. Click **Export Human** and choose a `.hum` destination. For `character.hum`, the action writes sibling `character.cfg` and the meshes referenced by that CFG, respecting safe relative mesh export paths. The HUM's `[model]` is `character.cfg`, not `model\\character.cfg`. All text is CP1252 with CRLF; `[links]` has exactly 22 values. `[mass]` is tonnes (70 kg becomes 0.07).
+9. If any generated HUM, CFG or O3D already exists, explicitly enable **Overwrite Entire Generated File Set** in the picker. Consent resets for every new invocation and covers sidecars even if the HUM itself does not exist. The actual destination and all inputs are revalidated on execute; previous readiness is not a safety bypass.
 
-- bone names that cannot be encoded in CP1252 or exceed OMSI's name limits;
-- MMD helper groups still present;
-- weights that do not sum to 1.0;
-- missing unpacked image files;
-- remaining shape keys;
-- MMD shader nodes that were not flattened;
-- unbound arbitrary extra bones;
-- too many serialized skinned vertices or an unsafe dominant bone index;
-- unsafe or colliding export paths.
+Keep the generated sibling layout together. Mesh/CFG export happens before publishing the HUM. An OS failure can still leave partial model files; this is not an all-or-nothing transaction. Inspect any failure path, correct it and retry. Arrange real texture files yourself; packed/generated Blender images do not automatically become installed OMSI textures.
 
-Then:
+Blender success establishes serialized structure and coordinate consistency, **not** in-game correctness. Continue with bindings, installation and the OMSI acceptance checklist below. Generic **File > Export > OMSI Model Config** is unchanged if you prefer the manual HUM alternative.
 
-1. Select the converted mesh, or the complete generated LOD family.
-2. Choose **File > Export > OMSI Model Config**.
-3. Export to a new package's `model` directory as a `.cfg` file.
-4. Enable **Selection Only**. This prevents preserved MMD sources and intermediate working copies from entering the export.
-5. Confirm that the generated CFG references every intended `.o3d` and that each file exists beside it.
-
-Blender's export success proves that the files were serialized. It does not prove that OMSI will animate or display the character correctly; that requires the installation and in-game checks later in this tutorial.
-
-## Part 4: Create the `.hum` file manually
+## Part 4: Manual `.hum` alternative
 
 Start from the shipped pedestrian example:
 
@@ -250,13 +242,15 @@ man03_low.o3d
 ...the same 13 [setbone] blocks again...
 ```
 
-Repeat the bindings for **every exported LOD**, not only the first mesh. Replace the mesh filenames with the names in your generated CFG, but keep each binding name and integer exact. A bone/group renamed from `Hand_L` to `hand_l`, or a binding copied into only one LOD, can leave that part of the human unbound. The panel emits bindings for canonical names present in the final rig; a human intended to use all 13 slots should retain all 13 canonical groups through conversion and export.
+Repeat the required bindings for **every exported LOD**, not only the first mesh. Replace the mesh filenames with the names in your generated CFG, but keep each binding name and integer exact. A bone/group renamed from `Hand_L` to `hand_l`, or a binding copied into only one LOD, can leave that part of the human unbound. Human bundle export emits canonical bindings only for bone names actually serialized with influences in each O3D, and derives `[smoothskin]` from those influences. An unused canonical bone does not need an empty binding; a character intended to animate all 13 slots should retain the appropriate populated groups.
 
 Do not invent `[setbone]` integers for arbitrary extra MMD bones. Extra bones can exist in an O3D, but they do not acquire a human transform slot merely because they have a Blender parent. Human motion still depends on the canonical CFG slots and the `.hum` pivots.
 
 ## Part 6: Install the package
 
-Use a separate directory under OMSI's `Humans` folder. For example:
+Use a separate directory under OMSI's `Humans` folder. For the **panel-generated sibling layout**, keep `character.hum`, `character.cfg` and their O3Ds together (including any relative mesh subdirectories); `[model]` remains `character.cfg`. Place textures according to the actual CFG references, adjusting the package texture tree as required. Do not move the CFG alone into `model` without also updating the HUM reference and checking texture paths.
+
+The **manual template alternative** above uses a different, conventional `model` subdirectory. For that alternative:
 
 ```text
 OMSI 2\Humans\mmd_to_omsi\
@@ -288,8 +282,8 @@ Start OMSI and test the installed human in a controlled situation. Check the sta
 
 | Symptom | Checks and fixes |
 | --- | --- |
-| `model` or `.o3d` file is missing | Open the `.hum` and CFG as text. Confirm `[model]` points to `model\mmd_human.cfg`, each `[mesh]` filename exists under `model`, and the spelling/case matches. Re-export with Selection Only if a file was never written. |
-| OMSI cannot find the model after moving the package | Use package-relative OMSI backslashes. Remove drive letters, absolute paths, and leading slashes. Keep the `.hum` beside `model` and `texture`. |
+| `model` or `.o3d` file is missing | Open the HUM and CFG as text. The generated sibling HUM points to `character.cfg`; the manual template points to `model\mmd_human.cfg`. Resolve every `[mesh]` relative to its CFG and check spelling/case and selection scope. |
+| OMSI cannot find the model after moving the package | Keep generated siblings together, or deliberately update `[model]` for a manual layout. Use package-relative OMSI backslashes; remove drive letters, absolute paths and leading slashes. |
 | CP1252 or bone-name export error | Run **Check Export Readiness**. Rename non-CP1252 MMD groups to stable ASCII names or let conversion map them to canonical names. Do not leave Japanese or other unsupported names in the final bound groups. Preserve the copied `.hum` encoding. |
 | Magenta or missing textures | Reset the MMD toon factor, flatten MMD materials, verify the base image, and copy the real image file into the package's `texture` directory. A packed/generated Blender image still needs an installable OMSI file. |
 | A limb does not move or moves rigidly | Compare the exported group name and CFG binding character-for-character with the canonical table. Confirm that the binding is repeated in every LOD block. Run readiness checks for unbound extras. |
@@ -299,11 +293,11 @@ Start OMSI and test the installed human in a controlled situation. Check the sta
 
 ## Limitations
 
-- The Character Tools panel does not generate `.hum` files.
+- Human export requires a compatible canonical rig, supported upright alignment, Object Mode, and resolved real neck/finger landmarks or explicit overrides. Generic export does not generate HUM files.
 - The panel does not convert MMD physics, IK, morph targets, or morph animation.
 - The panel does not guarantee that a Blender action or animation clip becomes OMSI human animation. The `.hum` procedural settings and OMSI runtime provide the human motion path.
 - Blender armature parenting, bone hierarchy, rest geometry, and exported O3D data do not supply the human `[links]` pivots.
-- The exact `[links]` conversion for arbitrary Blender proportions is not automated or established by this tutorial. The supplied pivots are a practical starting point that must be tested.
+- Derived `[links]` use supported rest-space measurements and a symmetric approximation for paired pivots. Asymmetric characters, stale source points and arbitrary proportions still require inspection and in-game testing; the manual template's stock pivots are not character-specific measurements.
 - `M2` and `M4` are observed voice identifiers, not a complete voice catalogue or a guarantee that every identifier is available in every installation.
 - The inspected pedestrian and driver examples show concrete section orders and values; they do not prove a universal grammar, universal optionality, all repaint semantics, or a complete driver-registration workflow.
 - Runtime evidence and the generated CFG/O3D path were verified with Blender 5.0.1. OMSI in-game appearance and animation require user testing.
@@ -316,8 +310,9 @@ Start OMSI and test the installed human in a controlled situation. Check the sta
 - [ ] Conversion uses the intended auto or template rig mode, with normalized weights and no unresolved readiness errors.
 - [ ] LOD factors descend to zero, and every intended LOD has a real `.o3d` file.
 - [ ] Bone names are CP1252-safe and the 13 canonical names use the exact case shown above.
-- [ ] The `.hum` uses a preserved legacy encoding, OMSI backslashes, all required sections, and exactly 22 `[links]` values.
+- [ ] Human measurements/overrides are resolved and current, the target label is correct, and final readiness passes in Object Mode.
+- [ ] The HUM uses CP1252 (or the manual template's preserved legacy encoding), relative OMSI paths, all required sections, and exactly 22 `[links]` values.
 - [ ] `[model]` points to the installed CFG, and CFG `[mesh]` paths point to existing files.
 - [ ] Every LOD repeats the canonical `[setbone]` bindings.
 - [ ] The `.hum`, CFG, O3Ds, and textures are copied into one OMSI Humans-style package.
-- [ ] OMSI has been tested for textures, standing/walking/seated poses, hands, joints, and all LODs.
+- [ ] OMSI loads the package and textures; standing, walking, turning, seated poses, hands/joints and every LOD transition have been tested manually.

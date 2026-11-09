@@ -925,7 +925,391 @@ def assert_export_io_failure(addon, human):
         assert Path(result['hum_path']).is_file() and body.read_bytes() != b'geometry sentinel'
 
 
-CHECKS = [assert_serializer, assert_measurements, assert_missing_and_overrides,
+def assert_human_native_registration(addon, human):
+    # Missing native RNA/operator registration must fail before production UI exists.
+    assert hasattr(bpy.types.Object, 'omsi_human_settings'), 'rig-owned human RNA is missing'
+    panel = importlib.import_module(addon.__name__ + '.o3d_io.omsi_character_panel')
+    cls = panel.VIEW3D_PT_omsi_character_human
+    assert cls.is_registered and cls.bl_parent_id == 'VIEW3D_PT_omsi_character'
+    assert cls.bl_category == 'OMSI' and cls.bl_order > panel.VIEW3D_PT_omsi_character_lods.bl_order
+    for name in ('refresh_human_measurements', 'human_preflight', 'export_human'):
+        assert getattr(bpy.ops.omsi, name).get_rna_type()
+    rig, mesh, source = fixture(addon)
+    settings = rig.omsi_human_settings
+    assert settings.voice == 'M2' and settings.mass_kg == 70
+    assert abs(settings.seat_height - .9) < 1e-5 and abs(settings.feetdist - .04) < 1e-5
+    props = bpy.context.scene.omsi_character_data
+    props.source_mesh, props.source_armature = mesh, rig
+    bpy.ops.object.select_all(action='DESELECT')
+    rig.select_set(True)
+    bpy.context.view_layer.objects.active = rig
+    settings.use_neck_override = settings.use_finger_override = True
+    settings.neck_override = (-.01, 1.55)
+    settings.finger_override = (.75, -.02, 1.38)
+    assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+    with tempfile.TemporaryDirectory(prefix='omsi-human-panel-') as temporary:
+        root = Path(temporary)
+        assert bpy.ops.omsi.export_human(filepath=str(root / 'panel.hum')) == {'FINISHED'}
+        assert (root / 'panel.hum').is_file() and (root / 'panel.cfg').is_file()
+        assert (root / (mesh.name + '.o3d')).is_file()
+
+
+class RecordingHumanLayout:
+    """Record native draw calls without needing an interactive VIEW_3D area."""
+    def __init__(self, records=None, parent=None):
+        self.records = [] if records is None else records
+        self.parent = parent
+        self.enabled = True
+
+    def _enabled(self):
+        return self.enabled and (self.parent is None or self.parent._enabled())
+
+    def label(self, **kwargs):
+        self.records.append(('label', kwargs['text'], self._enabled()))
+
+    def prop(self, data, name, **kwargs):
+        self.records.append(('prop', name, self._enabled()))
+
+    def operator(self, name, **kwargs):
+        self.records.append(('operator', name, self._enabled()))
+
+    def column(self, **kwargs):
+        return RecordingHumanLayout(self.records, self)
+
+
+def panel_fixture(addon, human, *, metadata=False):
+    from smoke_lod import _clear
+    _clear()
+    rig, mesh, source = fixture(addon)
+    if metadata:
+        human.capture_landmarks(source, rig)
+    props = bpy.context.scene.omsi_character_data
+    props.source_mesh, props.source_armature = mesh, rig
+    bpy.ops.object.select_all(action='DESELECT')
+    rig.select_set(True)
+    bpy.context.view_layer.objects.active = rig
+    settings = rig.omsi_human_settings
+    return rig, mesh, source, settings
+
+
+def cancel_native(call):
+    try:
+        assert call() == {'CANCELLED'}
+    except RuntimeError as error:
+        assert str(error).startswith('Error:'), error
+
+
+def assert_human_panel_draw(addon, human):
+    # Catches draw-time evaluation/mutations, hidden actions and uncollapsed details.
+    from types import SimpleNamespace
+    panel = importlib.import_module(addon.__name__ + '.o3d_io.omsi_character_panel')
+    rig, mesh, source, settings = panel_fixture(addon, human)
+    before = source_snapshot()
+    originals = human.measure_human, human.export_human, panel.fill_source_defaults
+    def forbidden(*args, **kwargs):
+        raise AssertionError('draw evaluated/mutated character data')
+    human.measure_human = human.export_human = panel.fill_source_defaults = forbidden
+    try:
+        layout = RecordingHumanLayout()
+        panel.VIEW3D_PT_omsi_character_human.draw(SimpleNamespace(layout=layout), bpy.context)
+        assert source_snapshot() == before
+        names = {name for kind, name, enabled in layout.records if kind == 'prop'}
+        assert {'voice', 'mass_kg', 'feetdist', 'seat_height', 'use_height_override',
+                'scale', 'selection_only', 'export_custom_normals', 'o3d_version'} <= names
+        assert not {'walk_params', 'neck_override', 'finger_override'} & names
+        assert any(kind == 'label' and rig.name in text for kind, text, _ in layout.records)
+        assert {text for kind, text, enabled in layout.records if kind == 'operator' and enabled} == {
+            'omsi.refresh_human_measurements', 'omsi.human_preflight', 'omsi.export_human'}
+        settings.show_walking = settings.show_landmarks = True
+        for name in ('hip', 'knee', 'waist', 'shoulder', 'elbow', 'neck', 'hand', 'finger'):
+            setattr(settings, 'use_' + name + '_override', True)
+        layout = RecordingHumanLayout()
+        panel.VIEW3D_PT_omsi_character_human.draw(SimpleNamespace(layout=layout), bpy.context)
+        names = [name for kind, name, _ in layout.records if kind == 'prop']
+        assert names.count('walk_params') == 5
+        for name, size in [('waist', 2), ('neck', 2), ('hip', 3), ('finger', 3)]:
+            assert name + '_override' in names
+            assert len(getattr(settings, name + '_override')) == size
+        # Existing source pointers remain authoritative; never fall back to the selected canonical rig.
+        bpy.context.scene.omsi_character_data.source_armature = source
+        layout = RecordingHumanLayout()
+        panel.VIEW3D_PT_omsi_character_human.draw(SimpleNamespace(layout=layout), bpy.context)
+        assert all(not enabled for kind, _, enabled in layout.records if kind == 'operator')
+        assert any(kind == 'label' and ('target' in text.lower() or 'bound' in text.lower())
+                   for kind, text, _ in layout.records)
+    finally:
+        human.measure_human, human.export_human, panel.fill_source_defaults = originals
+
+
+def assert_human_panel_feedback(addon, human):
+    # Readiness must reject missing/stale anatomy and invalid settings, not simply refresh.
+    from types import SimpleNamespace
+    panel = importlib.import_module(addon.__name__ + '.o3d_io.omsi_character_panel')
+    rig, mesh, source, settings = panel_fixture(addon, human)
+    before = (bpy.context.view_layer.objects.active, tuple(bpy.context.selected_objects),
+              bpy.context.scene.frame_current, rig.data.pose_position,
+              [(m.show_viewport, m.show_render) for m in mesh.modifiers])
+    assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+    assert 'neck' in settings.errors and 'finger' in settings.errors
+    layout = RecordingHumanLayout()
+    panel.VIEW3D_PT_omsi_character_human.draw(SimpleNamespace(layout=layout), bpy.context)
+    assert any(kind == 'label' and 'Missing neck' in text for kind, text, _ in layout.records)
+    cancel_native(lambda: bpy.ops.omsi.human_preflight())
+    settings.use_neck_override = settings.use_finger_override = True
+    settings.neck_override = (-.01, 1.55)
+    settings.finger_override = (.75, -.02, 1.38)
+    settings.scale = 2
+    overrides = tuple(settings.neck_override), tuple(settings.finger_override)
+    assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+    assert not settings.errors and overrides == (tuple(settings.neck_override), tuple(settings.finger_override))
+    assert bpy.ops.omsi.human_preflight() == {'FINISHED'}
+    assert 'ready' in settings.status.lower() or 'readiness' in settings.status.lower()
+    # Full backend preparation, including selected O3D version, runs without output writes.
+    original_geometry = addon.o3d_io.io_o3d_export.validate_o3d_geometry
+    def invalid_geometry(*args, **kwargs):
+        raise ValueError('injected invalid serialized human geometry')
+    addon.o3d_io.io_o3d_export.validate_o3d_geometry = invalid_geometry
+    try:
+        cancel_native(lambda: bpy.ops.omsi.human_preflight())
+        assert 'serialized human geometry' in settings.errors
+    finally:
+        addon.o3d_io.io_o3d_export.validate_o3d_geometry = original_geometry
+    settings.mass_kg = -1
+    cancel_native(lambda: bpy.ops.omsi.human_preflight())
+    assert 'mass' in settings.errors.lower()
+    settings.mass_kg = 70
+    settings.use_neck_override = settings.use_finger_override = False
+    human.capture_landmarks(source, rig)
+    bpy.ops.object.mode_set(mode='EDIT')
+    rig.data.edit_bones['Main'].head.z += .01
+    bpy.ops.object.mode_set(mode='OBJECT')
+    assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+    assert 'stale' in settings.errors.lower()
+    settings.confirm_stale = True
+    assert bpy.ops.omsi.human_preflight() == {'FINISHED'}
+    assert not settings.errors and 'stale' in settings.warnings.lower()
+    # Native readiness mirrors backend pending-edit refusal before any evaluation.
+    bpy.ops.object.mode_set(mode='EDIT')
+    original = human.measure_human
+    def forbidden(*args, **kwargs):
+        raise AssertionError('pending edit was evaluated')
+    human.measure_human = forbidden
+    try:
+        cancel_native(lambda: bpy.ops.omsi.human_preflight())
+        assert 'Object Mode' in settings.errors
+        assert rig.mode == 'EDIT'
+    finally:
+        human.measure_human = original
+        bpy.ops.object.mode_set(mode='OBJECT')
+    assert before == (bpy.context.view_layer.objects.active, tuple(bpy.context.selected_objects),
+                      bpy.context.scene.frame_current, rig.data.pose_position,
+                      [(m.show_viewport, m.show_render) for m in mesh.modifiers])
+
+
+def assert_human_native_persistence(addon, human):
+    # Actual rig-owned RNA must survive independent rigs and a native save/reopen.
+    rig, mesh, source, first = panel_fixture(addon, human, metadata=True)
+    second_rig, second_mesh, second_source = fixture(addon)
+    second = second_rig.omsi_human_settings
+    first.voice, first.mass_kg = 'M4', 88
+    first.use_finger_override = True
+    first.finger_override = (.8, -.03, 1.4)
+    first.walk_params = (1.5, 90, 1.1, .9, .2)
+    second.voice, second.mass_kg = 'F1', 55
+    second.scale = .8
+    first_name, second_name = rig.name, second_rig.name
+    with tempfile.TemporaryDirectory(prefix='omsi-human-native-settings-') as temporary:
+        path = str(Path(temporary) / 'native-settings.blend')
+        bpy.ops.wm.save_as_mainfile(filepath=path)
+        bpy.ops.wm.open_mainfile(filepath=path)
+        first = bpy.data.objects[first_name].omsi_human_settings
+        second = bpy.data.objects[second_name].omsi_human_settings
+        assert (first.voice, first.mass_kg, second.voice, second.mass_kg) == ('M4', 88, 'F1', 55)
+        assert first.use_finger_override and not second.use_finger_override
+        close(first.finger_override, (.8, -.03, 1.4))
+        close(first.walk_params, (1.5, 90, 1.1, .9, .2))
+        assert abs(second.scale - .8) < 1e-5
+
+
+def assert_human_native_errors(addon, human):
+    # Exercises native export, sibling-only overwrite refusal, cancellation and cursor restoration.
+    from types import SimpleNamespace
+    from bpy_extras.io_utils import ExportHelper
+    panel = importlib.import_module(addon.__name__ + '.o3d_io.omsi_character_panel')
+    rig, mesh, source, settings = panel_fixture(addon, human, metadata=True)
+    cursor = []
+    reports = []
+    context = SimpleNamespace(scene=bpy.context.scene, object=bpy.context.object,
+        selected_objects=bpy.context.selected_objects, view_layer=bpy.context.view_layer,
+        window=SimpleNamespace(cursor_set=cursor.append))
+    operation = SimpleNamespace(filepath='', overwrite=False, report=lambda kinds, text: reports.append(text))
+    with tempfile.TemporaryDirectory(prefix='omsi-human-native-errors-') as temporary:
+        root = Path(temporary)
+        cfg = root / 'native.cfg'
+        cfg.write_bytes(b'sibling sentinel')
+        operation.filepath = str(root / 'native.hum')
+        assert panel.ExportHuman.execute(operation, context) == {'CANCELLED'}
+        assert cursor == ['WAIT', 'DEFAULT'] and 'overwrite' in reports[-1].lower()
+        assert cfg.read_bytes() == b'sibling sentinel' and not Path(operation.filepath).exists()
+        cancel_native(lambda: bpy.ops.omsi.export_human(filepath=operation.filepath))
+        assert bpy.ops.omsi.export_human(filepath=operation.filepath, overwrite=True) == {'FINISHED'}
+        assert cfg.read_bytes() != b'sibling sentinel'
+        settings.scale = 2
+        settings.use_neck_override = settings.use_finger_override = True
+        settings.neck_override = (-.02, 1.6)
+        settings.finger_override = (.8, -.02, 1.4)
+        assert bpy.ops.omsi.export_human(filepath=str(root / 'scaled.hum'), overwrite=True) == {'FINISHED'}
+        lines = (root / 'scaled.hum').read_text(encoding='cp1252').splitlines()
+        links = [float(line) for line in lines[lines.index('[links]') + 1:lines.index('[walk_param]')] if line]
+        close(links[14:16], (-.02, 1.6))
+        close(links[19:22], (.8, -.02, 1.4))
+        # The point vectors were final file-space values: export scale must not double them.
+        cursor.clear()
+        real_export = human.export_human
+        def failure(*args, **kwargs):
+            raise OSError('injected disk failure at native.o3d')
+        human.export_human = failure
+        try:
+            assert panel.ExportHuman.execute(operation, context) == {'CANCELLED'}
+            assert cursor == ['WAIT', 'DEFAULT'] and 'I/O failure' in reports[-1]
+        finally:
+            human.export_human = real_export
+        # A new picker invocation must never reuse last invocation's full-set consent.
+        real_invoke = ExportHelper.invoke
+        ExportHelper.invoke = lambda *args: {'RUNNING_MODAL'}
+        operation.overwrite = True
+        try:
+            assert panel.ExportHuman.invoke(operation, context, None) == {'RUNNING_MODAL'}
+            assert operation.overwrite is False
+        finally:
+            ExportHelper.invoke = real_invoke
+        assert bpy.context.view_layer.objects.active == rig and rig.mode == 'OBJECT'
+        assert rig.data.pose_position == 'POSE' and rig.select_get()
+        assert all(mod.show_viewport and mod.show_render for mod in mesh.modifiers)
+
+
+def assert_human_native_scope(addon, human):
+    # Catches source fallback, helper silence, empty selection expansion and cross-rig leakage.
+    rig, mesh, source, settings = panel_fixture(addon, human, metadata=True)
+    bpy.ops.mesh.primitive_cube_add()
+    helper = bpy.context.object
+    helper.name = 'Selected physics helper'
+    bpy.ops.rigidbody.object_add()
+    rig.select_set(True)
+    bpy.context.view_layer.objects.active = rig
+    assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+    assert not settings.errors
+    assert helper.name in settings.warnings and 'exclud' in settings.warnings.lower()
+    # An unrelated explicitly selected mesh must not expand to the whole character.
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.mesh.primitive_cube_add()
+    unrelated = bpy.context.object
+    rig.select_set(True)
+    bpy.context.view_layer.objects.active = rig
+    cancel_native(lambda: bpy.ops.omsi.human_preflight())
+    assert 'nonempty' in settings.errors.lower()
+    unrelated.select_set(False)
+    other, _, _ = fixture(addon)
+    other.select_set(True)
+    rig.select_set(True)
+    bpy.context.view_layer.objects.active = rig
+    cancel_native(lambda: bpy.ops.omsi.human_preflight())
+    assert 'rig' in settings.errors.lower()
+    # Execution revalidates source pointers, independent of draw/picker state.
+    bpy.context.scene.omsi_character_data.source_armature = source
+    status_before = settings.status
+    with tempfile.TemporaryDirectory(prefix='omsi-human-invalid-target-') as temporary:
+        path = str(Path(temporary) / 'invalid.hum')
+        cancel_native(lambda: bpy.ops.omsi.export_human(filepath=path))
+        assert not list(Path(temporary).iterdir())
+    assert settings.status == status_before
+
+
+def assert_human_readiness_no_write(addon, human):
+    # Removing the no-write boundary must fail this real native readiness check.
+    rig, mesh, source, settings = panel_fixture(addon, human, metadata=True)
+    # Readiness has no chosen HUM name; it must not reserve a valid mesh directory.
+    mesh['export_path'] = '__readiness__.hum/model.o3d'
+    real_open = builtins.open
+    def no_outputs(path, mode='r', *args, **kwargs):
+        if any(char in mode for char in 'wax+'):
+            raise AssertionError('readiness opened a destination for writing: ' + str(path))
+        return real_open(path, mode, *args, **kwargs)
+    builtins.open = no_outputs
+    try:
+        assert bpy.ops.omsi.human_preflight() == {'FINISHED'}
+    finally:
+        builtins.open = real_open
+    assert not settings.errors and settings.has_measurement
+
+
+def assert_supplied_panel_bundle(addon, human):
+    # Read-only user fixture: all conversion/export changes are in memory or a temp directory.
+    import hashlib
+    path = HERE / 'Untitled2.blend'
+    expected_hash = '644fd4743f202dcd336e89848a9de42bb513da7cb553396f471b81369ac88622'
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_hash
+    bpy.ops.wm.open_mainfile(filepath=str(path), use_scripts=False)
+    source = next(obj for obj in bpy.context.scene.objects if obj.type == 'ARMATURE')
+    assert 'omsi_human_landmarks' not in source
+    diagnostics = human.physics_diagnostics(source, bpy.context.scene.objects)
+    assert diagnostics['body_count'] == 51 and diagnostics['joint_count'] == 34
+    assert diagnostics['joint_categories'] == {'skirt': 19, 'hair': 14, 'accessory': 1}
+    mesh = max((obj for obj in bpy.context.scene.objects if obj.type == 'MESH'
+                and not obj.rigid_body and not obj.rigid_body_constraint
+                and human._mesh_rigs(obj) == {source}), key=lambda obj: len(obj.data.vertices))
+    bpy.ops.object.select_all(action='DESELECT')
+    mesh.select_set(True)
+    bpy.context.view_layer.objects.active = mesh
+    props = bpy.context.scene.omsi_character_data
+    props.source_mesh, props.source_armature = mesh, source
+    # Physics CHILD_OF dependencies legitimately prevent source deletion: preserve it.
+    props.delete_source_rig = False
+    assert bpy.ops.omsi.convert_mmd_to_omsi() == {'FINISHED'}
+    target, converted = props.source_armature, props.source_mesh
+    assert target != source and converted != mesh and source.name in bpy.data.objects
+    assert 'omsi_human_landmarks' in target
+    assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+    settings = target.omsi_human_settings
+    if settings.errors:
+        # Never substitute collider coordinates or fabricated zero pivots.
+        assert all('landmark' in error.lower() or 'stale' in error.lower()
+                   for error in settings.errors.splitlines()), settings.errors
+        print('HUMAN_FIXTURE_REQUIRED_OVERRIDES', settings.errors)
+    else:
+        assert bpy.ops.omsi.human_preflight() == {'FINISHED'}
+        with tempfile.TemporaryDirectory(prefix='omsi-human-fixture-panel-') as temporary:
+            root = Path(temporary)
+            assert bpy.ops.omsi.export_human(filepath=str(root / 'fixture.hum')) == {'FINISHED'}
+            lines = (root / 'fixture.hum').read_text(encoding='cp1252').splitlines()
+            assert lines[lines.index('[model]') + 1] == 'fixture.cfg'
+            links = [float(line) for line in lines[lines.index('[links]') + 1:lines.index('[walk_param]')] if line]
+            assert len(links) == 22 and all(math.isfinite(value) for value in links)
+            assert (root / 'fixture.cfg').is_file()
+            meshes = list(root.rglob('*.o3d'))
+            assert meshes and all(addon.o3d_io.o3dconvert.import_o3d(item.read_bytes()) for item in meshes)
+            print('HUMAN_FIXTURE_PANEL_BUNDLE_OK', len(links), len(meshes), settings.measured_height)
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_hash
+    print('HUMAN_FIXTURE_HASH_UNCHANGED', expected_hash)
+
+
+def assert_human_unregistered(addon):
+    assert not hasattr(bpy.types.Object, 'omsi_human_settings')
+    panel = importlib.import_module(addon.__name__ + '.o3d_io.omsi_character_panel')
+    for cls in panel.get_classes():
+        assert not cls.is_registered, cls
+    for name in ('refresh_human_measurements', 'human_preflight', 'export_human'):
+        try:
+            getattr(bpy.ops.omsi, name).get_rna_type()
+        except (RuntimeError, KeyError):
+            pass
+        else:
+            raise AssertionError('human operator remains registered: ' + name)
+
+
+CHECKS = [assert_human_native_registration, assert_human_panel_draw, assert_human_panel_feedback,
+          assert_human_native_persistence, assert_human_native_errors, assert_human_native_scope,
+          assert_human_readiness_no_write, assert_serializer, assert_measurements, assert_missing_and_overrides,
           assert_conversion_metadata, assert_template_metadata, assert_stale,
           assert_alignment_and_transforms, assert_symmetry, assert_bounds_and_physics,
           assert_nested_collection_lods, assert_multiple_collection_lods,
@@ -935,7 +1319,7 @@ CHECKS = [assert_serializer, assert_measurements, assert_missing_and_overrides,
           assert_export_candidates, assert_export_preflight,
           assert_export_alias_parent_preflight, assert_export_alias_suffix_preflight,
           assert_export_transform_preflight, assert_export_texture_preflight,
-          assert_export_io_failure, assert_supplied_physics]
+          assert_export_io_failure, assert_supplied_physics, assert_supplied_panel_bundle]
 
 
 def run():
@@ -946,13 +1330,18 @@ def run():
         checks = [check for check in CHECKS if check.__name__ == sys.argv[sys.argv.index('--check') + 1]]
         assert checks, 'unknown human check'
     failures = []
-    for check in checks:
-        try:
-            check(addon, human)
-            print('HUMAN_CHECK_OK', check.__name__)
-        except Exception:
-            traceback.print_exc()
-            failures.append(check.__name__)
+    addon.register()
+    try:
+        for check in checks:
+            try:
+                check(addon, human)
+                print('HUMAN_CHECK_OK', check.__name__)
+            except Exception:
+                traceback.print_exc()
+                failures.append(check.__name__)
+    finally:
+        addon.unregister()
+        assert_human_unregistered(addon)
     assert not failures, failures
     print('BLENDER_HUMAN_SMOKE_OK', len(checks), bpy.app.version_string)
 

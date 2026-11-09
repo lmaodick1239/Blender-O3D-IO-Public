@@ -19,6 +19,7 @@ import smoke_character_fix_round_1
 import smoke_character_fix_round_2
 import smoke_character_final_fix
 import smoke_lod
+import smoke_human
 from smoke_support import load_addon
 
 CHECKS = [
@@ -121,8 +122,16 @@ def run() -> None:
     assert hasattr(bpy.ops.import_scene, "omsi_tile")
     for check in CHECKS:
         check(addon)
+    # Human checks use (addon, human), unlike the historical addon-only list.
+    # The root suite owns registration; do not run the standalone wrapper here.
+    import importlib
+    human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
+    for check in smoke_human.CHECKS:
+        check(addon, human)
+        print('HUMAN_CHECK_OK', check.__name__)
     addon.unregister()
     smoke_character_panel.assert_character_panel_unregistered(addon)
+    smoke_human.assert_human_unregistered(addon)
     print("BLENDER_O3D_IO_SMOKE_OK", bpy.app.version_string)
 
 

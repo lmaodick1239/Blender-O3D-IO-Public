@@ -462,7 +462,7 @@ def _human_output_paths(filepath, meshes, overwrite):
 
 def export_human(filepath, context, armature, meshes, *, settings=None, overrides=None,
                  scale=1.0, overwrite=False, confirm_stale=False, o3d_version=7,
-                 export_custom_normals=True) -> dict:
+                 export_custom_normals=True, preflight_only=False) -> dict:
     """Preflight a complete HUM/CFG/O3D bundle and publish HUM last.
 
     All validation/overwrite refusal happens before destination files are opened.
@@ -471,6 +471,9 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
     Landmark overrides are already final scaled file vectors, not scaled twice.
     Active/participating mesh or armature Edit mode is refused without flushing
     source edits: measurement and the shared exporter must see the same state.
+    preflight_only runs the identical validation/serialization preparation, without
+    opening output files. The panel uses a temporary destination for readiness;
+    the actual chosen destination and overwrite consent are checked on export.
     """
     from . import io_o3d_export, o3d_cfg_parser, o3dconvert
     meshes = _human_candidates(context, armature, meshes)
@@ -540,6 +543,8 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
         stream.getvalue().encode('cp1252')
     except UnicodeEncodeError as error:
         raise ValueError('Model CFG must be CP1252 encodable') from error
+    if preflight_only:
+        return {'measurements': measurements, 'warnings': measurements['warnings']}
     io_o3d_export.do_export(cfg_path, context, global_matrix, False, o3d_version,
                            export_custom_normals, objects=meshes, human_bindings=True)
     with open(hum_path, 'wb') as stream:
