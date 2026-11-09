@@ -8,7 +8,7 @@ The written specification requires user review before implementation planning. N
 
 ## Scope
 
-An explicit **Export Human Configuration** option in the existing model CFG export workflow produces a `.hum` file, the existing model `.cfg`, and its `.o3d` meshes. Normal CFG/SCO/O3D export remains unchanged when the option is disabled.
+Add a **Human Configuration & Export** section directly to the existing **OMSI > OMSI Character Tools** sidebar panel. It contains the measurement controls, editable human settings, readiness feedback, and an **Export Human** button producing a `.hum` file, a model `.cfg`, and its `.o3d` meshes. This is a panel-led workflow, not a feature hidden behind a File > Export checkbox. Normal CFG/SCO/O3D export remains unchanged; the generic file-browser operator does not need a new human-generation toggle.
 
 The first version supports one canonical OMSI human armature and its mesh/LOD family per export. It does not automatically convert an arbitrary MMD rig during export. Users convert the source with Character Tools first, inspect measurements, then export the converted character.
 
@@ -16,7 +16,7 @@ Non-goals: exporting Bullet/MMD physics, adding procedural hair or cloth behavio
 
 ## Existing Integration Points
 
-- `__init__.py::ExportModelCFG` owns the file-browser export settings and invokes the exporter.
+- `__init__.py::ExportModelCFG` remains the existing generic file-browser exporter; the new panel action reuses its backend rather than requiring changes to that operator's UI.
 - `o3d_io/io_o3d_export.py::do_export` resolves output meshes, validates destinations, exports evaluated rest geometry, and passes serialized metadata to the existing CFG writer.
 - `o3d_io/o3d_cfg_parser.py` already writes mesh/material/LOD blocks and `[smoothskin]` metadata.
 - `o3d_io/mmd_rig.py::reconcile_character_bindings` establishes the 13 canonical `[setbone]` bindings during conversion.
@@ -40,15 +40,18 @@ The sample is an integration fixture, not a requirement that every model contain
 
 ## User Workflow and Output Paths
 
-1. Convert an MMD source using Character Tools, or select an existing compatible OMSI rig.
-2. Inspect the derived human measurements in Character Tools. A **Refresh Measurements** action explicitly refreshes derived values; refreshing must not overwrite user overrides.
-3. Resolve missing/ambiguous landmark warnings by supplying numeric landmark overrides. Defaults for voice, walking, seat height, feet distance, and mass remain editable.
-4. Export through the existing model CFG operator with **Export Human Configuration** enabled.
-5. Inspect the generated file references, then perform the OMSI installation and in-game checks.
+1. Convert an MMD source using Character Tools, or select an existing compatible OMSI rig in the panel's existing source fields.
+2. Open **Human Configuration & Export**, placed after **Mesh LODs** in the same sidebar. Display the target armature clearly so the user can see which character owns the settings.
+3. Click **Refresh Measurements**, inspect the derived geometry, and resolve missing/ambiguous landmark feedback with numeric overrides. Refreshing must not overwrite user overrides.
+4. Edit voice, mass in kilograms, seat height, feet distance, and height override in the section. Keep detailed landmark overrides and walking parameters in collapsible advanced groups rather than displaying all 22 numbers by default.
+5. Run **Check Export Readiness** from this section, then click **Export Human**. The button opens a destination picker for a `.hum` file and invokes the shared geometry/CFG backend with the panel's human settings.
+6. Inspect the generated file references, then perform the OMSI installation and in-game checks. No separate File > Export visit is required.
 
-Human mode is available only for `.cfg` exports. Choosing it with `.o3d` or `.sco` must report an actionable error before files are written; it must not silently change the requested extension.
+Use a dedicated panel export operator accepting `.hum` destinations; this does not turn ordinary `.o3d` or `.sco` exports into human exports. Reuse the existing backend for mesh serialization, model CFG writing, safe paths, and scale handling rather than duplicating those implementations.
 
-For a chosen destination `character.cfg`, write `character.hum` in the same directory and use `character.cfg` as its relative `[model]` reference. This deterministic sibling layout avoids guessing whether the chosen directory is a package root or a `model` directory. Explain that both files must be kept together when installing this layout. A separate package-layout wizard is outside scope.
+For a chosen destination `character.hum`, write the sibling `character.cfg` and its referenced meshes in the same directory; the HUM uses `character.cfg` as its relative `[model]` reference. This deterministic sibling layout avoids guessing whether the chosen directory is a package root or a `model` directory. Explain that the generated files must be kept together when installing this layout. A separate package-layout wizard is outside scope.
+
+Panel drawing must not perform conversion, mutate measurements, or repeatedly evaluate export geometry. Refresh/readiness/export actions perform that work explicitly and display their findings. Disable Export Human when no compatible target is available, and repeat full validation when the operator executes rather than relying only on disabled UI state.
 
 When Selection Only is enabled, explicitly selected character meshes retain the existing selection scope. If only the canonical armature is selected, include the exportable meshes bound to that armature. Never expand selection to unrelated scene meshes or a preserved source rig. Reject empty character exports and multiple distinct character armatures rather than guessing which human to configure.
 
@@ -140,7 +143,7 @@ Physics diagnostics are optional and read-only:
 
 Preflight the complete human export before opening output files: one supported rig, nonempty intended mesh set, usable landmarks/overrides, finite geometry/settings, supported transforms/alignment, encodable text, safe destinations, and matching serialized skin bindings. Require positive height and mass, nonnegative seat height and feet distance, and a nonempty single-line voice token. Reject control characters and configuration-line injection in user-supplied string/path fields. Walk settings remain editable numeric values; do not invent undocumented engine ranges.
 
-Validate every generated path through the existing safe-path logic. Detect case-insensitive and resolved-path collisions among HUM, CFG, and O3D destinations. Existing HUM files require explicit overwrite consent covering the sidecar, not just Blender's confirmation for the CFG path. Without consent, cancel before overwriting any member of the export.
+Validate every generated path through the existing safe-path logic. Detect case-insensitive and resolved-path collisions among HUM, CFG, and O3D destinations. Existing outputs require explicit overwrite consent covering the generated file set, not just Blender's confirmation for the selected HUM destination. Without consent, cancel before overwriting any member of the export.
 
 Generate and validate human text before mesh serialization, then write the HUM only after successful model CFG/O3D export. A failed model export must not publish a new HUM pointing at failed output. Do not claim an all-or-nothing multi-file transaction; existing exporter write failures can still leave model files that need retrying. Error messages must distinguish preflight refusal from an I/O failure and identify the affected path.
 
@@ -152,7 +155,8 @@ Use the existing assertion-based test and Blender smoke-test conventions; do not
 
 Required checks:
 
-- Human option off: existing CFG/SCO/O3D behavior and smoke checks remain unchanged.
+- The existing generic CFG/SCO/O3D operator retains its behavior and smoke checks; human generation is reached from the Character Tools panel without a new generic export toggle.
+- The Human Configuration & Export child panel displays settings and readiness feedback, invokes the dedicated Export Human action, and performs no measurement/export work merely by drawing.
 - A synthetic canonical rig with known anatomical metadata produces the expected 22-value link block and relative model reference.
 - A golden coordinate fixture compares human landmark output with corresponding exported rest-geometry coordinates, including nonzero Y/Z and nonidentity supported transforms.
 - Export scale applies once; display units do not introduce a second scale factor; current pose/frame does not change the result.
