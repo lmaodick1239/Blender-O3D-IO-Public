@@ -863,6 +863,12 @@ def convert(mesh, armature, options, *, on_complete=None):
                 map_text = bpy.data.texts.new("mmd_bone_name_map")
             old_text = map_text.as_string()
             _write_mapping_text(pairs)
+        # Capture source-only anatomy inside rollback, before callbacks/deletion.
+        # Missing neck/fingers remain explicit metadata, not conversion failures.
+        from .omsi_human import capture_landmarks
+        capture_landmarks(armature, new_armature,
+                          template_armature=(options.template_armature
+                                             if options.rig_mode == "TEMPLATE" else None))
         result = ConversionResult(
             mesh=new_mesh,
             armature=new_armature,
