@@ -96,3 +96,138 @@ def is_excluded(rel_path: str, patterns: list[str]) -> bool:
                     return True
 
     return False
+
+
+def collect_files(repo_root: Path, patterns: list[str], verbose: bool = False) -> list[Path]:
+    """Walk repo_root and return all non-excluded regular files."""
+    collected: list[Path] = []
+
+    for root, dirnames, filenames in os.walk(repo_root, topdown=True):
+        rel_root = Path(root).relative_to(repo_root).as_posix()
+        if rel_root == ".":
+            rel_root = ""
+
+        # Filter out subdirectories in-place so os.walk does not recurse into them
+        surviving_dirs: list[str] = []
+        for d in dirnames:
+            rel_dir = f"{rel_root}/{d}" if rel_root else d
+            # Treat directory check with trailing slash
+            if is_excluded(rel_dir + "/", patterns):
+                if verbose:
+                    print(f"  [exclude dir]  {rel_dir}/", file=sys.stderr)
+            else:
+                surviving_dirs.append(d)
+        dirnames[:] = surviving_dirs
+
+        for f in filenames:
+            rel_file = f"{rel_root}/{f}" if rel_root else f
+            if is_excluded(rel_file, patterns):
+                if verbose:
+                    print(f"  [exclude file] {rel_file}", file=sys.stderr)
+            else:
+                full_path = Path(root) / f
+                if full_path.is_file():
+                    collected.append(full_path)
+
+    collected.sort()
+
+    # Validate essential core files exist
+    rel_set = {p.relative_to(repo_root).as_posix() for p in collected}
+    if "blender_manifest.toml" not in rel_set:
+        raise FileNotFoundError("Missing required blender_manifest.toml in collected files")
+    if "__init__.py" not in rel_set:
+        raise FileNotFoundError("Missing required __init__.py in collected files")
+
+    return collected
+
+
+def format_bytes(num_bytes: int) -> str:
+    """Return human-readable byte size."""
+    if num_bytes < 1024:
+        return f"{num_bytes} B"
+    elif num_bytes < 1024 * 1024:
+        return f"{num_bytes / 1024:.1f} KB"
+    else:
+        return f"{num_bytes / (1024 * 1024):.2f} MB"
+
+
+def validate_package(
+    zip_path: Path,
+    expected_id: str | None = None,
+    expected_version: str | None = None,
+) -> None:
+    """Inspect and validate the integrity of a generated add-on ZIP package."""
+    import zipfile
+
+    if not zip_path.is_file():
+        raise FileNotFoundError(f"Package file not found: {zip_path}")
+
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        namelist = zf.namelist()
+        if "blender_manifest.toml" not in namelist:
+            raise ValueError(f"Invalid package {zip_path}: missing blender_manifest.toml at root")
+        if "__init__.py" not in namelist:
+            raise ValueError(f"Invalid package {zip_path}: missing __init__.py at root")
+
+        forbidden_prefixes = ("tests/", "docs/", "__pycache__/", ".git/", ".github/", "dist/")
+        for name in namelist:
+            if any(name.startswith(p) for p in forbidden_prefixes):
+                raise ValueError(f"Forbidden entry leaked into package {zip_path}: {name}")
+            if name.endswith(".pyc"):
+                raise ValueError(f"Python bytecode leaked into package {zip_path}: {name}")
+
+        if expected_id or expected_version:
+            manifest_text = zf.read("blender_manifest.toml").decode("utf-8")
+            if expected_id and f'id = "{expected_id}"' not in manifest_text:
+                raise ValueError(f"Package manifest ID does not match expected {expected_id}")
+            if expected_version and f'version = "{expected_version}"' not in manifest_text:
+                raise ValueError(f"Package manifest version does not match expected {expected_version}")
+
+
+def build_package(
+    repo_root: Path,
+    output_dir: Path,
+    output_name: str | None = None,
+    dry_run: bool = False,
+    verbose: bool = False,
+    quiet: bool = False,
+) -> tuple[Path, int, int]:
+    """Collect add-on files and write a distribution ZIP package."""
+    import zipfile
+
+    manifest = read_manifest(repo_root / "blender_manifest.toml")
+    pkg_id = manifest["id"]
+    pkg_version = manifest["version"]
+    patterns = manifest["paths_exclude_pattern"]
+
+    filename = output_name if output_name else f"{pkg_id}-{pkg_version}.zip"
+    target_zip = output_dir / filename
+
+    files = collect_files(repo_root, patterns, verbose=verbose)
+
+    if dry_run:
+        if not quiet:
+            print(f"Dry run: {len(files)} files to pack into {target_zip}:")
+            for f in files:
+                print(f"  {f.relative_to(repo_root).as_posix()}")
+        return target_zip, len(files), 0
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(target_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for f in files:
+            arcname = f.relative_to(repo_root).as_posix()
+            zinfo = zipfile.ZipInfo.from_file(f, arcname=arcname)
+            # Normalize file attributes (rw-r--r--)
+            zinfo.external_attr = 0o644 << 16
+            with f.open("rb") as fp:
+                zf.writestr(zinfo, fp.read(), compress_type=zipfile.ZIP_DEFLATED)
+
+    validate_package(target_zip, expected_id=pkg_id, expected_version=pkg_version)
+    size_bytes = target_zip.stat().st_size
+
+    if not quiet:
+        print(f"Built {target_zip} ({len(files)} files, {format_bytes(size_bytes)})")
+
+    return target_zip, len(files), size_bytes
+
