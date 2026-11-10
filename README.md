@@ -59,6 +59,13 @@ Blender-O3D-IO includes a fast o3d file importer and exporter with full support 
 6. Map tiles can be imported from `File->Import->OMSI Map Tile (*.map)`
 7. You can export o3d/cfg/sco files from `File->Export->OMSI Model Config (*.cfg, *.sco, *.o3d)`
 
+### Packaging the extension ZIP
+To pack the add-on into a distribution-ready ZIP archive for Blender 4.2+ extensions:
+```bash
+./pack.py
+```
+This script reads `blender_manifest.toml`, filters out tests/docs/temporary files, and creates `dist/blender_o3d_io-<version>.zip` without requiring a Blender installation. Run `./pack.py --help` for CLI options (`--output-dir`, `--output-name`, `--dry-run`, `--verbose`, `--quiet`).
+
 Imported model, config, texture, spline, and terrain paths are resolved without regard to filename or directory casing, including on Linux. Existing files keep their original names; exact matches take priority, and regional-codepage fallbacks remain supported.
 
 Each O3D material keeps its own Blender material slot and face assignments, including repeated texture references. Images are loaded separately rather than merged by filename. Missing textures retain separate unloaded image references with their original paths for relinking; they never fall back to the first available texture. CFG material settings are matched by texture path and material index.

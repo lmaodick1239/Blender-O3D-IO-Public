@@ -89,6 +89,25 @@ class TestManifestParsing(unittest.TestCase):
             self.assertGreater(file_count, 10)
             self.assertEqual(size_bytes, 0)
 
+    def test_cli_help(self):
+        import contextlib
+        import io
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit) as ctx:
+                pack.main(["--help"])
+        self.assertEqual(ctx.exception.code, 0)
+
+    def test_cli_dry_run(self):
+        exit_code = pack.main(["--dry-run", "--quiet"])
+        self.assertEqual(exit_code, 0)
+
+    def test_cli_custom_output(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            exit_code = pack.main(["--output-dir", tmpdir, "--output-name", "custom_addon.zip", "--quiet"])
+            self.assertEqual(exit_code, 0)
+            self.assertTrue((Path(tmpdir) / "custom_addon.zip").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

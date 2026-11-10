@@ -231,3 +231,74 @@ def build_package(
 
     return target_zip, len(files), size_bytes
 
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point for pack.py."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Pack Blender O3D IO add-on into a distribution ZIP archive."
+    )
+    parser.add_argument(
+        "--source-dir",
+        "-s",
+        type=Path,
+        default=Path(__file__).resolve().parent,
+        help="Repository root directory containing blender_manifest.toml (default: script directory).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        "-o",
+        type=Path,
+        default=None,
+        help="Output directory for the generated ZIP (default: <source-dir>/dist).",
+    )
+    parser.add_argument(
+        "--output-name",
+        "-n",
+        type=str,
+        default=None,
+        help="Custom filename for the ZIP (default: <id>-<version>.zip).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show files that would be packaged without creating the ZIP.",
+    )
+    parser.add_argument(
+        "--quiet",
+        "-q",
+        action="store_true",
+        help="Suppress non-essential output.",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show detailed file exclusion decisions.",
+    )
+
+    args = parser.parse_args(argv)
+
+    repo_root = args.source_dir.resolve()
+    output_dir = args.output_dir.resolve() if args.output_dir else (repo_root / "dist")
+
+    try:
+        build_package(
+            repo_root=repo_root,
+            output_dir=output_dir,
+            output_name=args.output_name,
+            dry_run=args.dry_run,
+            verbose=args.verbose,
+            quiet=args.quiet,
+        )
+        return 0
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+
