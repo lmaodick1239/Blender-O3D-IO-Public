@@ -1,0 +1,363 @@
+{
+  "scope": "Root addon, o3d_io/*.py and tests/*.py; direct AST calls; dynamic monkeypatches separately documented in ledger.",
+  "callers": {
+    "_build_o3d_materials": [
+      {
+        "path": "o3d_io/io_o3d_export.py",
+        "line": 253,
+        "call": "_build_o3d_materials(filepath, materials, texture_filepath)"
+      },
+      {
+        "path": "o3d_io/omsi_human.py",
+        "line": 504,
+        "call": "io_o3d_export._build_o3d_materials(path, evaluated.material_slots, cfg_path)"
+      }
+    ],
+    "do_export": [
+      {
+        "path": "__init__.py",
+        "line": 238,
+        "call": "io_o3d_export.do_export(self.filepath, context, global_matrix, self.use_selection, self.o3d_version, self.export_custom_normals)"
+      },
+      {
+        "path": "o3d_io/omsi_human.py",
+        "line": 548,
+        "call": "io_o3d_export.do_export(cfg_path, context, global_matrix, False, o3d_version, export_custom_normals, objects=meshes, human_bindings=True)"
+      },
+      {
+        "path": "tests/smoke_character.py",
+        "line": 605,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 174,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 184,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 384,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(base / 'chosen-alias' / 'model.cfg'), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 228,
+        "call": "exporter.do_export(str(existing), bpy.context, Matrix.Identity(4), True, 2)"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 256,
+        "call": "exporter.do_export(str(existing), bpy.context, Matrix.Identity(4), True, 2)"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 378,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(root / 'model.cfg'), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 233,
+        "call": "exporter.do_export(str(path), bpy.context, Matrix.Identity(4), True, 2)"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 260,
+        "call": "exporter.do_export(str(path), bpy.context, Matrix.Identity(4), True, 2)"
+      },
+      {
+        "path": "tests/smoke_character_repair.py",
+        "line": 423,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_character_repair.py",
+        "line": 513,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_character_review.py",
+        "line": 296,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_character_review.py",
+        "line": 70,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_character_review.py",
+        "line": 211,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_human.py",
+        "line": 396,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Scale(2, 4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 161,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 185,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 206,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 250,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 292,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(cfg_path), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 348,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(first), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 520,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 638,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 720,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 768,
+        "call": "addon.o3d_io.io_o3d_export.do_export('/dev/null/nonexistent/test.o3d', bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 787,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 792,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(cfg_path), bpy.context, Matrix.Identity(4), True, 7, False)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 980,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1012,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1047,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1162,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 3, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1217,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1342,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 31,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 59,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 77,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1081,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1135,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 2, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1582,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1671,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(exported_path), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1697,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Scale(2.0, 4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1791,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1860,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 85,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 106,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1720,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_io.py",
+        "line": 1747,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_lod.py",
+        "line": 81,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), False, 7)"
+      },
+      {
+        "path": "tests/smoke_lod.py",
+        "line": 92,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_lod.py",
+        "line": 96,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), False, 7)"
+      },
+      {
+        "path": "tests/smoke_lod.py",
+        "line": 248,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_lod.py",
+        "line": 354,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_lod.py",
+        "line": 736,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_lod.py",
+        "line": 748,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_materials.py",
+        "line": 87,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(filepath), bpy.context, Matrix.Identity(4), True, 7, True)"
+      },
+      {
+        "path": "tests/smoke_paths.py",
+        "line": 22,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(root / 'model.cfg'), bpy.context, Matrix.Identity(4), True, 7)"
+      },
+      {
+        "path": "tests/smoke_paths.py",
+        "line": 28,
+        "call": "addon.o3d_io.io_o3d_export.do_export(str(root / 'invalid.cfg'), bpy.context, Matrix.Identity(4), True, 7)"
+      }
+    ],
+    "prepare_o3d_geometry": [
+      {
+        "path": "o3d_io/io_o3d_export.py",
+        "line": 242,
+        "call": "prepare_o3d_geometry(blender_obj, mesh, export_custom_normals, allowed_names=allowed_names)"
+      },
+      {
+        "path": "o3d_io/io_o3d_export.py",
+        "line": 200,
+        "call": "prepare_o3d_geometry(evaluated, mesh, export_custom_normals, filter_helpers=False)"
+      },
+      {
+        "path": "o3d_io/omsi_human.py",
+        "line": 497,
+        "call": "io_o3d_export.prepare_o3d_geometry(evaluated, mesh, export_custom_normals, allowed_names=allowed_names)"
+      }
+    ],
+    "prepared_export_mesh": [
+      {
+        "path": "o3d_io/io_o3d_export.py",
+        "line": 199,
+        "call": "prepared_export_mesh(obj, context, global_matrix)"
+      },
+      {
+        "path": "o3d_io/io_o3d_export.py",
+        "line": 330,
+        "call": "prepared_export_mesh(ob, context, global_matrix)"
+      },
+      {
+        "path": "o3d_io/omsi_human.py",
+        "line": 495,
+        "call": "prepared_export_mesh(obj, context, global_matrix)"
+      },
+      {
+        "path": "o3d_io/omsi_human.py",
+        "line": 186,
+        "call": "prepared_export_mesh(obj, context, Matrix.Scale(scale, 4))"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 288,
+        "call": "exporter.prepared_export_mesh(mesh)"
+      },
+      {
+        "path": "tests/smoke_character_fix_round_1.py",
+        "line": 276,
+        "call": "exporter.prepared_export_mesh(obj)"
+      }
+    ]
+  }
+}

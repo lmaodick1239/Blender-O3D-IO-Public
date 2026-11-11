@@ -1,0 +1,59 @@
+{
+  "argv": [
+    "blender",
+    "--background",
+    "--factory-startup",
+    "--disable-autoexec",
+    "--python-exit-code",
+    "1",
+    "--python-expr",
+    "import bpy,importlib.util,sys,json,tempfile,pathlib\nfrom mathutils import Matrix\nroot=pathlib.Path.cwd()\nspec=importlib.util.spec_from_file_location('_o3d_task1',root/'__init__.py',submodule_search_locations=[str(root)])\naddon=importlib.util.module_from_spec(spec);sys.modules[spec.name]=addon;spec.loader.exec_module(addon)\ne=addon.io_o3d_export;i=addon.io_o3d_import\nfrom bpy_extras import node_shader_utils\nr={}\nm=bpy.data.meshes.new('Task1 material probe')\ni.generate_materials({},'/tmp/task1/model.cfg',0,[((.2,.4,.6,.25),(.3,.2,.1),(.0,.0,.0),32.0,'')],m)\nembedded=e._build_o3d_materials('/tmp/task1/probe.o3d',[type('Slot',(),{'material':m.materials[0]})()])[0]\nr['embedded_material']={'input_alpha':.25,'output_alpha':embedded[3],'input_power':32.,'output_power':embedded[10]}\nassert embedded[3]==.25 and embedded[10]==32.\nmat=bpy.data.materials.new('Task1 emission strength probe');addon.io_o3d_export.blender_compat.enable_material_nodes(mat)\nw=node_shader_utils.PrincipledBSDFWrapper(mat,is_readonly=False);w.emission_color=(.2,.4,.6);w.emission_strength=3.\nactual=e._build_o3d_materials('/tmp/task1/probe.o3d',[type('Slot',(),{'material':mat})()])[0]\nr['emission_authoring']={'color':list(w.emission_color[:3]),'strength':float(w.emission_strength),'serialized_emission':list(actual[7:10]),'color_times_strength':[v*float(w.emission_strength) for v in w.emission_color[:3]],'classification':'Current add-on/source observation; mapping desired for OMSI is authoring policy, not native rendering evidence.'}\nmesh=bpy.data.meshes.new('Task1 UV probe');mesh.from_pydata([(0,0,0),(1,0,0),(0,1,0)],[],[(0,1,2)]);obj=bpy.data.objects.new('Task1 UV probe',mesh);bpy.context.scene.collection.objects.link(obj)\nmesh.uv_layers.new(name='EditUV');mesh.uv_layers.new(name='RenderUV');mesh.uv_layers.active_index=0;mesh.uv_layers[1].active_render=True\nfor layer,uv in zip(mesh.uv_layers,((.1,.2),(.7,.8))):\n for loop in layer.data: loop.uv=uv\ngeometry=e.prepare_o3d_geometry(obj,mesh)\nr['uv_selection']={'active':mesh.uv_layers.active.name,'active_render':next(l.name for l in mesh.uv_layers if l.active_render),'serialized_uv':geometry['verts'][0][6:8],'classification':'Current construction uses edit-active UV, not render-active fallback or material graph selection.'}\nassert abs(geometry['verts'][0][6]-.1)<1e-6 and abs(geometry['verts'][0][7]-.8)<1e-6\nempty=bpy.data.meshes.new('Task1 empty probe');empty_obj=bpy.data.objects.new('Task1 empty probe',empty);bpy.context.scene.collection.objects.link(empty_obj)\nwith tempfile.TemporaryDirectory(prefix='o3d-task1-') as tmp:\n path=pathlib.Path(tmp)/'existing.o3d';path.write_bytes(b'KEEP_EXISTING')\n try: e.export_mesh(str(path),bpy.context,empty_obj,empty,list(Matrix.Identity(4)[0])+list(Matrix.Identity(4)[1])+list(Matrix.Identity(4)[2])+list(Matrix.Identity(4)[3]),[],7,True)\n except Exception as error: r['empty_export']={'error_type':type(error).__name__,'error':str(error),'before_bytes':13,'after_bytes':path.stat().st_size,'classification':'Reproduced current add-on failure: destination opened/truncated before codec rejection.'}\n else: raise AssertionError('Expected empty export refusal')\n assert r['empty_export']['after_bytes']==0\nprint('O3D_TASK1_PROBES='+json.dumps(r,sort_keys=True))"
+  ],
+  "exit_code": 0,
+  "stdout": "O3D_TASK1_PROBES={\"embedded_material\": {\"input_alpha\": 0.25, \"input_power\": 32.0, \"output_alpha\": 0.25, \"output_power\": 32.0}, \"emission_authoring\": {\"classification\": \"Current add-on/source observation; mapping desired for OMSI is authoring policy, not native rendering evidence.\", \"color\": [0.20000000298023224, 0.4000000059604645, 0.6000000238418579], \"color_times_strength\": [0.6000000089406967, 1.2000000178813934, 1.8000000715255737], \"serialized_emission\": [0.20000000298023224, 0.4000000059604645, 0.6000000238418579], \"strength\": 3.0}, \"empty_export\": {\"after_bytes\": 0, \"before_bytes\": 13, \"classification\": \"Reproduced current add-on failure: destination opened/truncated before codec rejection.\", \"error\": \"O3D export requires at least one vertex\", \"error_type\": \"ValueError\"}, \"uv_selection\": {\"active\": \"EditUV\", \"active_render\": \"RenderUV\", \"classification\": \"Current construction uses edit-active UV, not render-active fallback or material graph selection.\", \"serialized_uv\": [0.10000000149011612, 0.7999999970197678]}}\nBlender 5.0.1 (hash a3db93c5b259 built 2025-12-16 01:30:59)\n\nBlender quit\n",
+  "stderr": "",
+  "results": {
+    "embedded_material": {
+      "input_alpha": 0.25,
+      "input_power": 32.0,
+      "output_alpha": 0.25,
+      "output_power": 32.0
+    },
+    "emission_authoring": {
+      "classification": "Current add-on/source observation; mapping desired for OMSI is authoring policy, not native rendering evidence.",
+      "color": [
+        0.20000000298023224,
+        0.4000000059604645,
+        0.6000000238418579
+      ],
+      "color_times_strength": [
+        0.6000000089406967,
+        1.2000000178813934,
+        1.8000000715255737
+      ],
+      "serialized_emission": [
+        0.20000000298023224,
+        0.4000000059604645,
+        0.6000000238418579
+      ],
+      "strength": 3.0
+    },
+    "empty_export": {
+      "after_bytes": 0,
+      "before_bytes": 13,
+      "classification": "Reproduced current add-on failure: destination opened/truncated before codec rejection.",
+      "error": "O3D export requires at least one vertex",
+      "error_type": "ValueError"
+    },
+    "uv_selection": {
+      "active": "EditUV",
+      "active_render": "RenderUV",
+      "classification": "Current construction uses edit-active UV, not render-active fallback or material graph selection.",
+      "serialized_uv": [
+        0.10000000149011612,
+        0.7999999970197678
+      ]
+    }
+  },
+  "scope": "Synthetic in-memory Blender data; one TemporaryDirectory existing-output probe; no production/test edits; no OMSI/Ghidra."
+}
