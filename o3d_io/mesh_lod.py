@@ -288,15 +288,17 @@ def generate_lods(mesh, ratios, factors, collection_prefix='LOD_', remove_shape_
         stage.objects.link(work)
         if work.data.shape_keys:
             private_key = work.data.shape_keys
+            private_key_name = private_key.name
             try:
                 mmd_rig._remove_shape_keys(work)
             finally:
-                # shape_key_clear detaches Mesh.copy's private Key but does
-                # not delete it. Remove this exact owned ID before its Mesh;
-                # never scan/purge unrelated orphan keys.
-                mmd_rig._validate_id_deletion(
-                    private_key, work.data, work.data.user_of_id(private_key))
-                bpy.data.batch_remove(ids=(private_key,))
+                # Newer Blender clears the Key ID too; older versions leave it
+                # orphaned. Remove only this surviving exact owned ID before
+                # its Mesh; never scan/purge unrelated orphan keys.
+                if bpy.data.shape_keys.get(private_key_name) == private_key:
+                    mmd_rig._validate_id_deletion(
+                        private_key, work.data, work.data.user_of_id(private_key))
+                    bpy.data.batch_remove(ids=(private_key,))
         # The source's unbaked stack remains unchanged. The private base is
         # validated/sanitized; only cfg/material metadata is committed normally.
         rigs = [modifier.object for modifier in work.modifiers if modifier.type == 'ARMATURE']

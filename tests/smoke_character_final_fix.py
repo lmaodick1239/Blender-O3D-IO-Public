@@ -108,4 +108,36 @@ def assert_conversion_private_key_ownership(addon):
             _clear()
 
 
-CHECKS = [assert_key_object_name_dependency_collision, assert_conversion_private_key_ownership]
+def assert_lod_private_key_clear_failures(addon):
+    # Cleanup must not replace helper errors, whether clear left an owned Key
+    # attached/orphaned or the current Blender already destroyed that copy.
+    rig, lod = _rig(addon), _module(addon)
+    for after_clear in [False, True]:
+        _clear()
+        source, armature = _fixture(addon, keys=True)
+        original_key = source.data.shape_keys
+        before, keys_before = _snapshot(source), set(bpy.data.shape_keys)
+        original_clear = rig._remove_shape_keys
+        original_error = RuntimeError('injected LOD clear ' + str(after_clear))
+        def fail_clear(obj):
+            if after_clear:
+                original_clear(obj)
+            raise original_error
+        rig._remove_shape_keys = fail_clear
+        try:
+            try:
+                lod.generate_lods(source, [], [0], remove_shape_keys=True)
+            except RuntimeError as error:
+                assert error is original_error, after_clear
+            else:
+                raise AssertionError('injected LOD clear failure was swallowed')
+            assert _snapshot(source) == before, after_clear
+            assert set(bpy.data.shape_keys) == keys_before, after_clear
+            assert source.data.shape_keys == original_key
+        finally:
+            rig._remove_shape_keys = original_clear
+            _clear()
+
+
+CHECKS = [assert_key_object_name_dependency_collision, assert_conversion_private_key_ownership,
+          assert_lod_private_key_clear_failures]
