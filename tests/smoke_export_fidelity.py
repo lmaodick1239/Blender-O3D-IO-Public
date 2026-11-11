@@ -503,7 +503,7 @@ CASES = {
                    'missing_named', 'normal_mapping', 'generated_coordinates', 'procedural_coordinates',
                    'linked_mapping', 'animated_mapping', 'unlinked_mapping', 'from_instances',
                    'conflict_alpha', 'conflict_specular', 'conflict_emission', 'conflict_bump', 'compatible_channels', 'shader_evaluated'),
-    'cfg_materials': ('cfg_alpha', 'cfg_allcolor'),
+    'cfg_materials': ('cfg_alpha', 'cfg_allcolor', 'cfg_selector_order'),
 }
 
 
@@ -958,6 +958,8 @@ def _run_case(addon, reference, group, name, directory):
             check('CPU Cycles Mapping output agrees with serialized UV', lambda: _uv_shader_oracle(addon, directory))
         elif name.startswith(('native_', 'active_')) or name in ('constant_nodes', 'non_node_constants', 'unsupported_paths', 'cfg_image_paths'):
             check('material import/export contract', lambda: _material_regression(addon, name, directory))
+        elif group == 'cfg_materials' and name not in ('cfg_alpha', 'cfg_allcolor'):
+            check('native CFG selection and controlled serialization', lambda: _cfg_regression(addon, name, directory, manifest))
         elif name == 'empty_preserves_destination':
             check('rejected empty export preserves sentinel', lambda: _empty_regression(addon, directory, manifest))
         else:
@@ -1185,6 +1187,51 @@ def _assert_rest(records, obj, snapshot, expected):
     assert obj.modifiers[0].show_viewport and obj.modifiers[0].show_render
 
 
+def _cfg_blocks(text):
+    """Independent ordered command reader; keep empty leading arguments."""
+    blocks = []
+    for line in text.splitlines():
+        if line.startswith('[') and line.endswith(']'):
+            blocks.append([line, []])
+        elif blocks and not line.startswith(('#', '---', '\t')):
+            blocks[-1][1].append(line.rstrip())
+    for _, values in blocks:
+        while values and not values[-1]:
+            values.pop()
+    return [(command, tuple(values)) for command, values in blocks]
+
+
+def _cfg_regression(addon, name, directory, manifest):
+    obj = _mesh(name, faces=[(0, 1, 2)] * 3)
+    a, wrapper = _textured(obj, directory)
+    wrapper.base_color_texture.image.filepath = '//A.PNG'
+    b, other = _material(obj, 'Different material')
+    image = wrapper.base_color_texture.image.copy()
+    image.filepath = '//B.PNG'
+    other.base_color_texture.image = image
+    obj.data.materials.append(a)
+    for i, polygon in enumerate(obj.data.polygons):
+        polygon.material_index = i
+    obj['export_path'] = 'selectors.o3d'
+    path = directory / 'selectors.cfg'
+    addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7, True, objects=[obj])
+    records = read_export((directory / 'selectors.o3d').read_bytes())
+    selectors = [values for command, values in _cfg_blocks(path.read_text()) if command == '[matl]']
+    assert [m[-1] for m in records['materials']] == ['A.PNG', 'B.PNG', 'A.PNG']
+    assert [t[3] for t in records['triangles']] == [0, 1, 2]
+    manifest['selectors'] = selectors
+    # Native matching is independent of writer/importer helpers: count only
+    # matching names, lowercasing the ASCII range and preserving other chars.
+    def key(value):
+        return ''.join(chr(ord(c) + 32) if 'A' <= c <= 'Z' else c for c in value)
+    selected = []
+    for texture, rank in selectors:
+        matches = [i for i, material in enumerate(records['materials']) if key(material[-1]) == key(texture)]
+        selected.append(matches[int(rank)] if int(rank) < len(matches) else None)
+    assert selectors == [('A.PNG', '0'), ('B.PNG', '0'), ('A.PNG', '1')], selectors
+    assert selected == [0, 1, 2], selected
+
+
 def _cfg_check(addon, obj, directory, name, manifest):
     path = directory / 'current.cfg'
     obj['export_path'] = 'cfg-mesh.o3d'
@@ -1198,7 +1245,10 @@ def _cfg_check(addon, obj, directory, name, manifest):
     if name == 'cfg_alpha':
         assert '[matl_alpha]\n1' in text, text
     else:
-        assert '[matl_allcolor]' in text and '32.0' in text, text
+        blocks = _cfg_blocks(text)
+        assert [(command, values) for command, values in blocks if command == '[matl_allcolor]'] == [
+            ('[matl_allcolor]', tuple(str(v) for v in (.2, .3, .4, .55, .1, .2, .3, .4, .5, .6, .7, .8, .9, 32.)))
+        ], blocks
     assert manifest['cfg']['records']['materials'] == manifest['exporters']['current']['records']['materials']
 
 

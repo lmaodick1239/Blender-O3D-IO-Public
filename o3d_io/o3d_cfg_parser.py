@@ -671,20 +671,28 @@ def write_cfg_light(f, filepath, context, obj):
 
 def write_cfg_materials(f, obj, filepath=None, *, human_bindings=False):
     filepath = filepath or ""
-    for i, slot in enumerate(obj.material_slots):
+    texture_counts = {}
+    for slot in obj.material_slots:
         mat_blender = slot.material
         if mat_blender is None:
+            texture_counts[''] = texture_counts.get('', 0) + 1
             continue
         mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=True)
-        if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
+        textured = mat.base_color_texture is not None and mat.base_color_texture.image is not None
+        name = texture_name(filepath, mat.base_color_texture.image) if textured else ''
+        key = material_texture_key(name)
+        # Native [matl] ranks matching textures; binary triangle slots stay absolute.
+        repeat = texture_counts.get(key, 0)
+        texture_counts[key] = repeat + 1
+        if textured:
             f.write("----------\n")
             if "type" in mat_blender and mat_blender["type"] == "[matl_change]":
                 f.write("[matl_change]\n{0}\n{1}\n{2}\n\n".format(
-                    texture_name(filepath, mat.base_color_texture.image),
-                    i,
+                    name,
+                    repeat,
                     mat_blender["change_var"]))
             else:
-                f.write("[matl]\n{0}\n{1}\n\n".format(texture_name(filepath, mat.base_color_texture.image), i))
+                f.write("[matl]\n{0}\n{1}\n\n".format(name, repeat))
 
             transmap = False
             alpha_mode = 0
