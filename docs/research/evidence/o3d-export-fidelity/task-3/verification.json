@@ -9,7 +9,7 @@
     "source_excerpt_identity_when_available": true,
     "local_originals_checked": 66,
     "all_new_local_links_resolve_to_retained_or_tracked_targets": true,
-    "local_link_count": 131,
+    "local_link_count": 136,
     "json_and_python_syntax": true,
     "blender_primary_definitions": 24,
     "blender_pinned_source_urls": 17,
@@ -34,7 +34,9 @@
     ],
     "assembly_instruction_operand_anchor_count": 129,
     "research_only_scope": true,
-    "exact_staged_path_set": true
+    "default_live_worktree_scope_check": false,
+    "staging_scope_is_opt_in": true,
+    "exact_staged_path_set": false
   },
   "original_export_outcomes": {
     "native-authorized-seed.log": {
@@ -1566,6 +1568,14 @@
     },
     {
       "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "../../../../../o3d_io/io_o3d_export.py#L161-L189"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "../../../../../o3d_io/omsi_human.py#L186-L193"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
       "to": "derived-math.json"
     },
     {
@@ -1678,6 +1688,10 @@
     },
     {
       "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "test-verify-evidence.py"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
       "to": "verification.json"
     },
     {
@@ -1747,6 +1761,14 @@
     {
       "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
       "to": "evidence/o3d-export-fidelity/task-3/derived-math.json"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "../../o3d_io/io_o3d_export.py#L161-L189"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "../../o3d_io/omsi_human.py#L186-L193"
     },
     {
       "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
@@ -1866,8 +1888,8 @@
   "files": [
     {
       "path": "README.md",
-      "bytes": 33691,
-      "sha256": "5595f761cd143b8de07d34b9767d70c75a300cce310d8d41c01c751974970b86"
+      "bytes": 36165,
+      "sha256": "ac60b43bfbe9fbc935bc12e16b0f1b62a0f1649de9f73823669abca8b5d77866"
     },
     {
       "path": "abi-references.json",
@@ -2185,14 +2207,19 @@
       "sha256": "aa3136ff5255e215095195c881ebddbf79b0c4cd898433756cce6ae05f5ded42"
     },
     {
+      "path": "test-verify-evidence.py",
+      "bytes": 2626,
+      "sha256": "10f98bf952126b45e05ec25a55207ea153c97c0563c1f738f0fae4dc7c08aa8e"
+    },
+    {
       "path": "texture-binding.asm",
       "bytes": 14394,
       "sha256": "ddc45affad7a14d00e1e95d28babee5f45504267673555340fdf0837a1a445cc"
     },
     {
       "path": "verify-evidence.py",
-      "bytes": 17737,
-      "sha256": "a27f0036f9da91317e810bf017f67cb6aa0d038074b86090c11327a55ccfe9f5"
+      "bytes": 17759,
+      "sha256": "2aee5d8704be095a8bdd102743f13f24a271c17f264d1431148acf4b6c9e44de"
     },
     {
       "path": "world-instance-bridges.asm",
@@ -2210,7 +2237,8 @@
       "sha256": "3b7e98658b74d53a61e05e4b4fc47c10045e8fecf39cf4fe49db97a3da006be3"
     }
   ],
-  "ledger_sha256": "20dd67756a09e27c34b0a26b799ba16faa3008290b07bbb0e5324be3a09dd949",
+  "checkpoint_ledger_sha256": "20dd67756a09e27c34b0a26b799ba16faa3008290b07bbb0e5324be3a09dd949",
+  "checkpoint_ledger_hash_note": "historical initial Task 3 checkpoint; current shared ledger is mutable and is not a live verification input",
   "open_gates": [
     "effective final culling/normalization/shaders",
     "effect material/Power arithmetic",
