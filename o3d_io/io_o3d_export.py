@@ -12,7 +12,7 @@ from math import isfinite
 import numpy as np
 
 import bpy
-from mathutils import Matrix
+from mathutils import Euler, Matrix, Vector
 from . import blender_compat, o3d_cfg_parser, o3dconvert, omsi_paths
 
 from bpy_extras import node_shader_utils
@@ -20,6 +20,21 @@ from bpy_extras import node_shader_utils
 
 def log(*args):
     print("[O3D_Export]", *args)
+
+
+def _material_wrapper(material):
+    """Keep geometry, embedded materials and CFG extraction on the same shader."""
+    outputs = [node for node in material.node_tree.nodes
+               if node.bl_idname == 'ShaderNodeOutputMaterial' and node.is_active_output]
+    if len(outputs) != 1:
+        raise ValueError(f"Unsupported material {material.name!r}: ambiguous active Material Outputs")
+    surface = outputs[0].inputs['Surface']
+    if not surface.is_linked or surface.links[0].from_node.bl_idname != 'ShaderNodeBsdfPrincipled':
+        raise ValueError(f"Unsupported material {material.name!r}: expected direct Principled active surface")
+    wrapper = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
+    if wrapper.node_out != outputs[0] or wrapper.node_principled_bsdf != surface.links[0].from_node:
+        raise ValueError(f"Unsupported material {material.name!r}: ambiguous inactive Principled selection")
+    return wrapper
 
 
 def _material_input(wrapper, name, *, image=False):
@@ -164,13 +179,119 @@ def _export_corner_data(mesh):
             "triangles": [[*triangle.loops, triangle.material_index] for triangle in mesh.loop_triangles]}
 
 
-def prepare_o3d_geometry(blender_obj, mesh, export_custom_normals=True, filter_helpers=True, allowed_names=None):
+def _image_uvs(mesh, material, image, loops):
+    """Resolve one bounded UV -> optional static Mapping -> flat image path."""
+    layer = next((uv for uv in mesh.uv_layers if uv.active_render), None)
+    if layer is None:
+        layer = mesh.uv_layers.active or next(iter(mesh.uv_layers), None)
+    mode, rotation, scale, location = None, None, None, None
+    if image is not None:
+        prefix = f"Unsupported coordinates for material {material.name!r}, image {image.name!r}: "
+        if image.projection != 'FLAT' or image.mute:
+            raise ValueError(prefix + 'requires an unmuted FLAT image')
+        animation = material.node_tree.animation_data
+        # Conservative static-only boundary; do not freeze animated coordinates
+        # (including drivers/NLA) at an arbitrary export frame.
+        if animation and (animation.action or animation.drivers or animation.nla_tracks):
+            raise ValueError(prefix + 'animated node tree coordinates are not supported')
+        socket = image.inputs['Vector']
+        if socket.is_linked and socket.links[0].from_node.bl_idname == 'ShaderNodeMapping':
+            mapping = socket.links[0].from_node
+            mode = mapping.vector_type
+            if mode not in ('POINT', 'TEXTURE', 'VECTOR') or mapping.mute:
+                raise ValueError(prefix + f'unsupported Mapping {mode} or muted node')
+            values = {}
+            for name in ('Rotation', 'Scale') + (('Location',) if mode != 'VECTOR' else ()):
+                transform = mapping.inputs[name]
+                if transform.is_linked:
+                    raise ValueError(prefix + f'linked Mapping {name}')
+                values[name] = Vector(transform.default_value)
+                if not all(isfinite(value) for value in values[name]):
+                    raise ValueError(prefix + f'non-finite Mapping {name}')
+            rotation = Euler(values['Rotation'], 'XYZ').to_matrix()
+            scale = values['Scale']
+            location = values.get('Location', Vector((0., 0., 0.)))
+            if mode == 'TEXTURE' and any(value == 0 for value in scale):
+                log(f"Material {material.name!r}: singular TEXTURE Mapping; shader safe divide yields zero on zero-scale components")
+            socket = mapping.inputs['Vector']
+            if not socket.is_linked:
+                raise ValueError(prefix + 'unlinked Mapping Vector is not a UV source')
+        if socket.is_linked:
+            link = socket.links[0]
+            source = link.from_node
+            if source.mute or getattr(source, 'from_instancer', False):
+                raise ValueError(prefix + 'muted or From Instances coordinate source')
+            if source.bl_idname == 'ShaderNodeUVMap' and link.from_socket.name == 'UV':
+                if source.uv_map:
+                    layer = mesh.uv_layers.get(source.uv_map)
+                    if layer is None:
+                        raise ValueError(prefix + f'missing named UV map {source.uv_map!r}')
+            elif source.bl_idname != 'ShaderNodeTexCoord' or link.from_socket.name != 'UV':
+                raise ValueError(prefix + f'{source.bl_idname} {link.from_socket.name} is not a supported UV source')
+    result = {}
+    for loop in loops:
+        uv = Vector((*layer.uv[loop].vector, 0.)) if layer is not None else Vector((0., 0., 0.))
+        if mode == 'TEXTURE':
+            uv = rotation.transposed() @ (uv - location)
+            uv = Vector(tuple(uv[i] / scale[i] if scale[i] != 0 else 0. for i in range(3)))
+        elif mode:
+            uv = rotation @ Vector(tuple(uv[i] * scale[i] for i in range(3)))
+            if mode == 'POINT':
+                uv += location
+        result[loop] = (uv.x, 1. - uv.y)
+    return result
+
+
+def _material_uvs(mesh, material, loops):
+    if material is None or not material.use_nodes:
+        return _image_uvs(mesh, material, None, loops)
+    wrapper = _material_wrapper(material)
+    _, textured = _material_input(wrapper, 'Base Color', image=True)
+    if not textured:
+        return _image_uvs(mesh, material, None, loops)
+    base = wrapper.base_color_texture.node_image
+    result = _image_uvs(mesh, material, base, loops)
+    # These are the established CFG texture routes, NOT a graph traversal or
+    # new env/light/night conversion policy. All share the one serialized UV0.
+    images = [('Alpha', wrapper.alpha_texture.node_image),
+              ('Emission', wrapper.emission_color_texture.node_image)]
+    alpha = wrapper.alpha_texture.image
+    transmap = alpha is not None and alpha.filepath != base.image.filepath
+    if wrapper.roughness <= .1 and wrapper.specular > .0001 and not transmap:
+        images.append(('Specular mask', wrapper.specular_texture.node_image))
+    if blender_compat.find_bump_map(wrapper) is not None:
+        normal = wrapper.node_principled_bsdf.inputs['Normal'].links[0].from_node
+        socket = normal.inputs['Height' if normal.bl_idname == 'ShaderNodeBump' else 'Color']
+        source = socket.links[0].from_node
+        if source.bl_idname == 'ShaderNodeBump':
+            source = source.inputs['Height'].links[0].from_node
+        images.append(('Bump', source))
+    checked = {base}
+    for channel, image in images:
+        if image is None or image.image is None or image in checked:
+            continue
+        checked.add(image)
+        other = _image_uvs(mesh, material, image, loops)
+        if any(abs(a-b) > 1e-6 for loop in loops for a, b in zip(result[loop], other[loop])):
+            raise ValueError(f"Material {material.name!r}: conflicting Base Color and {channel} texture coordinates; O3D has one UV stream")
+    return result
+
+
+def prepare_o3d_geometry(blender_obj, mesh, export_custom_normals=True, filter_helpers=True, allowed_names=None,
+                         *, materials=None):
     """Prepare the exact serialized vertices, triangles and populated bone order."""
     corners = mesh.get("_o3d_export_corners")
     if corners is None:
         corners = _export_corner_data(mesh)
     normals = corners["normals" if export_custom_normals else "generated_normals"]
-    uv_layer = mesh.uv_layers.active.data if mesh.uv_layers.active else None
+    materials = blender_obj.material_slots if materials is None else materials
+    material_loops = {}
+    for triangle in corners['triangles']:
+        material_loops.setdefault(triangle[3], set()).update(triangle[:3])
+    uvs = {}
+    for index, loops in material_loops.items():
+        material = materials[index].material if 0 <= index < len(materials) else None
+        uvs[index] = _material_uvs(mesh, material, loops)
     weighted = any(vertex.groups for vertex in mesh.vertices)
     verts, tris, vert_map, source_to_export = [], [], {}, {}
     for triangle in corners["triangles"]:
@@ -180,11 +301,11 @@ def prepare_o3d_geometry(blender_obj, mesh, export_custom_normals=True, filter_h
             source = mesh.loops[loop].vertex_index
             co = tuple(mesh.vertices[source].co)
             normal = tuple(normals[loop])
-            uv = tuple(uv_layer[loop].uv) if uv_layer is not None else (0, 0)
+            uv = uvs[triangle[3]][loop]
             key = (co, normal, uv, source if weighted else None)
             if key not in vert_map:
                 vert_map[key] = len(verts)
-                verts.append([*co, *normal, uv[0], 1 - uv[1]])
+                verts.append([*co, *normal, *uv])
             index = vert_map[key]
             tri.append(index)
             source_to_export.setdefault(source, set()).add(index)
@@ -329,19 +450,7 @@ def _build_o3d_materials(filepath, materials, texture_filepath=None):
             o3d_mats.append([*material.diffuse_color[:3], 1., *([0.] * 6),
                              _o3d_specular_power(material, material), ''])
             continue
-        outputs = [node for node in material.node_tree.nodes
-                   if node.bl_idname == 'ShaderNodeOutputMaterial' and node.is_active_output]
-        if len(outputs) != 1:
-            raise ValueError(f"Unsupported material {material.name!r}: ambiguous active Material Outputs")
-        surface = outputs[0].inputs['Surface']
-        if not surface.is_linked or surface.links[0].from_node.bl_idname != 'ShaderNodeBsdfPrincipled':
-            raise ValueError(f"Unsupported material {material.name!r}: expected direct Principled active surface")
-        mat = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
-        # The wrapper selects the first direct pair, even when its output is
-        # inactive. Refuse a mismatch so embedded and existing CFG extraction
-        # cannot silently serialize a different shader from the active surface.
-        if mat.node_out != outputs[0] or mat.node_principled_bsdf != surface.links[0].from_node:
-            raise ValueError(f"Unsupported material {material.name!r}: ambiguous inactive Principled selection")
+        mat = _material_wrapper(material)
         base, textured = _material_input(mat, 'Base Color', image=True)
         alpha, _ = _material_input(mat, 'Alpha', image=textured)
         level, _ = _material_input(mat, 'Specular IOR Level', image=textured)
@@ -373,7 +482,7 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
                 export_custom_normals, allow_smoothskin=False, allowed_names=None,
                 texture_filepath=None):
     geometry = prepare_o3d_geometry(
-        blender_obj, mesh, export_custom_normals, allowed_names=allowed_names
+        blender_obj, mesh, export_custom_normals, allowed_names=allowed_names, materials=materials
     )
     long_triangle_indices = validate_o3d_geometry(
         geometry, o3d_version, character_runtime=bool(geometry["bones"])

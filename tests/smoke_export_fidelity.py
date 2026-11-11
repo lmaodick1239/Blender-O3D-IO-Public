@@ -1,4 +1,4 @@
-"""Synthetic export fidelity checkpoint; geometry/materials repaired, UV cases still RED.
+"""Synthetic export fidelity checkpoint with independent corner/material/UV oracles.
 
 Standalone owns add-on registration. run_checks never does. No input .blend is
 loaded or saved. Raw O3Ds/PNGs/CFGs stay in --output-dir, never in fixtures.
@@ -132,6 +132,23 @@ def _textured(obj, directory):
     return material, wrapper
 
 
+def _shader_snapshot(material):
+    if material is None or material.node_tree is None:
+        return None
+    def value(socket):
+        v = getattr(socket, 'default_value', None)
+        return tuple(v) if hasattr(v, '__len__') and not isinstance(v, str) else v
+    return {
+        'nodes': [(n.name, n.bl_idname, n.mute,
+                   [(key, getattr(n, key)) for key in ('vector_type', 'uv_map', 'from_instancer', 'projection') if hasattr(n, key)],
+                   [(s.name, value(s)) for s in n.inputs],
+                   n.image.name if n.bl_idname == 'ShaderNodeTexImage' and n.image else None)
+                  for n in material.node_tree.nodes],
+        'links': [(l.from_node.name, l.from_socket.name, l.to_node.name, l.to_socket.name)
+                  for l in material.node_tree.links],
+    }
+
+
 def _snapshot(obj, mesh=None):
     mesh = mesh if mesh is not None else obj.data
     mesh.calc_loop_triangles()
@@ -157,6 +174,8 @@ def _snapshot(obj, mesh=None):
                    for b in m.object.pose.bones])
                  for m in obj.modifiers if m.type == 'ARMATURE' and m.object],
         'materials': [slot.material.name if slot.material else None for slot in obj.material_slots],
+        'shader_nodes': [_shader_snapshot(slot.material) for slot in obj.material_slots],
+        'loop_materials': [p.material_index for p in mesh.polygons for _ in p.loop_indices],
     }
 
 
@@ -171,7 +190,30 @@ def _evaluated_rest_snapshot(obj, custom=True):
         evaluated = obj.evaluated_get(depsgraph)
         mesh = evaluated.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
         if not custom and mesh.has_custom_normals:
-            mesh.attributes.remove(mesh.attributes['custom_normal'])
+            attribute = mesh.attributes.get('custom_normal')
+            if attribute is not None:
+                mesh.attributes.remove(attribute)
+            else:
+                # 4.2 stores custom normals outside the public attribute list.
+                mesh.normals_split_custom_set([(0., 0., 0.)] * len(mesh.loops))
+            mesh.update()
+            # Validate this oracle against a fresh mesh with NO custom data,
+            # independently of the production normal preparation helper.
+            plain = bpy.data.meshes.new('Generated normal oracle')
+            try:
+                plain.from_pydata([v.co[:] for v in mesh.vertices], [], [p.vertices[:] for p in mesh.polygons])
+                for p, source in zip(plain.polygons, mesh.polygons):
+                    p.use_smooth = source.use_smooth
+                for edge, source in zip(plain.edges, mesh.edges):
+                    edge.use_edge_sharp = source.use_edge_sharp
+                plain.update()
+                assert len(plain.corner_normals) == len(mesh.corner_normals)
+                for actual, generated in zip(mesh.corner_normals, plain.corner_normals):
+                    assert (actual.vector - generated.vector).length < 2e-4, (actual.vector[:], generated.vector[:])
+                geometric = (plain.vertices[1].co - plain.vertices[0].co).cross(plain.vertices[2].co - plain.vertices[0].co).normalized()
+                assert_direction(plain.corner_normals[0].vector, geometric)
+            finally:
+                bpy.data.meshes.remove(plain)
         return _snapshot(obj, mesh)
     finally:
         if mesh is not None:
@@ -242,6 +284,8 @@ def _make_case(group, name, directory):
                 'uv_seam', 'weighted_rest', 'evaluated_weights'):
         vertices = [(0, 0, 0), (2, 0, 0), (.2, 1.3, 0), (.2, .3, 1.1)]
         faces = [(0, 1, 2), (1, 0, 3)]
+    elif name in ('material_maps', 'material_transforms', 'weighted_material_seam'):
+        vertices, faces = [(0, 0, 0), (2, 0, 0), (2, 1, 0), (0, 1, 0)], [(0, 1, 2), (0, 2, 3)]
     elif name in ('nonplanar_quad', 'custom_quad'):
         vertices, faces = [(0, 0, 0), (2, 0, 0), (2, 1, .35), (0, 1, 0)], [(0, 1, 2, 3)]
     elif name == 'degenerate_face':
@@ -345,27 +389,93 @@ def _make_case(group, name, directory):
         second.active_render = True
         obj.data.uv_layers.active_index = 0
         settings['uv_source'] = 'Rendering'
-        if name == 'named_uv':
+        if name in ('literal_render', 'literal_named'):
+            for slot in obj.data.uv_layers['Editing'].uv:
+                slot.vector = (.1, .2)
+            for slot in second.uv:
+                slot.vector = (.25, .75)
+        if name in ('named_uv', 'literal_named'):
             uv_node = material.node_tree.nodes.new('ShaderNodeUVMap')
             # Named map differs from both editing and render defaults.
             obj.data.uv_layers['Editing'].active_render = True
-            uv_node.uv_map = 'Rendering'
+            uv_node.uv_map = 'Editing' if name == 'literal_named' else 'Rendering'
             material.node_tree.links.new(uv_node.outputs['UV'], wrapper.base_color_texture.node_image.inputs['Vector'])
-            settings['uv_source'] = 'Rendering'
-        elif name.startswith('mapping_'):
+            settings['uv_source'] = uv_node.uv_map
+        elif name.startswith('mapping_') or name in ('literal_point', 'negative_point', 'negative_texture', 'singular_texture', 'compatible_channels'):
             nodes, links = material.node_tree.nodes, material.node_tree.links
             mapping = nodes.new('ShaderNodeMapping')
-            mode = name.removeprefix('mapping_').upper()
+            mode = 'POINT' if name == 'compatible_channels' else name.split('_')[-1].upper()
+            location, rotation, scale = MAPPING_LOCATION, MAPPING_ROTATION, MAPPING_SCALE
+            if name.startswith('negative_'):
+                scale = (-1.3, .7, 1.1)
+            if name == 'singular_texture':
+                scale = (0., .7, 1.1)
+                settings['diagnostic'] = 'singular TEXTURE'
+            if name == 'literal_point':
+                for slot in second.uv:
+                    slot.vector = (.2, .3)
+                location, rotation, scale = (.1, .2, 0.), (0., 0., math.pi / 2), (2., 3., 1.)
             mapping.vector_type = mode
             if mapping.inputs.get('Location') is not None:
-                mapping.inputs['Location'].default_value = MAPPING_LOCATION
-            mapping.inputs['Rotation'].default_value = MAPPING_ROTATION
-            mapping.inputs['Scale'].default_value = MAPPING_SCALE
+                mapping.inputs['Location'].default_value = location
+            mapping.inputs['Rotation'].default_value = rotation
+            mapping.inputs['Scale'].default_value = scale
             coords = nodes.new('ShaderNodeTexCoord')
             links.new(coords.outputs['UV'], mapping.inputs['Vector'])
             links.new(mapping.outputs['Vector'], wrapper.base_color_texture.node_image.inputs['Vector'])
-            settings['mapping'] = {'mode': mode, 'location': MAPPING_LOCATION,
-                                   'rotation': MAPPING_ROTATION, 'scale': MAPPING_SCALE}
+            settings['mapping'] = {'mode': mode, 'location': location,
+                                   'rotation': rotation, 'scale': scale}
+        if name == 'compatible_channels':
+            wrapper.specular = .4
+            wrapper.roughness = .01
+            wrapper.specular_texture.image = wrapper.base_color_texture.image
+            wrapper.emission_color_texture.image = wrapper.base_color_texture.image
+            # Use the normal-map form as well as the conflict Bump form.
+            wrapper.normalmap_texture.image = wrapper.base_color_texture.image
+            output = wrapper.base_color_texture.node_image.inputs['Vector'].links[0].from_socket
+            for image in (wrapper.specular_texture.node_image, wrapper.emission_color_texture.node_image,
+                          wrapper.normalmap_texture.node_image):
+                material.node_tree.links.new(output, image.inputs['Vector'])
+        if name == 'no_layer':
+            for layer in list(obj.data.uv_layers):
+                obj.data.uv_layers.remove(layer)
+            settings['uv_source'] = None
+        if name in ('material_maps', 'material_transforms', 'weighted_material_seam'):
+            other, other_wrapper = _textured(obj, directory)
+            obj.data.polygons[1].material_index = 1
+            # Identical coordinates for a source vertex on both sides, so only
+            # material selection/Mapping (not a preexisting seam) forces splits.
+            for layer, offset in ((obj.data.uv_layers['Editing'], 0.), (second, .4)):
+                for loop, slot in zip(obj.data.loops, layer.uv):
+                    slot.vector = (.1 + .1 * loop.vertex_index + offset, .2 + .07 * loop.vertex_index)
+            settings['material_uvs'] = {}
+            for i, (mat, wrap) in enumerate(((material, wrapper), (other, other_wrapper))):
+                uv_node = mat.node_tree.nodes.new('ShaderNodeUVMap')
+                uv_node.uv_map = 'Editing' if i == 0 else 'Rendering'
+                output = uv_node.outputs['UV']
+                spec = {'uv_source': uv_node.uv_map}
+                if name != 'material_maps':
+                    mapping = mat.node_tree.nodes.new('ShaderNodeMapping')
+                    mapping.vector_type = 'POINT' if i == 0 else 'TEXTURE'
+                    mapping.inputs['Location'].default_value = MAPPING_LOCATION
+                    mapping.inputs['Rotation'].default_value = MAPPING_ROTATION
+                    mapping.inputs['Scale'].default_value = (-1.3, .7, 1.1)
+                    mat.node_tree.links.new(output, mapping.inputs['Vector'])
+                    output = mapping.outputs['Vector']
+                    spec['mapping'] = {'mode': mapping.vector_type, 'location': MAPPING_LOCATION,
+                                       'rotation': MAPPING_ROTATION, 'scale': (-1.3, .7, 1.1)}
+                for image in (wrap.base_color_texture.node_image, wrap.alpha_texture.node_image):
+                    mat.node_tree.links.new(output, image.inputs['Vector'])
+                settings['material_uvs'][str(i)] = spec
+            if name == 'weighted_material_seam':
+                weights = obj.vertex_groups.new(name='Main')
+                for i in range(len(obj.data.vertices)):
+                    weights.add([i], .2 + .15 * i, 'REPLACE')
+        # Alpha is an established independent CFG texture route. Success
+        # fixtures must agree with Base Color; conflict fixtures below do not.
+        vector = wrapper.base_color_texture.node_image.inputs['Vector']
+        if vector.is_linked:
+            material.node_tree.links.new(vector.links[0].from_socket, wrapper.alpha_texture.node_image.inputs['Vector'])
     if group == 'cfg_materials':
         if name == 'cfg_alpha':
             material['o3d_alpha_mode'] = 'CLIP'
@@ -387,7 +497,12 @@ CASES = {
                   'native_power_0', 'native_power_32', 'native_power_500', 'native_power_1500',
                   'native_components', 'native_cfg_overrides', 'constant_nodes', 'non_node_constants',
                   'active_unsupported_output', 'active_supported_output', 'unsupported_paths', 'cfg_image_paths'),
-    'uv_mapping': ('render_active', 'named_uv', 'mapping_point', 'mapping_texture', 'mapping_vector'),
+    'uv_mapping': ('render_active', 'named_uv', 'mapping_point', 'mapping_texture', 'mapping_vector',
+                   'literal_render', 'literal_named', 'literal_point', 'negative_point', 'negative_texture',
+                   'singular_texture', 'no_layer', 'material_maps', 'material_transforms', 'weighted_material_seam',
+                   'missing_named', 'normal_mapping', 'generated_coordinates', 'procedural_coordinates',
+                   'linked_mapping', 'animated_mapping', 'unlinked_mapping', 'from_instances',
+                   'conflict_alpha', 'conflict_specular', 'conflict_emission', 'conflict_bump', 'compatible_channels', 'shader_evaluated'),
     'cfg_materials': ('cfg_alpha', 'cfg_allcolor'),
 }
 
@@ -403,18 +518,19 @@ def _expected_corners(obj, settings, snapshot):
     # At singular transforms no authored inverse-transpose direction exists.
     # Zero explicitly represents undefined, not a guessed unit axis.
     normals = linear.inverted().transposed() if linear.determinant() else Matrix(((0.,) * 3,) * 3)
-    layer = next(layer for layer in snapshot['uv_layers'] if layer['name'] == settings.get('uv_source', 'Editing'))
     result = []
     for li, vi in enumerate(snapshot['loop_vertices']):
+        spec = settings.get('material_uvs', {}).get(str(snapshot['loop_materials'][li]), settings)
+        layer = next((layer for layer in snapshot['uv_layers'] if layer['name'] == spec.get('uv_source', 'Editing')), None)
         position = matrix @ Vector(snapshot['vertices'][vi])
         normal = (normals @ Vector(snapshot['corner_normals'][li])).normalized()
-        uv = Vector((*layer['uvs'][li], 0.))
-        mapping = settings.get('mapping')
+        uv = Vector((*layer['uvs'][li], 0.)) if layer else Vector((0., 0., 0.))
+        mapping = spec.get('mapping')
         if mapping:
             rotation = Euler(mapping['rotation'], 'XYZ').to_matrix()
             if mapping['mode'] == 'TEXTURE':
                 uv = rotation.transposed() @ (uv - Vector(mapping['location']))
-                uv = Vector(tuple(uv[i] / mapping['scale'][i] for i in range(3)))
+                uv = Vector(tuple(uv[i] / mapping['scale'][i] if mapping['scale'][i] else 0. for i in range(3)))
             else:
                 uv = rotation @ Vector(tuple(uv[i] * mapping['scale'][i] for i in range(3)))
                 if mapping['mode'] == 'POINT':
@@ -673,6 +789,148 @@ def _material_regression(addon, name, directory):
         assert '[matl_nightmap]' in stream.getvalue()
 
 
+UV_DIAGNOSTICS = ('missing_named', 'normal_mapping', 'generated_coordinates', 'procedural_coordinates',
+                  'linked_mapping', 'animated_mapping', 'unlinked_mapping', 'from_instances',
+                  'conflict_alpha', 'conflict_specular', 'conflict_emission', 'conflict_bump')
+
+
+def _uv_diagnostic(addon, name, directory):
+    obj, _ = _make_case('uv_mapping', 'mapping_point', directory)
+    material = obj.data.materials[0]
+    wrapper = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=False)
+    nodes, links = material.node_tree.nodes, material.node_tree.links
+    mapping = next(n for n in nodes if n.bl_idname == 'ShaderNodeMapping')
+    expected = {
+        'missing_named': 'MissingMap', 'normal_mapping': 'NORMAL', 'generated_coordinates': 'Generated',
+        'procedural_coordinates': 'ShaderNodeTexNoise', 'linked_mapping': 'linked',
+        'animated_mapping': 'animated', 'unlinked_mapping': 'unlinked', 'from_instances': 'instance',
+    }.get(name, 'conflicting')
+    if name == 'missing_named' or name == 'from_instances':
+        uv = nodes.new('ShaderNodeUVMap')
+        uv.uv_map = 'MissingMap' if name == 'missing_named' else 'Rendering'
+        uv.from_instancer = name == 'from_instances'
+        links.new(uv.outputs['UV'], mapping.inputs['Vector'])
+    elif name == 'normal_mapping':
+        mapping.vector_type = 'NORMAL'
+    elif name == 'generated_coordinates':
+        coords = nodes.new('ShaderNodeTexCoord')
+        links.new(coords.outputs['Generated'], mapping.inputs['Vector'])
+    elif name == 'procedural_coordinates':
+        noise = nodes.new('ShaderNodeTexNoise')
+        links.new(noise.outputs['Color'], wrapper.base_color_texture.node_image.inputs['Vector'])
+    elif name == 'linked_mapping':
+        value = nodes.new('ShaderNodeValue')
+        links.new(value.outputs[0], mapping.inputs['Scale'])
+    elif name == 'animated_mapping':
+        mapping.inputs['Rotation'].keyframe_insert('default_value', frame=1)
+    elif name == 'unlinked_mapping':
+        links.remove(mapping.inputs['Vector'].links[0])
+    else:
+        if name == 'conflict_alpha':
+            image = wrapper.alpha_texture.node_image
+        elif name == 'conflict_specular':
+            wrapper.specular = .4
+            wrapper.roughness = .01
+            wrapper.specular_texture.image = wrapper.base_color_texture.image
+            image = wrapper.specular_texture.node_image
+        elif name == 'conflict_emission':
+            wrapper.emission_color_texture.image = wrapper.base_color_texture.image
+            image = wrapper.emission_color_texture.node_image
+        else:
+            addon.o3d_io.blender_compat.apply_bump_map(wrapper, wrapper.base_color_texture.image, .4)
+            image = next(n for n in nodes if n.bl_idname == 'ShaderNodeBump').inputs['Height'].links[0].from_node
+        for link in list(image.inputs['Vector'].links):
+            links.remove(link)
+    bpy.context.view_layer.update()
+    snapshot, context = _snapshot(obj), _context_snapshot()
+    path = directory / 'diagnostic-sentinel.o3d'
+    sentinel = b'unsupported coordinates must not truncate\x00\xff'
+    path.write_bytes(sentinel)
+    try:
+        addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7, objects=[obj])
+    except ValueError as error:
+        assert expected.lower() in str(error).lower(), (expected, str(error))
+        assert material.name in str(error), str(error)
+    else:
+        raise AssertionError(f'expected explicit {expected} coordinate diagnostic')
+    assert path.read_bytes() == sentinel
+    _assert_equal(_snapshot(obj), snapshot)
+    _assert_equal(_context_snapshot(), context)
+
+
+def _assert_material_uvs(records, expected, snapshot):
+    for triangle in records['triangles']:
+        material = triangle[3]
+        candidates = [expected[li] for li, index in enumerate(snapshot['loop_materials']) if index == material]
+        for index in triangle[:3]:
+            assert any(max(abs(a-b) for a, b in zip(records['vertices'][index], corner)) < 2e-4
+                       for corner in candidates), ('material UV', material, records['vertices'][index], candidates)
+    assert len(records['vertices']) == 6, 'shared source corners must split by final material UV'
+
+
+def _assert_material_weights(records, snapshot):
+    assert [name for name, _ in records['bones']] == ['Main'], records['bones']
+    actual = dict(records['bones'][0][1])
+    assert set(actual) == set(range(len(records['vertices'])))
+    for index, vertex in enumerate(records['vertices']):
+        source = next(i for i, co in enumerate(snapshot['vertices']) if (AXIS @ Vector(co) - Vector(vertex[:3])).length < 2e-4)
+        assert math.isclose(actual[index], dict(snapshot['weights'][source])['Main'], abs_tol=2e-6)
+
+
+def _uv_shader_oracle(addon, directory):
+    # CPU Cycles evaluates the real Mapping shader. Its output is encoded to
+    # avoid negative emission clipping, then decoded and compared to O3D UVs.
+    source, settings = _make_case('uv_mapping', 'mapping_point', directory)
+    for slot in source.data.uv_layers['Rendering'].uv:
+        slot.vector = (.23, .41)
+    mapping_source = next(n for n in source.data.materials[0].node_tree.nodes if n.bl_idname == 'ShaderNodeMapping')
+    probe = _mesh('Shader oracle', [(0,0,0),(1,0,0),(1,1,0),(0,1,0)], [(0,1,2,3)], custom=False)
+    for slot, co in zip(probe.data.uv_layers.active.uv, ((0,0),(1,0),(1,1),(0,1))):
+        slot.vector = co
+    mat, _ = _material(probe, 'Shader oracle')
+    nt = mat.node_tree
+    nt.nodes.clear()
+    mapping = nt.nodes.new('ShaderNodeMapping')
+    add, scale = nt.nodes.new('ShaderNodeVectorMath'), nt.nodes.new('ShaderNodeVectorMath')
+    add.operation, scale.operation = 'ADD', 'SCALE'
+    add.inputs[1].default_value, scale.inputs['Scale'].default_value = (2,2,2), .1
+    emission, output = nt.nodes.new('ShaderNodeEmission'), nt.nodes.new('ShaderNodeOutputMaterial')
+    target = nt.nodes.new('ShaderNodeTexImage')
+    image = bpy.data.images.new('Mapping oracle', width=4, height=4, float_buffer=True)
+    image.colorspace_settings.name = 'Non-Color'
+    target.image, nt.nodes.active = image, target
+    nt.links.new(mapping.outputs['Vector'], add.inputs[0])
+    nt.links.new(add.outputs['Vector'], scale.inputs[0])
+    nt.links.new(scale.outputs['Vector'], emission.inputs['Color'])
+    nt.links.new(emission.outputs[0], output.inputs['Surface'])
+    scene = bpy.context.scene
+    old = (scene.render.engine, scene.cycles.device, scene.cycles.samples, scene.cycles.use_denoising)
+    try:
+        scene.render.engine, scene.cycles.device, scene.cycles.samples, scene.cycles.use_denoising = 'CYCLES', 'CPU', 1, False
+        for mode, sizes in (('POINT', MAPPING_SCALE), ('TEXTURE', MAPPING_SCALE), ('VECTOR', MAPPING_SCALE),
+                            ('POINT', (-1.3,.7,1.1)), ('TEXTURE', (-1.3,.7,1.1)), ('TEXTURE', (0.,.7,1.1))):
+            for node in (mapping, mapping_source):
+                node.vector_type = mode
+                if node.inputs.get('Location') is not None:
+                    node.inputs['Location'].default_value = MAPPING_LOCATION
+                node.inputs['Rotation'].default_value = MAPPING_ROTATION
+                node.inputs['Scale'].default_value = sizes
+            mapping.inputs['Vector'].default_value = (.23,.41,0.)
+            bpy.ops.object.select_all(action='DESELECT')
+            probe.select_set(True)
+            bpy.context.view_layer.objects.active = probe
+            bpy.context.view_layer.update()
+            bpy.ops.object.bake(type='EMIT', margin=0, use_clear=True)
+            pixels = list(image.pixels)
+            xyz = tuple(value * 10 - 2 for value in pixels[4*(2*4+2):4*(2*4+2)+3])
+            path = directory / f'{mode}-{sizes[0]}.o3d'
+            addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7, objects=[source])
+            for vertex in read_export(path.read_bytes())['vertices']:
+                assert max(abs(vertex[6] - xyz[0]), abs(vertex[7] - (1-xyz[1]))) < 4e-5, (mode, sizes, vertex, xyz)
+    finally:
+        scene.render.engine, scene.cycles.device, scene.cycles.samples, scene.cycles.use_denoising = old
+
+
 def _run_case(addon, reference, group, name, directory):
     directory.mkdir(parents=True, exist_ok=True)
     manifest = {'group': group, 'case': name, 'blender': bpy.app.version_string,
@@ -694,7 +952,11 @@ def _run_case(addon, reference, group, name, directory):
             manifest['checks'].append({'name': label, 'status': 'PASS'})
 
     try:
-        if name.startswith(('native_', 'active_')) or name in ('constant_nodes', 'non_node_constants', 'unsupported_paths', 'cfg_image_paths'):
+        if group == 'uv_mapping' and name in UV_DIAGNOSTICS:
+            check('explicit coordinate diagnostic and destination/source preservation', lambda: _uv_diagnostic(addon, name, directory))
+        elif name == 'shader_evaluated':
+            check('CPU Cycles Mapping output agrees with serialized UV', lambda: _uv_shader_oracle(addon, directory))
+        elif name.startswith(('native_', 'active_')) or name in ('constant_nodes', 'non_node_constants', 'unsupported_paths', 'cfg_image_paths'):
             check('material import/export contract', lambda: _material_regression(addon, name, directory))
         elif name == 'empty_preserves_destination':
             check('rejected empty export preserves sentinel', lambda: _empty_regression(addon, directory, manifest))
@@ -724,8 +986,11 @@ def _run_case(addon, reference, group, name, directory):
                         entry['input_transforms'] = {key: snapshot[key] for key in (
                             'location', 'scale', 'rotation_mode', 'rotation_euler', 'rotation_quaternion',
                             'matrix_world', 'parent_matrix_world')}
-                        addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context,
-                            Matrix.Scale(settings['global_scale'], 4), True, 7, settings['export_custom_normals'], objects=[obj])
+                        stdout = io.StringIO()
+                        with contextlib.redirect_stdout(stdout):
+                            addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context,
+                                Matrix.Scale(settings['global_scale'], 4), True, 7, settings['export_custom_normals'], objects=[obj])
+                        entry['stdout'] = stdout.getvalue()
                     else:
                         # Reference lacks a global-scale option. Use a disposable object
                         # with the equivalent uniform position scale; never mutate source.
@@ -806,6 +1071,18 @@ def _run_case(addon, reference, group, name, directory):
                         'current_exponent': current['materials'][0][10],
                         'reference_linear_1000_exponent': 1000 * (1 - settings['shader']['roughness']),
                         'status': 'observation only; PBR-to-O3D exponent policy not a native fact'}
+                if group == 'uv_mapping':
+                    if name in ('literal_render', 'literal_named', 'literal_point', 'no_layer'):
+                        literal = {'literal_render': (.25,.25), 'literal_named': (.1,.8),
+                                   'literal_point': (-.8,.4), 'no_layer': (0.,1.)}[name]
+                        check('plan literal serialized UV pair', lambda: [_assert_close(v[6:8], literal) for v in current['vertices']])
+                    if settings.get('diagnostic'):
+                        check('singular TEXTURE safe divide is explicitly diagnosed', lambda: _assert_equal(
+                            settings['diagnostic'].lower() in manifest['exporters']['current']['stdout'].lower(), True))
+                    if settings.get('material_uvs'):
+                        check('per-material UV streams before split dedup', lambda: _assert_material_uvs(current, manifest['expected_corners'], expected_snapshot))
+                    if name == 'weighted_material_seam':
+                        check('all material UV splits retain source weights', lambda: _assert_material_weights(current, expected_snapshot))
                 if group == 'cfg_materials':
                     check('CFG material command/embedded separation', lambda: _cfg_check(addon, obj, directory, name, manifest))
                 # Already-triangulated fixtures have compatible construction.
