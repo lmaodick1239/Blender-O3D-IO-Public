@@ -503,7 +503,8 @@ CASES = {
                    'missing_named', 'normal_mapping', 'generated_coordinates', 'procedural_coordinates',
                    'linked_mapping', 'animated_mapping', 'unlinked_mapping', 'from_instances',
                    'conflict_alpha', 'conflict_specular', 'conflict_emission', 'conflict_bump', 'compatible_channels', 'shader_evaluated'),
-    'cfg_materials': ('cfg_alpha', 'cfg_allcolor', 'cfg_selector_order', 'cfg_four_conditions'),
+    'cfg_materials': ('cfg_alpha', 'cfg_allcolor', 'cfg_selector_order', 'cfg_four_conditions',
+                      'cfg_selector_edges', 'cfg_shared_entries'),
 }
 
 
@@ -681,7 +682,7 @@ def _material_regression(addon, name, directory):
             before = export()
             stream = io.StringIO()
             parser.write_cfg_materials(stream, obj, str(directory / 'output.cfg'))
-            assert '[matl_allcolor]' in stream.getvalue()
+            assert [values for command, values in _cfg_blocks(stream.getvalue()) if command == '[matl_allcolor]'] == [tuple(block)] * 2
             assert export() == before, 'CFG writer mutated embedded components'
         return
 
@@ -1265,9 +1266,131 @@ def _cfg_four_conditions(addon, directory, manifest):
         'status': 'controlled serialization; pending native rendering'} for filename in variants}
 
 
+def _cfg_selected_slots(records, text):
+    # Native oracle, deliberately not the shared production normalization helper.
+    def key(value):
+        return ''.join(chr(ord(c) + 32) if 'A' <= c <= 'Z' else c for c in value)
+    selected = []
+    for command, values in _cfg_blocks(text):
+        if command not in ('[matl]', '[matl_change]'):
+            continue
+        texture, rank = values[:2]
+        matches = [i for i, material in enumerate(records['materials']) if key(material[-1]) == key(texture)]
+        selected.append(matches[int(rank)] if 0 <= int(rank) < len(matches) else None)
+    return selected
+
+
+def _cfg_selector_edges(addon, directory, manifest):
+    names = ['A.PNG', None, 'B.PNG', None, 'a.png', 'A.PNG', 'Ä.PNG', 'ä.png',
+             'Straße.PNG', 'STRASSE.PNG', 'nested/A.PNG', r'nested\A.PNG', '']
+    obj = _mesh('Selector edges', faces=[(0, 1, 2)] * len(names))
+    source = _image(directory)
+    first = None
+    for i, name in enumerate(names):
+        if i == 1:
+            obj.data.materials.append(None)
+        elif i == 5:
+            obj.data.materials.append(first)
+        else:
+            material, wrapper = _material(obj, f'Slot {i}')
+            if name is not None:
+                image = source.copy()
+                image.filepath = '//' + name if name else ''
+                wrapper.base_color_texture.image = image
+            if i == 0:
+                first = material
+            if i == 2:
+                material['type'], material['change_var'] = '[matl_change]', 'texture_var'
+        obj.data.polygons[i].material_index = i
+        for loop in obj.data.polygons[i].loop_indices:
+            obj.data.uv_layers.active.uv[loop].vector = (.02 * i, .3)
+    obj['export_path'] = 'edges.o3d'
+    path = directory / 'edges.cfg'
+    snapshot = _snapshot(obj)
+    addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7, True, objects=[obj])
+    records = read_export((directory / 'edges.o3d').read_bytes())
+    assert [m[-1] for m in records['materials']] == [
+        'A.PNG', '', 'B.PNG', '', 'a.png', 'A.PNG', 'Ä.PNG', 'ä.png', 'Straße.PNG', 'STRASSE.PNG',
+        'nested/A.PNG', 'nested/A.PNG', '']
+    selectors = [(command, values) for command, values in _cfg_blocks(path.read_text())
+                 if command in ('[matl]', '[matl_change]')]
+    assert [int(values[1]) for _, values in selectors] == [0, 0, 1, 2, 0, 0, 0, 0, 0, 1, 2], selectors
+    assert selectors[1] == ('[matl_change]', ('B.PNG', '0', 'texture_var'))
+    assert _cfg_selected_slots(records, path.read_text()) == [0, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    assert [t[3] for t in records['triangles']] == list(range(len(names)))
+    assert len(records['vertices']) == 3 * len(names), 'per-material UV splits missing'
+    assert _snapshot(obj) == snapshot
+    manifest['selectors'] = selectors
+    manifest['serialized_texture_names'] = [m[-1] for m in records['materials']]
+
+
+def _cfg_shared_entries(addon, directory, manifest):
+    import smoke_human
+    human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
+    rig, obj, source = smoke_human.fixture(addon)
+    human.capture_landmarks(source, rig)
+    a, wrapper = _textured(obj, directory)
+    wrapper.base_color_texture.image.filepath = '//A.PNG'
+    b, other = _material(obj, 'Shared B')
+    image = wrapper.base_color_texture.image.copy()
+    image.filepath = '//B.PNG'
+    other.base_color_texture.image = image
+    obj.data.materials.append(a)
+    obj.data.polygons[1].material_index = 2
+    obj['export_path'] = 'shared.o3d'
+    # Source counts lie: helper weights must not cause serialized smoothskin.
+    indices = list(range(len(obj.data.vertices)))
+    obj.vertex_groups.new(name='_dummy_cfg_helper').add(indices, .9, 'REPLACE')
+    exporter = addon.o3d_io.io_o3d_export
+    rigid = directory / 'filtered.cfg'
+    exporter.do_export(str(rigid), bpy.context, Matrix.Identity(4), True, 7, True, objects=[obj])
+    assert '[smoothskin]' not in dict(_cfg_blocks(rigid.read_text()))
+    assert [name for name, _ in read_export((directory / 'shared.o3d').read_bytes())['bones']] == ['Main']
+    obj.vertex_groups['Main'].add(indices, .6, 'REPLACE')
+    obj.vertex_groups.new(name='Hip').add(indices, .4, 'REPLACE')
+    bpy.context.view_layer.update()
+    snapshot = _snapshot(obj)
+    context = _context_snapshot()
+    results = {}
+    for extension in ('o3d', 'cfg', 'sco', 'hum'):
+        root = directory / extension
+        root.mkdir(exist_ok=True)
+        path = root / ('shared.' + extension)
+        if extension == 'hum':
+            result = human.export_human(str(path), bpy.context, rig, [obj])
+            cfg = Path(result['cfg_path'])
+            binary = Path(result['mesh_paths'][0])
+            assert ('[model]', (cfg.name,)) in _cfg_blocks(path.read_text(encoding='cp1252'))
+        else:
+            exporter.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7, True, objects=[obj])
+            cfg = None if extension == 'o3d' else path
+            binary = path if cfg is None else root / 'shared.o3d'
+        records = read_export(binary.read_bytes())
+        assert [name for name, _ in records['bones']] == ['Main', 'Hip']
+        assert [m[-1] for m in records['materials']] == ['A.PNG', 'B.PNG', 'A.PNG']
+        assert [t[3] for t in records['triangles']] == [0, 2]
+        if cfg:
+            text = cfg.read_text(encoding='cp1252' if extension == 'hum' else 'utf-8')
+            assert _cfg_selected_slots(records, text) == [0, 1, 2]
+            assert sum(command == '[smoothskin]' for command, _ in _cfg_blocks(text)) == 1
+            if extension == 'hum':
+                assert [values for command, values in _cfg_blocks(text) if command == '[setbone]'] == [('Main', '-11'), ('Hip', '-10')], text
+        results[extension] = records
+        assert _snapshot(obj) == snapshot
+        assert _context_snapshot() == context
+    assert all(records == results['o3d'] for records in results.values()), 'entry points serialized different decisions'
+    manifest['shared_entrypoints'] = {extension: {'sha256': hashlib.sha256((directory / extension / 'shared.o3d').read_bytes()).hexdigest(),
+        'bones': [name for name, _ in records['bones']], 'material_names': [m[-1] for m in records['materials']]}
+        for extension, records in results.items()}
+
+
 def _cfg_regression(addon, name, directory, manifest):
     if name == 'cfg_four_conditions':
         return _cfg_four_conditions(addon, directory, manifest)
+    if name == 'cfg_selector_edges':
+        return _cfg_selector_edges(addon, directory, manifest)
+    if name == 'cfg_shared_entries':
+        return _cfg_shared_entries(addon, directory, manifest)
     obj = _mesh(name, faces=[(0, 1, 2)] * 3)
     a, wrapper = _textured(obj, directory)
     wrapper.base_color_texture.image.filepath = '//A.PNG'
@@ -1286,16 +1409,8 @@ def _cfg_regression(addon, name, directory, manifest):
     assert [m[-1] for m in records['materials']] == ['A.PNG', 'B.PNG', 'A.PNG']
     assert [t[3] for t in records['triangles']] == [0, 1, 2]
     manifest['selectors'] = selectors
-    # Native matching is independent of writer/importer helpers: count only
-    # matching names, lowercasing the ASCII range and preserving other chars.
-    def key(value):
-        return ''.join(chr(ord(c) + 32) if 'A' <= c <= 'Z' else c for c in value)
-    selected = []
-    for texture, rank in selectors:
-        matches = [i for i, material in enumerate(records['materials']) if key(material[-1]) == key(texture)]
-        selected.append(matches[int(rank)] if int(rank) < len(matches) else None)
     assert selectors == [('A.PNG', '0'), ('B.PNG', '0'), ('A.PNG', '1')], selectors
-    assert selected == [0, 1, 2], selected
+    assert _cfg_selected_slots(records, path.read_text()) == [0, 1, 2]
 
 
 def _cfg_check(addon, obj, directory, name, manifest):
