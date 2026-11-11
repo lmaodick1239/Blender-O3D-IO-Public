@@ -503,7 +503,7 @@ CASES = {
                    'missing_named', 'normal_mapping', 'generated_coordinates', 'procedural_coordinates',
                    'linked_mapping', 'animated_mapping', 'unlinked_mapping', 'from_instances',
                    'conflict_alpha', 'conflict_specular', 'conflict_emission', 'conflict_bump', 'compatible_channels', 'shader_evaluated'),
-    'cfg_materials': ('cfg_alpha', 'cfg_allcolor', 'cfg_selector_order'),
+    'cfg_materials': ('cfg_alpha', 'cfg_allcolor', 'cfg_selector_order', 'cfg_four_conditions'),
 }
 
 
@@ -1201,7 +1201,73 @@ def _cfg_blocks(text):
     return [(command, tuple(values)) for command, values in blocks]
 
 
+def _cfg_four_conditions(addon, directory, manifest):
+    obj = _mesh('CFG controlled material')
+    material, wrapper = _textured(obj, directory)
+    wrapper.roughness = .01
+    wrapper.specular = .36
+    wrapper.emission_color_texture.image = wrapper.base_color_texture.image
+    wrapper.emission_strength = 3.
+    material['o3d_alpha_mode'] = 'CLIP'
+    addon.o3d_io.blender_compat.apply_bump_map(wrapper, wrapper.base_color_texture.image, .4)
+    # Unequal raw values include ambient and HDR/Power: no preview rebuilding.
+    colors = ['.11', '.22', '.33', '.44', '.55', '.66', '.77', '.88', '.99', '1.1', '2.2', '3.3', '4.4', '1500']
+    explicit = [('[matl_envmap]', ('explicit-env.bmp', '.91')),
+                ('[matl_lightmap]', ('explicit-light.bmp', 'light_var')),
+                ('[matl_nightmap]', ('explicit-night.bmp',)),
+                ('[matl_alpha]', ('2',)), ('[matl_bumpmap]', ('explicit-bump.bmp', '.73')),
+                ('[matl_allcolor]', tuple(colors))]
+    material['cfg_data'] = [[command, *values] for command, values in explicit]
+    obj['export_path'] = 'controlled.o3d'
+    exporter = addon.o3d_io.io_o3d_export
+    exporter.do_export(str(directory / 'embedded.o3d'), bpy.context, Matrix.Identity(4), True, 7, True, objects=[obj])
+    path = directory / 'generated.cfg'
+    exporter.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7, True, objects=[obj])
+    normal = path.read_text()
+    # Compare numeric sqrt with tolerance, but remove its exact emitted block.
+    blocks = _cfg_blocks(normal)
+    inferred = [(command, values) for command, values in blocks if command.startswith('[matl')][:-len(explicit)]
+    assert [command for command, _ in inferred] == ['[matl]', '[matl_alpha]', '[matl_envmap]', '[matl_bumpmap]', '[matl_lightmap]'], inferred
+    assert inferred[0] == ('[matl]', ('arrow-checker.png', '0'))
+    assert inferred[1] == ('[matl_alpha]', ('1',))
+    assert inferred[2][1][0] == 'envmap.bmp'
+    _assert_close((float(inferred[2][1][1]),), (.6,))
+    assert inferred[3] == ('[matl_bumpmap]', ('arrow-checker.png', '0.4'))
+    assert inferred[4] == ('[matl_lightmap]', ('arrow-checker.png',))
+    inferred_env = '[matl_envmap]\n' + '\n'.join(inferred[2][1]) + '\n\n'
+    inferred_light = '[matl_lightmap]\narrow-checker.png\n\n'
+    raw = ''.join(command + '\n' + '\n'.join(values) + '\n\n' for command, values in explicit)
+    assert normal.endswith(raw), normal
+    head = normal[:-len(raw)]
+    assert head.count(inferred_env) == head.count(inferred_light) == 1
+    variants = {'minimal.cfg': '[mesh]\ncontrolled.o3d\n', 'generated.cfg': normal,
+                'no-inferred-env.cfg': head.replace(inferred_env, '', 1) + raw,
+                'no-inferred-light-night.cfg': head.replace(inferred_light, '', 1) + raw}
+    for filename, text in variants.items():
+        (directory / filename).write_text(text)
+        if filename != 'minimal.cfg':
+            assert _cfg_blocks(text)[-len(explicit):] == explicit, (filename, _cfg_blocks(text))
+    assert _cfg_blocks(variants['no-inferred-env.cfg']) == [b for b in blocks if b != inferred[2]]
+    assert _cfg_blocks(variants['no-inferred-light-night.cfg']) == [b for b in blocks if b != inferred[4]]
+    assert read_export((directory / 'embedded.o3d').read_bytes()) == read_export((directory / 'controlled.o3d').read_bytes())
+    # Explicit blocks follow inference, so final supported setters win unchanged.
+    effective = dict(blocks)
+    for command, values in explicit:
+        assert effective[command] == values
+    wrapper.roughness = .1001
+    wrapper.emission_strength = 1.
+    stream = io.StringIO()
+    addon.o3d_io.o3d_cfg_parser.write_cfg_materials(stream, obj, str(path))
+    remaining = _cfg_blocks(stream.getvalue())[:-len(explicit)]
+    assert not any(command == '[matl_envmap]' for command, _ in remaining)
+    assert remaining[-1] == ('[matl_nightmap]', ('arrow-checker.png',))
+    manifest['comparison_conditions'] = {filename: {'sha256': hashlib.sha256((directory / filename).read_bytes()).hexdigest(),
+        'status': 'controlled serialization; pending native rendering'} for filename in variants}
+
+
 def _cfg_regression(addon, name, directory, manifest):
+    if name == 'cfg_four_conditions':
+        return _cfg_four_conditions(addon, directory, manifest)
     obj = _mesh(name, faces=[(0, 1, 2)] * 3)
     a, wrapper = _textured(obj, directory)
     wrapper.base_color_texture.image.filepath = '//A.PNG'
