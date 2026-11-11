@@ -63,7 +63,13 @@ def prepare_export_mesh(
         if free_normals is not None:
             free_normals()
         elif mesh.has_custom_normals:
-            mesh.normals_split_custom_set([(0.0, 0.0, 0.0)] * len(mesh.loops))
+            # Zero vectors can reuse the existing custom-normal space (5.x).
+            # Removing its data layer actually requests generated normals.
+            custom_normals = mesh.attributes.get("custom_normal")
+            if custom_normals is not None:
+                mesh.attributes.remove(custom_normals)
+            else:
+                mesh.normals_split_custom_set([(0.0, 0.0, 0.0)] * len(mesh.loops))
     calculate_normals = getattr(mesh, "calc_normals_split", None)
     if calculate_normals is not None:
         calculate_normals()

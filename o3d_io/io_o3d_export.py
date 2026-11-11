@@ -5,11 +5,11 @@
 import os
 import time
 from contextlib import contextmanager
+from io import BytesIO
 from math import isfinite
 
 import numpy as np
 
-import bmesh
 import bpy
 from mathutils import Matrix
 from . import blender_compat, o3d_cfg_parser, o3dconvert, omsi_paths
@@ -77,26 +77,47 @@ def collect_o3d_bones(blender_obj, source_vertex_count, source_to_export, mesh=N
             for group in groups if influences[group.index]]
 
 
+def _export_corner_data(mesh):
+    """Capture evaluated corner identity before baking positions changes normals/tessellation."""
+    mesh.calc_loop_triangles()
+    normals = [tuple(normal.vector) for normal in mesh.corner_normals]
+    generated = normals
+    if mesh.has_custom_normals:
+        plain = mesh.copy()
+        try:
+            blender_compat.prepare_export_mesh(plain, False)
+            generated = [tuple(normal.vector) for normal in plain.corner_normals]
+        finally:
+            bpy.data.meshes.remove(plain)
+    return {"normals": normals, "generated_normals": generated,
+            "triangles": [[*triangle.loops, triangle.material_index] for triangle in mesh.loop_triangles]}
+
+
 def prepare_o3d_geometry(blender_obj, mesh, export_custom_normals=True, filter_helpers=True, allowed_names=None):
     """Prepare the exact serialized vertices, triangles and populated bone order."""
-    blender_compat.prepare_export_mesh(mesh, export_custom_normals)
+    corners = mesh.get("_o3d_export_corners")
+    if corners is None:
+        corners = _export_corner_data(mesh)
+    normals = corners["normals" if export_custom_normals else "generated_normals"]
     uv_layer = mesh.uv_layers.active.data if mesh.uv_layers.active else None
     weighted = any(vertex.groups for vertex in mesh.vertices)
     verts, tris, vert_map, source_to_export = [], [], {}, {}
-    for triangle in mesh.loop_triangles:
+    for triangle in corners["triangles"]:
         tri = []
-        for source, loop, normal in zip(triangle.vertices, triangle.loops, triangle.split_normals):
+        loops = triangle[:3][::-1] if corners.get("reverse_winding", False) else triangle[:3]
+        for loop in loops:
+            source = mesh.loops[loop].vertex_index
             co = tuple(mesh.vertices[source].co)
-            normal = tuple(normal)
+            normal = tuple(normals[loop])
             uv = tuple(uv_layer[loop].uv) if uv_layer is not None else (0, 0)
             key = (co, normal, uv, source if weighted else None)
             if key not in vert_map:
                 vert_map[key] = len(verts)
-                verts.append([*co, *(-value for value in normal), uv[0], 1 - uv[1]])
+                verts.append([*co, *normal, uv[0], 1 - uv[1]])
             index = vert_map[key]
             tri.append(index)
             source_to_export.setdefault(source, set()).add(index)
-        tris.append([*tri, triangle.material_index])
+        tris.append([*tri, triangle[3]])
     if filter_helpers and allowed_names is None:
         allowed_names = _armature_bone_names(blender_obj)
     bones = collect_o3d_bones(
@@ -159,7 +180,7 @@ def validate_o3d_geometry(geometry, o3d_version=7, character_runtime=False):
 
 @contextmanager
 def prepared_export_mesh(obj, context=None, global_matrix=None):
-    """Yield evaluated, triangulated rest geometry and restore modifier flags."""
+    """Yield evaluated rest mesh baked to export space, with preserved corner tessellation."""
     context = context or bpy.context
     states = [(modifier, modifier.show_viewport, modifier.show_render)
               for modifier in obj.modifiers if modifier.type == "ARMATURE"]
@@ -173,19 +194,34 @@ def prepared_export_mesh(obj, context=None, global_matrix=None):
         export_matrix = global_matrix if global_matrix is not None else Matrix.Identity(4)
         frame_matrix = axis @ export_matrix @ obj.matrix_world @ axis
         frame_matrix.transpose()
+        corners = _export_corner_data(mesh)
+        # Compose directions in float64: finite sequential position baking can
+        # survive G*M overflowing Blender's float32 matrix (e.g. huge UI scale).
+        linear = (np.asarray(export_matrix, dtype=np.float64)[:3, :3]
+                  @ np.asarray(axis, dtype=np.float64)[:3, :3]
+                  @ np.asarray(obj.matrix_world, dtype=np.float64)[:3, :3])
+        sign, _ = np.linalg.slogdet(linear)
+        # This is the sole direction-transform/normalization owner. A singular
+        # inverse-transpose is undefined: keep exportable degenerate geometry,
+        # but record zero directions rather than inventing an axis/perturbation.
+        normal_matrix = np.linalg.inv(linear).T if sign else np.zeros((3, 3))
+        for key in ("normals", "generated_normals"):
+            transformed = []
+            for normal in corners[key]:
+                direction = normal_matrix @ normal
+                length = np.linalg.norm(direction)
+                transformed.append(tuple(direction / length if length else direction))
+            corners[key] = transformed
+        # The codec already reverses once for the established XZY reflection.
+        # Compensate the full baked determinant separately, not shading normals.
+        corners["reverse_winding"] = bool(sign > 0)
+        # Preserve established sequential baking: composing first can overflow
+        # even when these final positions remain finite (human preflight).
         mesh.transform(obj.matrix_world)
         mesh.transform(axis)
-        if obj.matrix_world.is_negative:
-            mesh.flip_normals()
-        bm = bmesh.new()
-        try:
-            bm.from_mesh(mesh)
-            if global_matrix is not None:
-                bm.transform(global_matrix)
-            bmesh.ops.triangulate(bm, faces=bm.faces)
-            bm.to_mesh(mesh)
-        finally:
-            bm.free()
+        mesh.transform(export_matrix)
+        # Only this temporary mesh owns the snapshot; cleanup shares its lifetime.
+        mesh["_o3d_export_corners"] = corners
         yield evaluated, mesh, [value for row in frame_matrix for value in row]
     finally:
         if mesh is not None:
@@ -251,17 +287,21 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
     if geometry["smoothskin"] and not allow_smoothskin:
         log("WARNING: direct O3D export cannot express [smoothskin]; blended weights may load rigidly")
     o3d_mats = _build_o3d_materials(filepath, materials, texture_filepath)
+    # Reuse human preflight's real in-memory codec path before destructive open:
+    # validation AND packing failures must leave an existing destination intact.
+    payload = BytesIO()
+    o3dconvert.export_o3d(
+        payload, verts, tris, o3d_mats, bones, transform_matrix,
+        version=o3d_version,
+        encrypted=False,
+        encryption_key=0x0,
+        long_triangle_indices=long_triangle_indices,
+        alt_encryption_seed=True,
+        invert_triangle_winding=True,
+    )
     os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
     with open(filepath, "wb") as f:
-        o3dconvert.export_o3d(
-            f, verts, tris, o3d_mats, bones, transform_matrix,
-            version=o3d_version,
-            encrypted=False,
-            encryption_key=0x0,
-            long_triangle_indices=long_triangle_indices,
-            alt_encryption_seed=True,
-            invert_triangle_winding=True,
-        )
+        f.write(payload.getvalue())
     return {"smoothskin": geometry["smoothskin"], "bones": tuple(bones)}
 
 

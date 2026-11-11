@@ -1,4 +1,4 @@
-"""Synthetic export fidelity checkpoint; intentionally RED until later repairs.
+"""Synthetic export fidelity checkpoint; geometry repaired, material/UV cases still RED.
 
 Standalone owns add-on registration. run_checks never does. No input .blend is
 loaded or saved. Raw O3Ds/PNGs/CFGs stay in --output-dir, never in fixtures.
@@ -82,7 +82,7 @@ def _mesh(name, vertices=None, faces=None, custom=True):
     for polygon in mesh.polygons:
         polygon.use_smooth = True
     if custom:
-        normal = Vector((.23, -.41, .88)).normalized()
+        normal = Vector((.3, .4, math.sqrt(.75)))
         mesh.normals_split_custom_set([normal] * len(mesh.loops))
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
@@ -129,8 +129,8 @@ def _textured(obj, directory):
     return material, wrapper
 
 
-def _snapshot(obj):
-    mesh = obj.data
+def _snapshot(obj, mesh=None):
+    mesh = mesh if mesh is not None else obj.data
     mesh.calc_loop_triangles()
     return {
         'vertices': [tuple(v.co) for v in mesh.vertices],
@@ -149,28 +149,116 @@ def _snapshot(obj):
         'parent_matrix_world': [tuple(row) for row in obj.parent.matrix_world] if obj.parent else None,
         'weights': [[(obj.vertex_groups[g.group].name, g.weight) for g in v.groups] for v in mesh.vertices],
         'modifiers': [(m.name, m.type, m.show_viewport, m.show_render) for m in obj.modifiers],
+        'pose': [(m.object.name, m.object.data.pose_position,
+                  [(b.name, tuple(b.location), tuple(b.rotation_euler), tuple(b.rotation_quaternion), tuple(b.scale))
+                   for b in m.object.pose.bones])
+                 for m in obj.modifiers if m.type == 'ARMATURE' and m.object],
         'materials': [slot.material.name if slot.material else None for slot in obj.material_slots],
     }
 
 
+def _evaluated_rest_snapshot(obj, custom=True):
+    # Independent oracle: Blender evaluation, never production preparation.
+    states = [(m, m.show_viewport, m.show_render) for m in obj.modifiers if m.type == 'ARMATURE']
+    evaluated = mesh = None
+    try:
+        for modifier, _, _ in states:
+            modifier.show_viewport = modifier.show_render = False
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        evaluated = obj.evaluated_get(depsgraph)
+        mesh = evaluated.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
+        if not custom and mesh.has_custom_normals:
+            mesh.attributes.remove(mesh.attributes['custom_normal'])
+        return _snapshot(obj, mesh)
+    finally:
+        if mesh is not None:
+            evaluated.to_mesh_clear()
+        for modifier, viewport, render in states:
+            modifier.show_viewport, modifier.show_render = viewport, render
+
+
+def _assert_prepared_space(addon, obj, settings, snapshot):
+    matrix = Matrix.Scale(settings['global_scale'], 4) @ AXIS.to_4x4() @ obj.matrix_world
+    expected = [matrix @ Vector(co) for co in snapshot['vertices']]
+    with addon.o3d_io.io_o3d_export.prepared_export_mesh(
+            obj, bpy.context, Matrix.Scale(settings['global_scale'], 4)) as prepared:
+        assert len(prepared) == 3
+        evaluated, mesh, frame = prepared
+        assert evaluated.original == obj and len(frame) == 16
+        assert len(mesh.vertices) == len(expected)
+        for vertex, position in zip(mesh.vertices, expected):
+            assert (vertex.co - position).length < 2e-4, (vertex.co[:], position[:])
+        # Human height reads this mesh directly: export Y must be baked height.
+        assert math.isclose(max(v.co.y for v in mesh.vertices) - min(v.co.y for v in mesh.vertices),
+                            max(v.y for v in expected) - min(v.y for v in expected), abs_tol=2e-4)
+
+
+def _context_snapshot():
+    return (bpy.context.view_layer.objects.active, set(bpy.context.selected_objects),
+            bpy.context.object.mode if bpy.context.object else None)
+
+
+def _restoration_regression(addon, obj, directory, snapshot):
+    exporter = addon.o3d_io.io_o3d_export
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    context = _context_snapshot()
+    sentinel = b'codec failure must not truncate\x00\xff'
+    path = directory / 'failure-sentinel.o3d'
+    path.write_bytes(sentinel)
+    codec = exporter.o3dconvert.export_o3d
+    try:
+        exporter.do_export(str(directory / 'edit-success.o3d'), bpy.context, Matrix.Identity(4), True, 7)
+        assert _context_snapshot() == context
+        # Packing failure after successful real codec validation/writes must
+        # still happen before the existing destination is opened.
+        def fail_after_codec(*args, **kwargs):
+            codec(*args, **kwargs)
+            raise RuntimeError('induced codec failure')
+        exporter.o3dconvert.export_o3d = fail_after_codec
+        try:
+            exporter.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)
+        except RuntimeError as error:
+            assert str(error) == 'induced codec failure'
+        else:
+            raise AssertionError('expected induced codec failure')
+        assert _context_snapshot() == context
+        assert path.read_bytes() == sentinel, 'induced codec failure truncated destination'
+    finally:
+        exporter.o3dconvert.export_o3d = codec
+        bpy.ops.object.mode_set(mode='OBJECT')
+    _assert_equal(_snapshot(obj), snapshot)
+
+
 def _make_case(group, name, directory):
-    custom = group == 'transforms' or name == 'oblique_triangle'
+    custom = group == 'transforms' or name in ('oblique_triangle', 'custom_quad', 'custom_ngon')
     vertices = faces = None
-    if name in ('flat_wedge', 'smooth_wedge', 'uv_seam'):
+    if name in ('flat_wedge', 'smooth_wedge', 'flat_transform', 'smooth_transform',
+                'uv_seam', 'weighted_rest', 'evaluated_weights'):
         vertices = [(0, 0, 0), (2, 0, 0), (.2, 1.3, 0), (.2, .3, 1.1)]
         faces = [(0, 1, 2), (1, 0, 3)]
-    elif name == 'nonplanar_quad':
+    elif name in ('nonplanar_quad', 'custom_quad'):
         vertices, faces = [(0, 0, 0), (2, 0, 0), (2, 1, .35), (0, 1, 0)], [(0, 1, 2, 3)]
-    elif name == 'concave_ngon':
+    elif name == 'degenerate_face':
+        vertices, faces = [(0, 0, 0), (1, 0, 0), (2, 0, 0)], [(0, 1, 2)]
+    elif name in ('concave_ngon', 'custom_ngon'):
         vertices = [(0, 0, 0), (2, 0, 0), (2, 2, 0), (1, .7, 0), (0, 2, 0)]
         faces = [(0, 1, 2, 3, 4)]
     obj = _mesh(name, vertices, faces, custom=custom)
     settings = {'global_scale': 1., 'version': 7, 'local_transforms': ['LOC', 'ROT', 'SCA'],
                 'origin': True, 'reference_weights': False, 'export_custom_normals': True}
-    if name == 'flat_wedge':
+    if name in ('custom_quad', 'custom_ngon'):
+        obj.data.normals_split_custom_set([Vector((.15 + i * .07, .4, 1)).normalized()
+                                          for i in range(len(obj.data.loops))])
+    if name in ('flat_wedge', 'flat_transform'):
         for p in obj.data.polygons:
             p.use_smooth = False
-    if name == 'uv_seam':
+    if name in ('flat_transform', 'smooth_transform', 'custom_quad', 'custom_ngon'):
+        obj.scale = (-2., .7, 1.4)
+        obj.rotation_euler = (.31, -.27, .49)
+    if name in ('uv_seam', 'weighted_rest', 'evaluated_weights'):
         for slot, uv in zip(obj.data.uv_layers.active.uv,
                             ((.1, .2), (.8, .2), (.3, .9), (.9, .8), (.6, .7), (.2, .1))):
             slot.vector = uv
@@ -179,6 +267,10 @@ def _make_case(group, name, directory):
         'negative_scale': ('scale', (-1., 1., 1.)),
         'nonuniform_scale': ('scale', (2., .7, 1.4)),
         'translation': ('location', (2., -3., 4.)),
+        'zero_scale': ('scale', (0., 1., 1.)),
+        'singular_line': ('scale', (0., 0., 1.)),
+        'singular_point': ('scale', (0., 0., 0.)),
+        'near_singular': ('scale', (1e-8, .7, 1.4)),
         'euler_rotation': ('rotation_euler', (.31, -.27, .49)),
     }
     if name in transforms:
@@ -195,7 +287,7 @@ def _make_case(group, name, directory):
         obj.location = (.4, -.2, .3)
     if name == 'global_scale':
         settings['global_scale'] = 2.
-    if name == 'weighted_rest':
+    if name in ('weighted_rest', 'evaluated_weights'):
         armature = bpy.data.armatures.new('Fidelity rig')
         rig = bpy.data.objects.new('Fidelity rig', armature)
         bpy.context.scene.collection.objects.link(rig)
@@ -208,12 +300,22 @@ def _make_case(group, name, directory):
         rig.pose.bones['Main'].rotation_mode = 'XYZ'
         rig.pose.bones['Main'].rotation_euler = (.5, -.2, .7)
         rig.pose.bones['Main'].location = (1., .5, .3)
-        obj.vertex_groups.new(name='Main').add([0, 1, 2], 1., 'REPLACE')
-        obj.vertex_groups.new(name='HelperNotABone').add([0, 1, 2], .5, 'REPLACE')
+        obj.vertex_groups.new(name='Main').add(list(range(len(obj.data.vertices))), 1., 'REPLACE')
+        obj.vertex_groups.new(name='HelperNotABone').add(list(range(len(obj.data.vertices))), .5, 'REPLACE')
         modifier = obj.modifiers.new('Posed armature', 'ARMATURE')
         modifier.object = rig
         bpy.context.view_layer.objects.active = obj
+        if name == 'evaluated_weights':
+            mirror = obj.modifiers.new('Evaluated topology', 'MIRROR')
+            mirror.use_mirror_merge = False
+            for index in range(len(obj.data.vertices)):
+                obj.vertex_groups['Main'].add([index], .25 + .15 * index, 'REPLACE')
+            obj.location = (.4, -.2, .3)
+            obj.rotation_euler = (.31, -.27, .49)
+            obj.scale = (-2., .7, 1.4)
         settings['pose'] = {'rotation': (.5, -.2, .7), 'location': (1., .5, .3)}
+    if name == 'custom_disabled':
+        settings['export_custom_normals'] = False
     if group in ('uv_mapping', 'cfg_materials') or name == 'image_alpha':
         material, wrapper = _textured(obj, directory)
     else:
@@ -263,10 +365,12 @@ def _make_case(group, name, directory):
 
 
 CASES = {
-    'custom_normal': ('oblique_triangle', 'flat_wedge', 'smooth_wedge', 'uv_seam', 'nonplanar_quad', 'concave_ngon'),
+    'custom_normal': ('oblique_triangle', 'flat_wedge', 'smooth_wedge', 'uv_seam', 'nonplanar_quad', 'concave_ngon',
+                      'custom_quad', 'custom_ngon', 'flat_transform', 'smooth_transform', 'degenerate_face'),
     'transforms': ('identity', 'positive_scale', 'negative_scale', 'nonuniform_scale', 'translation',
                    'euler_rotation', 'quaternion_rotation', 'parent_transform', 'global_scale',
-                   'weighted_rest', 'empty_preserves_destination'),
+                   'weighted_rest', 'evaluated_weights', 'custom_disabled', 'zero_scale',
+                   'singular_line', 'singular_point', 'near_singular', 'empty_preserves_destination'),
     'materials': ('roughness_0', 'roughness_half', 'roughness_1', 'emission', 'image_alpha'),
     'uv_mapping': ('render_active', 'named_uv', 'mapping_point', 'mapping_texture', 'mapping_vector'),
     'cfg_materials': ('cfg_alpha', 'cfg_allcolor'),
@@ -280,7 +384,10 @@ def _expected_corners(obj, settings, snapshot):
     not an assertion about native renderer culling or normal-sign consumers.
     """
     matrix = Matrix.Scale(settings['global_scale'], 4) @ AXIS.to_4x4() @ obj.matrix_world
-    normals = matrix.to_3x3().inverted().transposed()
+    linear = matrix.to_3x3()
+    # At singular transforms no authored inverse-transpose direction exists.
+    # Zero explicitly represents undefined, not a guessed unit axis.
+    normals = linear.inverted().transposed() if linear.determinant() else Matrix(((0.,) * 3,) * 3)
     layer = next(layer for layer in snapshot['uv_layers'] if layer['name'] == settings.get('uv_source', 'Editing'))
     result = []
     for li, vi in enumerate(snapshot['loop_vertices']):
@@ -311,7 +418,7 @@ def _assert_corners(records, expected):
         assert any((Vector(v[6:8]) - Vector(vertex[6:8])).length < 2e-4 for v in candidates), ('UV', vertex, candidates)
         matching = [v for v in candidates if (Vector(v[6:8]) - Vector(vertex[6:8])).length < 2e-4]
         assert any((Vector(v[3:6]) - Vector(vertex[3:6])).length < 2e-4 for v in matching), ('normal direction', vertex, matching)
-        assert math.isclose(Vector(vertex[3:6]).length, 1., abs_tol=2e-4), vertex
+        assert math.isclose(Vector(vertex[3:6]).length, Vector(matching[0][3:6]).length, abs_tol=2e-4), vertex
     for corner in expected:
         assert any(max(abs(a-b) for a, b in zip(vertex, corner)) < 2e-4 for vertex in actual), ('lost source corner', corner)
 
@@ -377,11 +484,14 @@ def _run_case(addon, reference, group, name, directory):
             snapshot = _snapshot(obj)
             manifest['input'] = snapshot
             manifest['settings'] = settings
-            manifest['expected_corners'] = _expected_corners(obj, settings, snapshot)
+            expected_snapshot = _evaluated_rest_snapshot(obj, settings['export_custom_normals'])
+            manifest['evaluated_rest'] = expected_snapshot
+            manifest['expected_corners'] = _expected_corners(obj, settings, expected_snapshot)
             image = directory / 'arrow-checker.png'
             if image.exists():
                 manifest['texture'] = {'file': image.name, 'sha256': hashlib.sha256(image.read_bytes()).hexdigest(),
                                        'rows_bottom_to_top': ['RBBB', 'GRBW', 'GGRA', 'YWGY']}
+            initial_context = _context_snapshot()
             # Complete and save every configured export before any fidelity assertion.
             for label in ('current', 'reference') if reference else ('current',):
                 path = directory / f'{label}.o3d'
@@ -396,7 +506,7 @@ def _run_case(addon, reference, group, name, directory):
                             'location', 'scale', 'rotation_mode', 'rotation_euler', 'rotation_quaternion',
                             'matrix_world', 'parent_matrix_world')}
                         addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context,
-                            Matrix.Scale(settings['global_scale'], 4), True, 7, True, objects=[obj])
+                            Matrix.Scale(settings['global_scale'], 4), True, 7, settings['export_custom_normals'], objects=[obj])
                     else:
                         # Reference lacks a global-scale option. Use a disposable object
                         # with the equivalent uniform position scale; never mutate source.
@@ -431,16 +541,25 @@ def _run_case(addon, reference, group, name, directory):
             # Persist comparisons and raw data even if the first assertion fails.
             _json(directory / 'manifest.json', manifest)
             check('source mesh and modifier state unchanged', lambda: _assert_equal(_snapshot(obj), snapshot))
+            check('selection mode and active object unchanged', lambda: _assert_equal(_context_snapshot(), initial_context))
+            if group in ('custom_normal', 'transforms'):
+                check('prepared tuple and directly consumed GCM baked mesh',
+                      lambda: _assert_prepared_space(addon, obj, settings, expected_snapshot))
+            if name in ('identity', 'oblique_triangle') and current:
+                check('literal oblique XZY normal contract', lambda: [assert_direction(v[3:6], (.3, math.sqrt(.75), .4))
+                                                                     for v in current['vertices']])
             if current:
                 check('version and unencrypted output', lambda: _assert_equal(current['version'], 7))
                 check('every source position/normal/UV corner preserved', lambda: _assert_corners(current, manifest['expected_corners']))
                 check('all rest-space positions preserved', lambda: _assert_positions(current, manifest['expected_corners']))
-                check('oriented triangles under established export basis', lambda: _assert_winding(current, snapshot, manifest['expected_corners'], obj, settings))
-                check('triangle count', lambda: _assert_equal(len(current['triangles']), len(snapshot['loop_triangles'])))
+                check('oriented triangles under established export basis', lambda: _assert_winding(current, expected_snapshot, manifest['expected_corners'], obj, settings))
+                check('triangle count', lambda: _assert_equal(len(current['triangles']), len(expected_snapshot['loop_triangles'])))
                 check('stored origin frame', lambda: _assert_matrix(current['matrix'], obj, settings['global_scale']))
                 if group == 'transforms':
-                    check('finite unit normal directions', lambda: _assert_unit_normals(current))
-                    check('one source direction across equivalent corners', lambda: _assert_one_direction(current))
+                    check('finite unit normal directions', lambda: _assert_unit_normals(current, singular=not obj.matrix_world.determinant()))
+                    if (settings['export_custom_normals'] and obj.matrix_world.determinant()
+                            and name != 'evaluated_weights'):
+                        check('one source direction across equivalent corners', lambda: _assert_one_direction(current))
                 if name == 'translation':
                     control = obj.copy()
                     bpy.context.scene.collection.objects.link(control)
@@ -451,8 +570,10 @@ def _run_case(addon, reference, group, name, directory):
                     manifest['translation_control'] = _record(path)
                     check('translation cannot enter normal direction', lambda: _assert_translation_invariant(
                         current, manifest['translation_control']['records']))
-                if name == 'weighted_rest':
-                    check('rest weights, filtered helpers and modifier restoration', lambda: _assert_rest(current, obj))
+                if name in ('weighted_rest', 'evaluated_weights'):
+                    check('rest weights, filtered helpers and modifier restoration', lambda: _assert_rest(current, obj, expected_snapshot, manifest['expected_corners']))
+                    check('success and induced failure restore context/pose/source',
+                          lambda: _restoration_regression(addon, obj, directory, snapshot))
                 if name == 'emission':
                     check('emission color times strength', lambda: assert_emission_record(current['materials'][0]))
                 if name.startswith('roughness_'):
@@ -499,25 +620,29 @@ def _assert_positions(records, expected):
 
 
 def _assert_winding(records, snapshot, expected, obj, settings):
-    def cyclic(indices):
-        return min(indices[i:] + indices[:i] for i in range(3))
-    mapping = {}
-    for i, vertex in enumerate(records['vertices']):
-        loop = min(range(len(expected)), key=lambda li: (Vector(vertex[:3]) - Vector(expected[li][:3])).length)
-        mapping[i] = snapshot['loop_vertices'][loop]
-    mirrored = (Matrix.Scale(settings['global_scale'], 3) @ AXIS @ obj.matrix_world.to_3x3()).determinant() < 0
+    # Ordered positions establish winding independently of shading normals.
+    # UV labels only disambiguate coincident/collapsed corners, not direction.
+    def label(vertex):
+        return (*vertex[:3], *vertex[6:8]) if determinant == 0 else vertex[:3]
+    determinant = (Matrix.Scale(settings['global_scale'], 3) @ AXIS @ obj.matrix_world.to_3x3()).determinant()
     want = []
     for loops in snapshot['loop_triangles']:
-        indices = tuple(snapshot['loop_vertices'][li] for li in loops)
-        want.append(cyclic(indices[::-1] if mirrored else indices))
-    actual = [cyclic(tuple(mapping[i] for i in triangle[:3])) for triangle in records['triangles']]
-    assert sorted(actual) == sorted(want), (actual, want)
+        corners = [label(expected[li]) for li in loops]
+        want.append(corners[::-1] if determinant <= 0 else corners)
+    for triangle in records['triangles']:
+        actual = [label(records['vertices'][index]) for index in triangle[:3]]
+        matches = [i for i, corners in enumerate(want) if any(
+            all(max(abs(a-b) for a, b in zip(actual[j], corners[(j+offset) % 3])) < 2e-4
+                for j in range(3)) for offset in range(3))]
+        assert matches, ('unexpected oriented triangle', actual, want)
+        want.pop(matches[0])
+    assert not want, ('missing oriented triangles', want)
 
 
-def _assert_unit_normals(records):
+def _assert_unit_normals(records, singular=False):
     for vertex in records['vertices']:
         assert all(math.isfinite(value) for value in vertex), vertex
-        assert math.isclose(Vector(vertex[3:6]).length, 1., abs_tol=2e-4), vertex
+        assert math.isclose(Vector(vertex[3:6]).length, 0. if singular else 1., abs_tol=2e-4), vertex
 
 
 def _assert_translation_invariant(translated, control):
@@ -539,9 +664,18 @@ def _assert_matrix(actual, obj, scale):
     assert max(abs(actual[i][j] - expected[i][j]) for i in range(4) for j in range(4)) < 2e-4, (actual, expected)
 
 
-def _assert_rest(records, obj):
+def _assert_rest(records, obj, snapshot, expected):
     assert [name for name, _ in records['bones']] == ['Main'], records['bones']
-    assert records['bones'][0][1] == [(i, 1.) for i in range(len(records['vertices']))], records['bones']
+    actual = dict(records['bones'][0][1])
+    assert set(actual) == set(range(len(records['vertices']))), records['bones']
+    for index, vertex in enumerate(records['vertices']):
+        loops = [li for li, corner in enumerate(expected)
+                 if max(abs(a-b) for a, b in zip(vertex, corner)) < 2e-4]
+        weights = [dict(snapshot['weights'][snapshot['loop_vertices'][li]])['Main'] for li in loops]
+        assert weights and any(math.isclose(actual[index], weight, abs_tol=2e-6) for weight in weights), (vertex, weights)
+    assert len(records['vertices']) > len(snapshot['vertices']), 'UV seam lost its weighted splits'
+    if any(m.type == 'MIRROR' for m in obj.modifiers):
+        assert len(snapshot['vertices']) > len(obj.data.vertices), 'evaluated topology not exercised'
     assert obj.modifiers[0].show_viewport and obj.modifiers[0].show_render
 
 
