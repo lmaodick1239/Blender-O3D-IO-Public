@@ -220,3 +220,19 @@ The [complete recipes](evidence/o3d-export-fidelity/task-3/README.md#6-exact-rem
 ### Integration verification and scope
 
 [Verifier](evidence/o3d-export-fidelity/task-3/verify-evidence.py) / [results](evidence/o3d-export-fidelity/task-3/verification.json) check retained artifact bounds/SHA-256, strict new local Markdown links (including staged targets), JSON, pinned primary citations/three probe-block syntax, exact success/NO-FUNCTION/failure outcomes and decisive assembly instruction/operand anchors. The bounded math check is independently reproducible; no expensive source export/native/Blender probe is repeated. The existing source/test interface contracts, O3D1..7/fixed-u16+f32 bones, rest-space/helper/weight/path/lifecycle behavior remain binding. **This checkpoint permits the named independent fixes while Task3's remaining native branches stay open; exporting fields/functions is not a solved renderer contract.**
+
+## Task 4 — geometry/export fidelity repair checkpoint
+
+Recorded **2026-11-12, Asia/Hong_Kong**, after production commit `07c7b18680e25a00c11094f8df4d93b40204b8c1` (parent `b585e514038309f380ae519c9f05f2956c3206a5`). This bounded checkpoint preserves the Task 4 source/test patch and records current Blender evidence; it does not claim native renderer parity. The concise [Task 4 evidence record](evidence/o3d-export-fidelity/task-4/README.md) and hash-bound [verification JSON](evidence/o3d-export-fidelity/task-4/verification.json) retain exact commands, exits, logs and source hashes.
+
+### Current observed Blender verification
+
+Finalizer-managed job `bash-ebd4031859d244fd` completed exit **0** without source changes during the run. Focused `custom_normal` + `transforms` ran **28/28** cases successfully (11 custom-normal, 17 transforms), the existing pure unittest suite ran **30 tests OK**, and the existing full Blender smoke ended `BLENDER_O3D_IO_SMOKE_OK 5.0.1`. All current observations are Blender 5.0.1 build `a3db93c5b259`; they are observed runtime (Blender/add-on), not native runtime/render observations. Source hashes before and after cover exporter, Blender compatibility helper, focused runner, codec and full smoke runner and remain identical.
+
+### Repair contracts exercised
+
+Evaluated corner normals and Blender loop-triangle loop indices are captured before geometry baking, preserving corner identity through tessellation, UV/material splits and evaluated weights. One owner applies inverse-transpose plus normalization to the actual baked GCM linear transform; translation is excluded and winding compensation is separate. Position baking remains sequential M,C,G to avoid float32 overflow in the existing extreme-scale human preflight. Singular inverse-transpose directions are undefined and serialize as finite zero vectors rather than invoking a raw inverse or inventing an axis; near-singular directions remain real finite values. The public `prepared_export_mesh` tuple and GCM-baked mesh semantics remain unchanged. Real codec packing is performed through `BytesIO` before destination open, preserving existing bytes on empty-geometry and induced post-codec failures.
+
+### Scope and open gates
+
+The inherited RED remains attributed to its baseline harness and is not presented as a fresh run; it recorded the repaired normal/tessellation/singular/content-before-open failures. The inherited all-group summary remains 34 PASS / 6 FAIL, with emission and five UV-policy failures intentionally outside Task 4. No material/UV/CFG policy, importer, native launch/install/configuration or broad history changes were made. Native sign/cull/normalization, shader/material/texture transfer, dynamic skinning/special origin paths, Blender 4.2/5.2 coverage, Tasks 5–7 and lead review remain open.

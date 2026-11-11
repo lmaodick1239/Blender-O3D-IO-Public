@@ -1,0 +1,3904 @@
+{
+  "parent": "b585e514038309f380ae519c9f05f2956c3206a5",
+  "started_at": "2026-11-11T17:13:11.915533+00:00",
+  "source_sha256_before": {
+    "o3d_io/io_o3d_export.py": "b433f9fd53c2f55fe9c96800158010680d845e367a6e8c1b6ab9f4ade94f95d4",
+    "o3d_io/blender_compat.py": "47a133985113aaa37f77647f41b9336416f7c3a7dfd599bee2300bf88d24fbbe",
+    "tests/smoke_export_fidelity.py": "aaa34a518f1f9abc52657ffc8d2f6ee942365537e7d5c775c7c5d9f2876b5b83",
+    "o3d_io/o3dconvert.py": "dd3d6a34bff20494bf8f5bced7cd81815053a35f7d1eae79ada747870969ffc7",
+    "tests/blender_smoke.py": "b999e33add83e59032fc260aae2ed3327f65eff7174d767f5d2aa3109d87c7cc"
+  },
+  "runs": [
+    {
+      "name": "geometry",
+      "argv": [
+        "blender",
+        "--background",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "tests/smoke_export_fidelity.py",
+        "--",
+        "--case",
+        "custom_normal",
+        "--case",
+        "transforms",
+        "--output-dir",
+        "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-scratch/finalizer-geometry"
+      ],
+      "exit_code": 0,
+      "log": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-finalizer-geometry.log",
+      "log_sha256": "de1d2a007bb61888f52ac3cc5303f256f800ad849e8b7897f68f8a7bbe1937b0"
+    },
+    {
+      "name": "pure",
+      "argv": [
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "log": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-finalizer-pure.log",
+      "log_sha256": "f9cac1bee3d6475c50fae917c551081f3ffee04f1f548ae1eddc6011559a9c74"
+    },
+    {
+      "name": "smoke",
+      "argv": [
+        "blender",
+        "--background",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "tests/blender_smoke.py"
+      ],
+      "exit_code": 0,
+      "log": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-finalizer-smoke.log",
+      "log_sha256": "9ee29877eb467fc1ae7a64832f0a876ef9eb6f05edbd21d200f7679d049358c8"
+    }
+  ],
+  "source_sha256_after": {
+    "o3d_io/io_o3d_export.py": "b433f9fd53c2f55fe9c96800158010680d845e367a6e8c1b6ab9f4ade94f95d4",
+    "o3d_io/blender_compat.py": "47a133985113aaa37f77647f41b9336416f7c3a7dfd599bee2300bf88d24fbbe",
+    "tests/smoke_export_fidelity.py": "aaa34a518f1f9abc52657ffc8d2f6ee942365537e7d5c775c7c5d9f2876b5b83",
+    "o3d_io/o3dconvert.py": "dd3d6a34bff20494bf8f5bced7cd81815053a35f7d1eae79ada747870969ffc7",
+    "tests/blender_smoke.py": "b999e33add83e59032fc260aae2ed3327f65eff7174d767f5d2aa3109d87c7cc"
+  },
+  "finished_at": "2026-11-11T17:13:47.550890+00:00",
+  "sources_unchanged": true,
+  "evidence_class": "Blender/add-on execution; no native runtime observation",
+  "collected_job": {
+    "id": "bash-ebd4031859d244fd",
+    "exit_code": 0,
+    "owner": "geometry-finalizer",
+    "collected": true
+  },
+  "blender": "5.0.1",
+  "blender_build": "a3db93c5b259",
+  "retained_current_logs": {
+    "geometry": {
+      "local_source": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-finalizer-geometry.log",
+      "sha256": "de1d2a007bb61888f52ac3cc5303f256f800ad849e8b7897f68f8a7bbe1937b0",
+      "total_lines": 103,
+      "lines": [
+        {
+          "line": 1,
+          "text": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py:97: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0"
+        },
+        {
+          "line": 2,
+          "text": "  material.use_nodes = True"
+        },
+        {
+          "line": 3,
+          "text": "[O3D_IO] Registering Blender-O3D-IO version: (1, 3, 4)..."
+        },
+        {
+          "line": 4,
+          "text": "[O3D_Export] Exporting oblique_triangle..."
+        },
+        {
+          "line": 5,
+          "text": "[O3D_Export] Exported 1 models in 0.003332853317260742 seconds!"
+        },
+        {
+          "line": 6,
+          "text": "FIDELITY custom_normal/oblique_triangle: PASS"
+        },
+        {
+          "line": 7,
+          "text": "[O3D_Export] Exporting flat_wedge..."
+        },
+        {
+          "line": 8,
+          "text": "[O3D_Export] Exported 1 models in 0.0035600662231445312 seconds!"
+        },
+        {
+          "line": 9,
+          "text": "FIDELITY custom_normal/flat_wedge: PASS"
+        },
+        {
+          "line": 10,
+          "text": "[O3D_Export] Exporting smooth_wedge..."
+        },
+        {
+          "line": 11,
+          "text": "[O3D_Export] Exported 1 models in 0.0038597583770751953 seconds!"
+        },
+        {
+          "line": 12,
+          "text": "FIDELITY custom_normal/smooth_wedge: PASS"
+        },
+        {
+          "line": 13,
+          "text": "[O3D_Export] Exporting uv_seam..."
+        },
+        {
+          "line": 14,
+          "text": "[O3D_Export] Exported 1 models in 0.003983020782470703 seconds!"
+        },
+        {
+          "line": 15,
+          "text": "FIDELITY custom_normal/uv_seam: PASS"
+        },
+        {
+          "line": 16,
+          "text": "[O3D_Export] Exporting nonplanar_quad..."
+        },
+        {
+          "line": 17,
+          "text": "[O3D_Export] Exported 1 models in 0.0035314559936523438 seconds!"
+        },
+        {
+          "line": 18,
+          "text": "FIDELITY custom_normal/nonplanar_quad: PASS"
+        },
+        {
+          "line": 19,
+          "text": "[O3D_Export] Exporting concave_ngon..."
+        },
+        {
+          "line": 20,
+          "text": "[O3D_Export] Exported 1 models in 0.0036063194274902344 seconds!"
+        },
+        {
+          "line": 21,
+          "text": "FIDELITY custom_normal/concave_ngon: PASS"
+        },
+        {
+          "line": 22,
+          "text": "[O3D_Export] Exporting custom_quad..."
+        },
+        {
+          "line": 23,
+          "text": "[O3D_Export] Exported 1 models in 0.003938436508178711 seconds!"
+        },
+        {
+          "line": 24,
+          "text": "FIDELITY custom_normal/custom_quad: PASS"
+        },
+        {
+          "line": 25,
+          "text": "[O3D_Export] Exporting custom_ngon..."
+        },
+        {
+          "line": 26,
+          "text": "[O3D_Export] Exported 1 models in 0.003167390823364258 seconds!"
+        },
+        {
+          "line": 27,
+          "text": "FIDELITY custom_normal/custom_ngon: PASS"
+        },
+        {
+          "line": 28,
+          "text": "[O3D_Export] Exporting flat_transform..."
+        },
+        {
+          "line": 29,
+          "text": "[O3D_Export] Exported 1 models in 0.004170894622802734 seconds!"
+        },
+        {
+          "line": 30,
+          "text": "FIDELITY custom_normal/flat_transform: PASS"
+        },
+        {
+          "line": 31,
+          "text": "[O3D_Export] Exporting smooth_transform..."
+        },
+        {
+          "line": 32,
+          "text": "[O3D_Export] Exported 1 models in 0.0029714107513427734 seconds!"
+        },
+        {
+          "line": 33,
+          "text": "FIDELITY custom_normal/smooth_transform: PASS"
+        },
+        {
+          "line": 34,
+          "text": "[O3D_Export] Exporting degenerate_face..."
+        },
+        {
+          "line": 35,
+          "text": "[O3D_Export] Exported 1 models in 0.003136157989501953 seconds!"
+        },
+        {
+          "line": 36,
+          "text": "FIDELITY custom_normal/degenerate_face: PASS"
+        },
+        {
+          "line": 37,
+          "text": "[O3D_Export] Exporting identity..."
+        },
+        {
+          "line": 38,
+          "text": "[O3D_Export] Exported 1 models in 0.0029821395874023438 seconds!"
+        },
+        {
+          "line": 39,
+          "text": "FIDELITY transforms/identity: PASS"
+        },
+        {
+          "line": 40,
+          "text": "[O3D_Export] Exporting positive_scale..."
+        },
+        {
+          "line": 41,
+          "text": "[O3D_Export] Exported 1 models in 0.003155946731567383 seconds!"
+        },
+        {
+          "line": 42,
+          "text": "FIDELITY transforms/positive_scale: PASS"
+        },
+        {
+          "line": 43,
+          "text": "[O3D_Export] Exporting negative_scale..."
+        },
+        {
+          "line": 44,
+          "text": "[O3D_Export] Exported 1 models in 0.0030019283294677734 seconds!"
+        },
+        {
+          "line": 45,
+          "text": "FIDELITY transforms/negative_scale: PASS"
+        },
+        {
+          "line": 46,
+          "text": "[O3D_Export] Exporting nonuniform_scale..."
+        },
+        {
+          "line": 47,
+          "text": "[O3D_Export] Exported 1 models in 0.003360748291015625 seconds!"
+        },
+        {
+          "line": 48,
+          "text": "FIDELITY transforms/nonuniform_scale: PASS"
+        },
+        {
+          "line": 49,
+          "text": "[O3D_Export] Exporting translation..."
+        },
+        {
+          "line": 50,
+          "text": "[O3D_Export] Exported 1 models in 0.0034155845642089844 seconds!"
+        },
+        {
+          "line": 51,
+          "text": "[O3D_Export] Exporting translation.001..."
+        },
+        {
+          "line": 52,
+          "text": "[O3D_Export] Exported 1 models in 0.004647493362426758 seconds!"
+        },
+        {
+          "line": 53,
+          "text": "FIDELITY transforms/translation: PASS"
+        },
+        {
+          "line": 54,
+          "text": "[O3D_Export] Exporting euler_rotation..."
+        },
+        {
+          "line": 55,
+          "text": "[O3D_Export] Exported 1 models in 0.003403902053833008 seconds!"
+        },
+        {
+          "line": 56,
+          "text": "FIDELITY transforms/euler_rotation: PASS"
+        },
+        {
+          "line": 57,
+          "text": "[O3D_Export] Exporting quaternion_rotation..."
+        },
+        {
+          "line": 58,
+          "text": "[O3D_Export] Exported 1 models in 0.005850076675415039 seconds!"
+        },
+        {
+          "line": 59,
+          "text": "FIDELITY transforms/quaternion_rotation: PASS"
+        },
+        {
+          "line": 60,
+          "text": "[O3D_Export] Exporting parent_transform..."
+        },
+        {
+          "line": 61,
+          "text": "[O3D_Export] Exported 1 models in 0.0032198429107666016 seconds!"
+        },
+        {
+          "line": 62,
+          "text": "FIDELITY transforms/parent_transform: PASS"
+        },
+        {
+          "line": 63,
+          "text": "[O3D_Export] Exporting global_scale..."
+        },
+        {
+          "line": 64,
+          "text": "[O3D_Export] Exported 1 models in 0.0045888423919677734 seconds!"
+        },
+        {
+          "line": 65,
+          "text": "FIDELITY transforms/global_scale: PASS"
+        },
+        {
+          "line": 66,
+          "text": "[O3D_Export] Exporting weighted_rest..."
+        },
+        {
+          "line": 67,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 68,
+          "text": "[O3D_Export] Exported 1 models in 0.006581306457519531 seconds!"
+        },
+        {
+          "line": 69,
+          "text": "[O3D_Export] Exporting weighted_rest..."
+        },
+        {
+          "line": 70,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 71,
+          "text": "[O3D_Export] Exported 1 models in 0.005131959915161133 seconds!"
+        },
+        {
+          "line": 72,
+          "text": "[O3D_Export] Exporting weighted_rest..."
+        },
+        {
+          "line": 73,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 74,
+          "text": "FIDELITY transforms/weighted_rest: PASS"
+        },
+        {
+          "line": 75,
+          "text": "[O3D_Export] Exporting evaluated_weights..."
+        },
+        {
+          "line": 76,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 77,
+          "text": "[O3D_Export] Exported 1 models in 0.003610849380493164 seconds!"
+        },
+        {
+          "line": 78,
+          "text": "[O3D_Export] Exporting evaluated_weights..."
+        },
+        {
+          "line": 79,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 80,
+          "text": "[O3D_Export] Exported 1 models in 0.005263328552246094 seconds!"
+        },
+        {
+          "line": 81,
+          "text": "[O3D_Export] Exporting evaluated_weights..."
+        },
+        {
+          "line": 82,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 83,
+          "text": "FIDELITY transforms/evaluated_weights: PASS"
+        },
+        {
+          "line": 84,
+          "text": "[O3D_Export] Exporting custom_disabled..."
+        },
+        {
+          "line": 85,
+          "text": "[O3D_Export] Exported 1 models in 0.003316640853881836 seconds!"
+        },
+        {
+          "line": 86,
+          "text": "FIDELITY transforms/custom_disabled: PASS"
+        },
+        {
+          "line": 87,
+          "text": "[O3D_Export] Exporting zero_scale..."
+        },
+        {
+          "line": 88,
+          "text": "[O3D_Export] Exported 1 models in 0.0030889511108398438 seconds!"
+        },
+        {
+          "line": 89,
+          "text": "FIDELITY transforms/zero_scale: PASS"
+        },
+        {
+          "line": 90,
+          "text": "[O3D_Export] Exporting singular_line..."
+        },
+        {
+          "line": 91,
+          "text": "[O3D_Export] Exported 1 models in 0.0029747486114501953 seconds!"
+        },
+        {
+          "line": 92,
+          "text": "FIDELITY transforms/singular_line: PASS"
+        },
+        {
+          "line": 93,
+          "text": "[O3D_Export] Exporting singular_point..."
+        },
+        {
+          "line": 94,
+          "text": "[O3D_Export] Exported 1 models in 0.002869129180908203 seconds!"
+        },
+        {
+          "line": 95,
+          "text": "FIDELITY transforms/singular_point: PASS"
+        },
+        {
+          "line": 96,
+          "text": "[O3D_Export] Exporting near_singular..."
+        },
+        {
+          "line": 97,
+          "text": "[O3D_Export] Exported 1 models in 0.0028557777404785156 seconds!"
+        },
+        {
+          "line": 98,
+          "text": "FIDELITY transforms/near_singular: PASS"
+        },
+        {
+          "line": 99,
+          "text": "FIDELITY transforms/empty_preserves_destination: PASS"
+        },
+        {
+          "line": 100,
+          "text": "BLENDER_O3D_EXPORT_FIDELITY_OK 5.0.1"
+        },
+        {
+          "line": 101,
+          "text": "Blender 5.0.1 (hash a3db93c5b259 built 2025-12-16 01:30:59)"
+        },
+        {
+          "line": 102,
+          "text": ""
+        },
+        {
+          "line": 103,
+          "text": "Blender quit"
+        }
+      ]
+    },
+    "pure": {
+      "local_source": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-finalizer-pure.log",
+      "sha256": "f9cac1bee3d6475c50fae917c551081f3ffee04f1f548ae1eddc6011559a9c74",
+      "total_lines": 37,
+      "lines": [
+        {
+          "line": 1,
+          "text": "test_absent_matrix_defaults_to_identity (test_o3d_export_support.DecoderTests.test_absent_matrix_defaults_to_identity) ... ok"
+        },
+        {
+          "line": 2,
+          "text": "test_complete_v7_values_and_both_section_orders (test_o3d_export_support.DecoderTests.test_complete_v7_values_and_both_section_orders) ... ok"
+        },
+        {
+          "line": 3,
+          "text": "test_exact_eof_unknown_tag_and_duplicate_section (test_o3d_export_support.DecoderTests.test_exact_eof_unknown_tag_and_duplicate_section) ... ok"
+        },
+        {
+          "line": 4,
+          "text": "test_legacy_v1_counts_short_triangles_and_values (test_o3d_export_support.DecoderTests.test_legacy_v1_counts_short_triangles_and_values) ... ok"
+        },
+        {
+          "line": 5,
+          "text": "test_oriented_surface_ignores_numbering_and_cyclic_rotation_not_reversal (test_o3d_export_support.DecoderTests.test_oriented_surface_ignores_numbering_and_cyclic_rotation_not_reversal) ... ok"
+        },
+        {
+          "line": 6,
+          "text": "test_oriented_surface_uses_material_identity_not_slot_index (test_o3d_export_support.DecoderTests.test_oriented_surface_uses_material_identity_not_slot_index) ... ok"
+        },
+        {
+          "line": 7,
+          "text": "test_polygon_tessellation_deltas_remain_observable (test_o3d_export_support.DecoderTests.test_polygon_tessellation_deltas_remain_observable) ... ok"
+        },
+        {
+          "line": 8,
+          "text": "test_rejects_encryption_magic_and_unsupported_version (test_o3d_export_support.DecoderTests.test_rejects_encryption_magic_and_unsupported_version) ... ok"
+        },
+        {
+          "line": 9,
+          "text": "test_truncation_at_each_record_and_string_boundary (test_o3d_export_support.DecoderTests.test_truncation_at_each_record_and_string_boundary) ... ok"
+        },
+        {
+          "line": 10,
+          "text": "test_versions_and_triangle_width_do_not_widen_skin (test_o3d_export_support.DecoderTests.test_versions_and_triangle_width_do_not_widen_skin) ... ok"
+        },
+        {
+          "line": 11,
+          "text": "test_255_byte_material_name_is_exactly_aligned (test_o3dconvert.O3DCodecParityTests.test_255_byte_material_name_is_exactly_aligned) ... ok"
+        },
+        {
+          "line": 12,
+          "text": "test_encrypted_round_trip_uses_vertex_count_not_version (test_o3dconvert.O3DCodecParityTests.test_encrypted_round_trip_uses_vertex_count_not_version) ... ok"
+        },
+        {
+          "line": 13,
+          "text": "test_encryption_rejects_unsupported_combinations (test_o3dconvert.O3DCodecParityTests.test_encryption_rejects_unsupported_combinations) ... ok"
+        },
+        {
+          "line": 14,
+          "text": "test_export_rejects_empty_geometry_before_writing (test_o3dconvert.O3DCodecParityTests.test_export_rejects_empty_geometry_before_writing) ... ok"
+        },
+        {
+          "line": 15,
+          "text": "test_export_rejects_overlong_material_names_before_writing (test_o3dconvert.O3DCodecParityTests.test_export_rejects_overlong_material_names_before_writing) ... ok"
+        },
+        {
+          "line": 16,
+          "text": "test_export_rejects_unsupported_versions_before_writing (test_o3dconvert.O3DCodecParityTests.test_export_rejects_unsupported_versions_before_writing) ... ok"
+        },
+        {
+          "line": 17,
+          "text": "test_import_preserves_raw_specular_power (test_o3dconvert.O3DCodecParityTests.test_import_preserves_raw_specular_power) ... ok"
+        },
+        {
+          "line": 18,
+          "text": "test_import_rejects_bad_or_truncated_headers (test_o3dconvert.O3DCodecParityTests.test_import_rejects_bad_or_truncated_headers) ... ok"
+        },
+        {
+          "line": 19,
+          "text": "test_pre_v3_defaults_to_short_triangle_indices (test_o3dconvert.O3DCodecParityTests.test_pre_v3_defaults_to_short_triangle_indices) ... ok"
+        },
+        {
+          "line": 20,
+          "text": "test_trailing_unknown_section_is_consumed (test_o3dconvert.O3DCodecParityTests.test_trailing_unknown_section_is_consumed) ... ok"
+        },
+        {
+          "line": 21,
+          "text": "test_unavailable_crypto_rejects_encrypted_export (test_o3dconvert.O3DCodecParityTests.test_unavailable_crypto_rejects_encrypted_export) ... ok"
+        },
+        {
+          "line": 22,
+          "text": "test_unknown_section_continues_native_dispatch_by_default (test_o3dconvert.O3DCodecParityTests.test_unknown_section_continues_native_dispatch_by_default) ... ok"
+        },
+        {
+          "line": 23,
+          "text": "test_build_and_validate_package (test_pack.TestManifestParsing.test_build_and_validate_package) ... ok"
+        },
+        {
+          "line": 24,
+          "text": "test_cli_custom_output (test_pack.TestManifestParsing.test_cli_custom_output) ... ok"
+        },
+        {
+          "line": 25,
+          "text": "test_cli_dry_run (test_pack.TestManifestParsing.test_cli_dry_run) ... ok"
+        },
+        {
+          "line": 26,
+          "text": "test_cli_help (test_pack.TestManifestParsing.test_cli_help) ... ok"
+        },
+        {
+          "line": 27,
+          "text": "test_collect_files (test_pack.TestManifestParsing.test_collect_files) ... ok"
+        },
+        {
+          "line": 28,
+          "text": "test_dry_run (test_pack.TestManifestParsing.test_dry_run) ... ok"
+        },
+        {
+          "line": 29,
+          "text": "test_is_excluded (test_pack.TestManifestParsing.test_is_excluded) ... ok"
+        },
+        {
+          "line": 30,
+          "text": "test_read_manifest_valid (test_pack.TestManifestParsing.test_read_manifest_valid) ... ok"
+        },
+        {
+          "line": 31,
+          "text": ""
+        },
+        {
+          "line": 32,
+          "text": "----------------------------------------------------------------------"
+        },
+        {
+          "line": 33,
+          "text": "Ran 30 tests in 0.066s"
+        },
+        {
+          "line": 34,
+          "text": ""
+        },
+        {
+          "line": 35,
+          "text": "OK"
+        },
+        {
+          "line": 36,
+          "text": "[O3DConvert] unexpected O3D section 0x0 at offset 0xf1"
+        },
+        {
+          "line": 37,
+          "text": "[O3DConvert] unexpected O3D section 0x0 at offset 0x6d"
+        }
+      ]
+    },
+    "smoke": {
+      "local_source": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-finalizer-smoke.log",
+      "sha256": "9ee29877eb467fc1ae7a64832f0a876ef9eb6f05edbd21d200f7679d049358c8",
+      "total_lines": 728,
+      "lines": [
+        {
+          "line": 265,
+          "text": "Error: Bone name '\u4e0a\u534a\u8eab' is not CP1252 encodable"
+        },
+        {
+          "line": 271,
+          "text": "Error: Export readiness: error (6 findings)"
+        },
+        {
+          "line": 317,
+          "text": "Error: injected material failure"
+        },
+        {
+          "line": 319,
+          "text": "Error: injected material commit failure"
+        },
+        {
+          "line": 321,
+          "text": "Error: injected material source lookup failure"
+        },
+        {
+          "line": 323,
+          "text": "Error: injected material source lookup failure"
+        },
+        {
+          "line": 327,
+          "text": "Error: injected all-material failure"
+        },
+        {
+          "line": 337,
+          "text": "Error: injected all-material failure"
+        },
+        {
+          "line": 349,
+          "text": "Error: injected all-material failure"
+        },
+        {
+          "line": 368,
+          "text": "Error: injected conversion UI commit failure"
+        },
+        {
+          "line": 373,
+          "text": "Error: injected conversion UI commit failure"
+        },
+        {
+          "line": 379,
+          "text": "Error: mesh is already converted"
+        },
+        {
+          "line": 389,
+          "text": "Error: LOD factors must strictly descend to zero"
+        },
+        {
+          "line": 395,
+          "text": "Error: mesh must be a mesh object"
+        },
+        {
+          "line": 611,
+          "text": "Error: Human readiness refused: Human measurements are unresolved: Missing neck landmark; supply a numeric neck override; Missing finger landmark; supply a numeric finger override"
+        },
+        {
+          "line": 614,
+          "text": "Error: Human readiness refused: injected invalid serialized human geometry"
+        },
+        {
+          "line": 615,
+          "text": "Error: Human readiness refused: Human mass must be positive; seat height and feet distance must be nonnegative"
+        },
+        {
+          "line": 618,
+          "text": "Error: Human readiness refused: Human Canonical: switch to Object Mode before human export; pending edits are unsupported"
+        },
+        {
+          "line": 622,
+          "text": "Error: Human export refused: Human output already exists; explicit overwrite consent required: '/tmp/omsi-human-native-errors-sgkwp7lv/native.cfg'"
+        },
+        {
+          "line": 631,
+          "text": "Error: Human readiness refused: Human measurements are unresolved: Human height requires nonempty primary character meshes, not physics/LODs"
+        },
+        {
+          "line": 632,
+          "text": "Error: Human readiness refused: Human export requires one rig, not multiple unrelated rigs"
+        },
+        {
+          "line": 633,
+          "text": "Error: Human export refused: Source Mesh is not bound exclusively to the target armature"
+        },
+        {
+          "line": 680,
+          "text": "HUMAN_CHECK_OK assert_multiple_collection_lods"
+        },
+        {
+          "line": 681,
+          "text": "[O3D_Export] Exporting Human Mesh.016..."
+        },
+        {
+          "line": 682,
+          "text": "[O3D_Export] Exported 1 models in 0.0012831687927246094 seconds!"
+        },
+        {
+          "line": 683,
+          "text": "HUMAN_COORDINATE_GOLDEN_OK HUM=(0.5,0.5,4.025) O3D=(0.5,4.025,0.5)"
+        },
+        {
+          "line": 684,
+          "text": "HUMAN_CHECK_OK assert_coordinate_golden"
+        },
+        {
+          "line": 685,
+          "text": "Info: Saved as \"metadata.blend\""
+        },
+        {
+          "line": 686,
+          "text": "HUMAN_METADATA_RELOAD_OK"
+        },
+        {
+          "line": 687,
+          "text": "HUMAN_CHECK_OK assert_save_reload"
+        },
+        {
+          "line": 688,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'helper\ud83d\ude00' from armature-backed O3D export"
+        },
+        {
+          "line": 689,
+          "text": "[O3D_Export] Exporting Human Mesh.013..."
+        },
+        {
+          "line": 690,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'helper\ud83d\ude00' from armature-backed O3D export"
+        },
+        {
+          "line": 691,
+          "text": "[O3D_Export] Exporting body_low..."
+        },
+        {
+          "line": 692,
+          "text": "[O3D_Export] Exported 2 models in 0.003519296646118164 seconds!"
+        },
+        {
+          "line": 693,
+          "text": "HUMAN_CHECK_OK assert_export_bundle"
+        },
+        {
+          "line": 694,
+          "text": "HUMAN_CHECK_OK assert_export_finite_edit_preflight"
+        },
+        {
+          "line": 695,
+          "text": "HUMAN_CHECK_OK assert_export_nan_edit_preflight"
+        },
+        {
+          "line": 696,
+          "text": "HUMAN_CHECK_OK assert_export_rig_edit_preflight"
+        },
+        {
+          "line": 697,
+          "text": "[O3D_Export] Exporting Human Mesh.013..."
+        },
+        {
+          "line": 698,
+          "text": "[O3D_Export] Exported 1 models in 0.0014681816101074219 seconds!"
+        },
+        {
+          "line": 699,
+          "text": "HUMAN_CHECK_OK assert_export_candidates"
+        },
+        {
+          "line": 700,
+          "text": "HUMAN_CHECK_OK assert_export_preflight"
+        },
+        {
+          "line": 701,
+          "text": "HUMAN_CHECK_OK assert_export_alias_parent_preflight"
+        },
+        {
+          "line": 702,
+          "text": "HUMAN_CHECK_OK assert_export_alias_suffix_preflight"
+        },
+        {
+          "line": 703,
+          "text": "HUMAN_CHECK_OK assert_export_transform_preflight"
+        },
+        {
+          "line": 704,
+          "text": "HUMAN_CHECK_OK assert_export_texture_preflight"
+        },
+        {
+          "line": 705,
+          "text": "[O3D_Export] Exporting Human Mesh.013..."
+        },
+        {
+          "line": 706,
+          "text": "[O3D_Export] Exporting Human Mesh.013..."
+        },
+        {
+          "line": 707,
+          "text": "[O3D_Export] Exporting Human Mesh.013..."
+        },
+        {
+          "line": 708,
+          "text": "[O3D_Export] Exported 1 models in 0.0023190975189208984 seconds!"
+        },
+        {
+          "line": 709,
+          "text": "HUMAN_CHECK_OK assert_export_io_failure"
+        },
+        {
+          "line": 710,
+          "text": "HUMAN_SUPPLIED_PHYSICS_OK 51 34 {'skirt': 19, 'hair': 14, 'accessory': 1}"
+        },
+        {
+          "line": 711,
+          "text": "HUMAN_CHECK_OK assert_supplied_physics"
+        },
+        {
+          "line": 712,
+          "text": "[MMD_Rig] PS - Croire Bestie Mizuki_mesh: mapping ignored=2 proximity=33 extras=0"
+        },
+        {
+          "line": 713,
+          "text": "[MMD_Rig] PS - Croire Bestie Mizuki_mesh: weights mass=29842 discarded_mass=17905 ignored=23873 zero=0"
+        },
+        {
+          "line": 714,
+          "text": "[MMD_Rig] unbound bones: []"
+        },
+        {
+          "line": 715,
+          "text": "[MMD_Rig] unused bones: []"
+        },
+        {
+          "line": 716,
+          "text": "Info: Converted 11937 vertices to 13 bones"
+        },
+        {
+          "line": 717,
+          "text": "Info: Measurements refreshed"
+        },
+        {
+          "line": 718,
+          "text": "Info: Readiness passed; chosen destination is revalidated on export"
+        },
+        {
+          "line": 719,
+          "text": "[O3D_Export] Exporting PS - Croire Bestie Mizuki_mesh Converted..."
+        },
+        {
+          "line": 720,
+          "text": "[O3D_Export] Exported 1 models in 0.6691181659698486 seconds!"
+        },
+        {
+          "line": 721,
+          "text": "Info: Exported: /tmp/omsi-human-fixture-panel-omykbya6/fixture.hum"
+        },
+        {
+          "line": 722,
+          "text": "HUMAN_FIXTURE_PANEL_BUNDLE_OK 22 1 1.8552980422973633"
+        },
+        {
+          "line": 723,
+          "text": "HUMAN_FIXTURE_HASH_UNCHANGED 644fd4743f202dcd336e89848a9de42bb513da7cb553396f471b81369ac88622"
+        },
+        {
+          "line": 724,
+          "text": "HUMAN_CHECK_OK assert_supplied_panel_bundle"
+        },
+        {
+          "line": 725,
+          "text": "BLENDER_O3D_IO_SMOKE_OK 5.0.1"
+        },
+        {
+          "line": 726,
+          "text": "Blender 5.0.1 (hash a3db93c5b259 built 2025-12-16 01:30:59)"
+        },
+        {
+          "line": 727,
+          "text": ""
+        },
+        {
+          "line": 728,
+          "text": "Blender quit"
+        }
+      ]
+    }
+  },
+  "geometry_cases": [
+    {
+      "group": "custom_normal",
+      "case": "oblique_triangle",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "literal oblique XZY normal contract",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "flat_wedge",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "smooth_wedge",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "uv_seam",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "nonplanar_quad",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "concave_ngon",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "custom_quad",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "custom_ngon",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "flat_transform",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "smooth_transform",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "custom_normal",
+      "case": "degenerate_face",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "identity",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "literal oblique XZY normal contract",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "positive_scale",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "negative_scale",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "nonuniform_scale",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "translation",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        },
+        {
+          "name": "translation cannot enter normal direction",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "euler_rotation",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "quaternion_rotation",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "parent_transform",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "global_scale",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "weighted_rest",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        },
+        {
+          "name": "rest weights, filtered helpers and modifier restoration",
+          "status": "PASS"
+        },
+        {
+          "name": "success and induced failure restore context/pose/source",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "evaluated_weights",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "rest weights, filtered helpers and modifier restoration",
+          "status": "PASS"
+        },
+        {
+          "name": "success and induced failure restore context/pose/source",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "custom_disabled",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "zero_scale",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "singular_line",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "singular_point",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "near_singular",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "selection mode and active object unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "prepared tuple and directly consumed GCM baked mesh",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "finite unit normal directions",
+          "status": "PASS"
+        },
+        {
+          "name": "one source direction across equivalent corners",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "group": "transforms",
+      "case": "empty_preserves_destination",
+      "status": "PASS",
+      "failures": [],
+      "checks": [
+        {
+          "name": "rejected empty export preserves sentinel",
+          "status": "PASS"
+        }
+      ],
+      "sentinel": {
+        "after_hex": "6b656570206578697374696e67206f757470757400ff",
+        "before_hex": "6b656570206578697374696e67206f757470757400ff",
+        "error": "O3D export requires at least one vertex"
+      }
+    }
+  ],
+  "geometry_counts": {
+    "custom_normal": 11,
+    "transforms": 17,
+    "passing": 28,
+    "failing": 0
+  },
+  "inherited_red": {
+    "attribution": "Original implementer execution retained, not rerun by finalizer. Log shows real assertion failure and script failure. Exact historical shell exit was not collected by finalizer.",
+    "executed_baseline_commit": "b585e514038309f380ae519c9f05f2956c3206a5",
+    "executed_baseline_source_sha256": {
+      "o3d_io/io_o3d_export.py": "11550df0dbface1c7c5fc0b547e84c1506de74d088cdcb9900a6509921881af4",
+      "o3d_io/blender_compat.py": "679c1b236d3c2d3745843e28f8a7d02c1c29c985244dcb5fea0002fc9ee82f5a"
+    },
+    "harness": {
+      "local_source": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-baseline-check.py",
+      "sha256": "389bd39f8b7457e876dc85c23f9cdfeb6ceeca169e4a40f18ba88d6e0e8048c6",
+      "total_lines": 19,
+      "lines": [
+        {
+          "line": 1,
+          "text": "\"\"\"Run current focused tests against git baseline modules without editing source.\"\"\""
+        },
+        {
+          "line": 2,
+          "text": "from pathlib import Path"
+        },
+        {
+          "line": 3,
+          "text": "import subprocess"
+        },
+        {
+          "line": 4,
+          "text": "import sys"
+        },
+        {
+          "line": 5,
+          "text": "sys.path.insert(0, str(Path.cwd() / 'tests'))"
+        },
+        {
+          "line": 6,
+          "text": "import smoke_export_fidelity as fidelity"
+        },
+        {
+          "line": 7,
+          "text": "from smoke_support import load_addon"
+        },
+        {
+          "line": 8,
+          "text": "addon = load_addon()"
+        },
+        {
+          "line": 9,
+          "text": "for name in ('blender_compat', 'io_o3d_export'):"
+        },
+        {
+          "line": 10,
+          "text": "    module = getattr(addon.o3d_io, name)"
+        },
+        {
+          "line": 11,
+          "text": "    path = 'o3d_io/' + name + '.py'"
+        },
+        {
+          "line": 12,
+          "text": "    original = subprocess.check_output(['git', 'show', 'b585e514038309f380ae519c9f05f2956c3206a5:' + path], text=True)"
+        },
+        {
+          "line": 13,
+          "text": "    exec(compile(original, path + '@baseline', 'exec'), module.__dict__)"
+        },
+        {
+          "line": 14,
+          "text": "fidelity.OUTPUT_DIR = Path('.superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-scratch/final-red')"
+        },
+        {
+          "line": 15,
+          "text": "addon.register()"
+        },
+        {
+          "line": 16,
+          "text": "try:"
+        },
+        {
+          "line": 17,
+          "text": "    fidelity.run_checks(addon, ['custom_normal', 'transforms'])"
+        },
+        {
+          "line": 18,
+          "text": "finally:"
+        },
+        {
+          "line": 19,
+          "text": "    addon.unregister()"
+        }
+      ]
+    },
+    "log": {
+      "local_source": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-final-red.log",
+      "sha256": "942323a4130399f088a70c08c0513c8a8071a28eb1b06c8fbc795cd2f408c64f",
+      "total_lines": 147,
+      "lines": [
+        {
+          "line": 1,
+          "text": "Blender 5.0.1 (hash a3db93c5b259 built 2025-12-16 01:30:59)"
+        },
+        {
+          "line": 2,
+          "text": "Traceback (most recent call last):"
+        },
+        {
+          "line": 3,
+          "text": "  File \"/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-baseline-check.py\", line 17, in <module>"
+        },
+        {
+          "line": 4,
+          "text": "    fidelity.run_checks(addon, ['custom_normal', 'transforms'])"
+        },
+        {
+          "line": 5,
+          "text": "  File \"/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py\", line 727, in run_checks"
+        },
+        {
+          "line": 6,
+          "text": "    assert not failures, '\\n'.join(failures) + f'\\nAll configured case manifests saved in {output}'"
+        },
+        {
+          "line": 7,
+          "text": "           ^^^^^^^^^^^^"
+        },
+        {
+          "line": 8,
+          "text": "AssertionError: custom_normal/oblique_triangle: literal oblique XZY normal contract: AssertionError: ((-0.28855395317077637, 0.7216354608535767, -0.6292686462402344), (0.3, 0.8660254037844386, 0.4))"
+        },
+        {
+          "line": 9,
+          "text": "custom_normal/oblique_triangle: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, -0.288510799407959, 0.7216315865516663, -0.6292927265167236, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.2999740242958069, 0.8660211563110352, 0.400028795003891, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 10,
+          "text": "custom_normal/nonplanar_quad: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.0, 0.0, 0.0, -0.0, 1.0, -0.0, 0.12999999523162842, 0.7900000214576721), [(0.0, 0.0, 0.0, -0.08587179332971573, 0.981391966342926, -0.17174358665943146, 0.12999999523162842, 0.7900000065565109)])"
+        },
+        {
+          "line": 11,
+          "text": "custom_normal/nonplanar_quad: oriented triangles under established export basis: AssertionError: ('unexpected oriented triangle', [(0.0, 0.0, 0.0, 0.12999999523162842, 0.7900000214576721), (0.0, 0.0, 1.0, 0.12999999523162842, 0.7900000214576721), (2.0, 0.0, 0.0, 0.8100000023841858, 0.6800000071525574)], [[(2.0, 0.3499999940395355, 1.0, 0.27000001072883606, 0.11000001430511475), (2.0, 0.0, 0.0, 0.8100000023841858, 0.6800000071525574), (0.0, 0.0, 0.0, 0.12999999523162842, 0.7900000065565109)], [(0.0, 0.0, 1.0, 0.12999999523162842, 0.7900000065565109), (2.0, 0.3499999940395355, 1.0, 0.27000001072883606, 0.11000001430511475), (0.0, 0.0, 0.0, 0.12999999523162842, 0.7900000065565109)]])"
+        },
+        {
+          "line": 12,
+          "text": "custom_normal/custom_quad: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.0, 0.0, 0.0, 0.44689005613327026, 0.8518542051315308, -0.27319180965423584, 0.12999999523162842, 0.7900000214576721), [(0.0, 0.0, 0.0, -0.4559566378593445, 0.8755465745925903, 0.15975506603717804, 0.12999999523162842, 0.7900000065565109)])"
+        },
+        {
+          "line": 13,
+          "text": "custom_normal/custom_quad: oriented triangles under established export basis: AssertionError: ('unexpected oriented triangle', [(0.0, 0.0, 0.0, 0.12999999523162842, 0.7900000214576721), (-3.4014668464660645, -1.0669257640838623, -1.8143022060394287, 0.8100000023841858, 0.6800000071525574), (-0.36399102210998535, 0.20580464601516724, 0.5613866448402405, 0.12999999523162842, 0.7900000214576721)], [[(0.0, 0.0, 0.0, 0.12999999523162842, 0.7900000065565109), (-3.4014668464660645, -1.0669257640838623, -1.8143022060394287, 0.8100000023841858, 0.6800000071525574), (-3.804931879043579, -0.4113837778568268, -1.4433836936950684, 0.27000001072883606, 0.11000001430511475)], [(0.0, 0.0, 0.0, 0.12999999523162842, 0.7900000065565109), (-3.804931879043579, -0.4113837778568268, -1.4433836936950684, 0.27000001072883606, 0.11000001430511475), (-0.36399102210998535, 0.20580464601516724, 0.5613866448402405, 0.12999999523162842, 0.7900000065565109)]])"
+        },
+        {
+          "line": 14,
+          "text": "custom_normal/custom_ngon: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (-3.4014668464660645, -1.0669257640838623, -1.8143022060394287, -0.48676082491874695, 0.7967258095741272, -0.35817840695381165, 0.8100000023841858, 0.6800000071525574), [(-3.4014668464660645, -1.0669257640838623, -1.8143022060394287, -0.48647600412368774, 0.862093985080719, 0.14189770817756653, 0.8100000023841858, 0.6800000071525574)])"
+        },
+        {
+          "line": 15,
+          "text": "custom_normal/smooth_transform: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (-3.4014668464660645, -1.0669257640838623, -1.8143022060394287, -0.5040504932403564, 0.6603355407714844, 0.5566778182983398, 0.8100000023841858, 0.6800000071525574), [(-3.4014668464660645, -1.0669257640838623, -1.8143022060394287, -0.5086504817008972, 0.637397825717926, 0.5787909030914307, 0.8100000023841858, 0.6800000071525574)])"
+        },
+        {
+          "line": 16,
+          "text": "custom_normal/degenerate_face: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (1.0, 0.0, 0.0, -0.0, -0.0, -1.0, 0.8100000023841858, 0.6800000071525574), [(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.8100000023841858, 0.6800000071525574)])"
+        },
+        {
+          "line": 17,
+          "text": "transforms/identity: literal oblique XZY normal contract: AssertionError: ((-0.28855395317077637, 0.7216354608535767, -0.6292686462402344), (0.3, 0.8660254037844386, 0.4))"
+        },
+        {
+          "line": 18,
+          "text": "transforms/identity: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, -0.288510799407959, 0.7216315865516663, -0.6292927265167236, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.2999740242958069, 0.8660211563110352, 0.400028795003891, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 19,
+          "text": "transforms/positive_scale: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.6000000238418579, 0.4000000059604645, 2.799999952316284, -0.288510799407959, 0.7216315865516663, -0.6292927265167236, 0.27000001072883606, 0.11000001430511475), [(0.6000000238418579, 0.4000000059604645, 2.799999952316284, 0.2999740242958069, 0.8660211563110352, 0.400028795003891, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 20,
+          "text": "transforms/negative_scale: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (-2.0, 0.0, 0.10000000149011612, -0.06167358532547951, 0.8784106373786926, 0.47391068935394287, 0.8100000023841858, 0.6800000071525574), [(-2.0, 0.0, 0.10000000149011612, -0.29998254776000977, 0.8660203218460083, 0.40002405643463135, 0.8100000023841858, 0.6800000071525574)])"
+        },
+        {
+          "line": 21,
+          "text": "transforms/negative_scale: one source direction across equivalent corners: AssertionError: ((-0.5662504434585571, 0.7604086399078369, -0.31802400946617126), (0.5540893077850342, 0.7680625915527344, -0.32103732228279114))"
+        },
+        {
+          "line": 22,
+          "text": "transforms/nonuniform_scale: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.6000000238418579, 0.2800000011920929, 0.9799999594688416, -0.2092534899711609, 0.6167771816253662, -0.7588140964508057, 0.27000001072883606, 0.11000001430511475), [(0.6000000238418579, 0.2800000011920929, 0.9799999594688416, 0.1753396987915039, 0.7231478095054626, 0.6680667400360107, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 23,
+          "text": "transforms/nonuniform_scale: one source direction across equivalent corners: AssertionError: ((-0.1362159252166748, 0.6101477742195129, -0.7804901599884033), (-0.4120720624923706, 0.6536158919334412, -0.6348092555999756))"
+        },
+        {
+          "line": 24,
+          "text": "transforms/translation: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (2.299999952316284, 4.199999809265137, -1.600000023841858, -0.288510799407959, 0.7216317057609558, -0.6292927265167236, 0.27000001072883606, 0.11000001430511475), [(2.299999952316284, 4.199999809265137, -1.600000023841858, 0.2999740242958069, 0.8660211563110352, 0.400028795003891, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 25,
+          "text": "transforms/euler_rotation: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (-0.4889838695526123, 0.6751949787139893, 1.1811038255691528, 0.02375003695487976, 0.40036487579345703, -0.9160481095314026, 0.27000001072883606, 0.11000001430511475), [(-0.4889838695526123, 0.6751949787139893, 1.1811038255691528, -0.022687992081046104, 0.9924849271774292, 0.12024492025375366, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 26,
+          "text": "transforms/quaternion_rotation: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (-0.4889838695526123, 0.6751949787139893, 1.1811038255691528, 0.02375003695487976, 0.40036487579345703, -0.9160481095314026, 0.27000001072883606, 0.11000001430511475), [(-0.4889838695526123, 0.6751949787139893, 1.1811038255691528, -0.022687992081046104, 0.9924849271774292, 0.12024492025375366, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 27,
+          "text": "transforms/parent_transform: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (1.9309923648834229, 4.998435974121094, -1.9144753217697144, 0.023750215768814087, 0.4003642201423645, -0.9160483479499817, 0.27000001072883606, 0.11000001430511475), [(1.9309923648834229, 4.998435974121094, -1.9144753217697144, -0.022687992081046104, 0.9924849271774292, 0.12024492025375366, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 28,
+          "text": "transforms/global_scale: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.6000000238418579, 0.4000000059604645, 2.799999952316284, -0.288510799407959, 0.7216315865516663, -0.6292927265167236, 0.27000001072883606, 0.11000001430511475), [(0.6000000238418579, 0.4000000059604645, 2.799999952316284, 0.2999740242958069, 0.8660211563110352, 0.400028795003891, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 29,
+          "text": "transforms/weighted_rest: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.20000000298023224, 0.0, 1.2999999523162842, -0.29996830224990845, 0.8660333752632141, -0.4000064432621002, 0.30000001192092896, 0.10000002384185791), [(0.20000000298023224, 0.0, 1.2999999523162842, 0.29996830224990845, 0.8660333752632141, 0.4000064432621002, 0.30000001192092896, 0.10000002384185791)])"
+        },
+        {
+          "line": 30,
+          "text": "transforms/weighted_rest: one source direction across equivalent corners: AssertionError: ((-0.4217749834060669, 0.06655542552471161, 0.9042546153068542), (-0.5370986461639404, -0.42422935366630554, 0.7290778160095215))"
+        },
+        {
+          "line": 31,
+          "text": "transforms/weighted_rest: rest weights, filtered helpers and modifier restoration: AssertionError: ((0.0, 0.0, 0.0, -0.5370986461639404, -0.42422935366630554, 0.7290778160095215, 0.10000000149011612, 0.800000011920929), [])"
+        },
+        {
+          "line": 32,
+          "text": "transforms/weighted_rest: success and induced failure restore context/pose/source: AssertionError: induced codec failure truncated destination"
+        },
+        {
+          "line": 33,
+          "text": "transforms/evaluated_weights: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (-3.001466751098633, -0.7669257521629333, -2.0143022537231445, -0.022262759506702423, 0.980651319026947, 0.19449281692504883, 0.800000011920929, 0.800000011920929), [(-3.001466751098633, -0.7669257521629333, -2.0143022537231445, -0.5547600984573364, 0.8133704662322998, 0.17512759566307068, 0.800000011920929, 0.7999999970197678)])"
+        },
+        {
+          "line": 34,
+          "text": "transforms/evaluated_weights: rest weights, filtered helpers and modifier restoration: AssertionError: ((0.4000000059604645, 0.30000001192092896, -0.20000000298023224, 0.5988172888755798, 0.8007720112800598, 0.013497456908226013, 0.10000000149011612, 0.800000011920929), [])"
+        },
+        {
+          "line": 35,
+          "text": "transforms/evaluated_weights: success and induced failure restore context/pose/source: AssertionError: induced codec failure truncated destination"
+        },
+        {
+          "line": 36,
+          "text": "transforms/custom_disabled: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, -0.2885299623012543, 0.7215985059738159, -0.629321813583374, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 37,
+          "text": "transforms/zero_scale: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.0, 0.20000000298023224, 1.399999976158142, 0.8020808100700378, 0.08445904403924942, 0.5912132263183594, 0.27000001072883606, 0.11000001430511475), [(0.0, 0.20000000298023224, 1.399999976158142, 0.0, 0.0, 0.0, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 38,
+          "text": "transforms/zero_scale: finite unit normal directions: AssertionError: (0.0, 0.0, 0.0, 0.8020808100700378, -0.06482530385255814, -0.5936868786811829, 0.12999999523162842, 0.7900000214576721)"
+        },
+        {
+          "line": 39,
+          "text": "transforms/singular_line: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.0, 0.20000000298023224, 0.0, -0.0, 0.5972155332565308, -0.8020808100700378, 0.27000001072883606, 0.11000001430511475), [(0.0, 0.20000000298023224, 0.0, 0.0, 0.0, 0.0, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 40,
+          "text": "transforms/singular_line: finite unit normal directions: AssertionError: (0.0, 0.0, 0.0, -0.0, -0.0, -0.8020808100700378, 0.12999999523162842, 0.7900000214576721)"
+        },
+        {
+          "line": 41,
+          "text": "transforms/singular_point: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.0, 0.0, 0.0, -0.0, -0.0, -0.8020808100700378, 0.27000001072883606, 0.11000001430511475), [(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 42,
+          "text": "transforms/singular_point: finite unit normal directions: AssertionError: (0.0, 0.0, 0.0, -0.0, -0.0, -0.8020808100700378, 0.12999999523162842, 0.7900000214576721)"
+        },
+        {
+          "line": 43,
+          "text": "transforms/near_singular: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (3.000000026176508e-09, 0.2800000011920929, 0.9799999594688416, 0.8020802736282349, 0.4128776788711548, -0.4315081834793091, 0.27000001072883606, 0.11000001430511475), [(3.000000026176508e-09, 0.2800000011920929, 0.9799999594688416, 1.0, 2.062133575009284e-08, 1.9050638400130993e-08, 0.27000001072883606, 0.11000001430511475)])"
+        },
+        {
+          "line": 44,
+          "text": "transforms/near_singular: one source direction across equivalent corners: AssertionError: ((0.8020803332328796, 0.32845044136047363, -0.4987860321998596), (0.8020807504653931, -0.1264365166425705, -0.5836782455444336))"
+        },
+        {
+          "line": 45,
+          "text": "transforms/empty_preserves_destination: rejected empty export preserves sentinel: AssertionError: ('rejected empty export destroyed existing bytes', b'')"
+        },
+        {
+          "line": 46,
+          "text": "All configured case manifests saved in /mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-scratch/final-red"
+        },
+        {
+          "line": 47,
+          "text": "[O3D_IO] Registering Blender-O3D-IO version: (1, 3, 4)..."
+        },
+        {
+          "line": 48,
+          "text": "[O3D_Export] Exporting oblique_triangle..."
+        },
+        {
+          "line": 49,
+          "text": "[O3D_Export] Exported 1 models in 0.014298200607299805 seconds!"
+        },
+        {
+          "line": 50,
+          "text": "FIDELITY custom_normal/oblique_triangle: FAIL"
+        },
+        {
+          "line": 51,
+          "text": "[O3D_Export] Exporting flat_wedge..."
+        },
+        {
+          "line": 52,
+          "text": "[O3D_Export] Exported 1 models in 0.008545398712158203 seconds!"
+        },
+        {
+          "line": 53,
+          "text": "FIDELITY custom_normal/flat_wedge: PASS"
+        },
+        {
+          "line": 54,
+          "text": "[O3D_Export] Exporting smooth_wedge..."
+        },
+        {
+          "line": 55,
+          "text": "[O3D_Export] Exported 1 models in 0.006895542144775391 seconds!"
+        },
+        {
+          "line": 56,
+          "text": "FIDELITY custom_normal/smooth_wedge: PASS"
+        },
+        {
+          "line": 57,
+          "text": "[O3D_Export] Exporting uv_seam..."
+        },
+        {
+          "line": 58,
+          "text": "[O3D_Export] Exported 1 models in 0.010064125061035156 seconds!"
+        },
+        {
+          "line": 59,
+          "text": "FIDELITY custom_normal/uv_seam: PASS"
+        },
+        {
+          "line": 60,
+          "text": "[O3D_Export] Exporting nonplanar_quad..."
+        },
+        {
+          "line": 61,
+          "text": "[O3D_Export] Exported 1 models in 0.008827447891235352 seconds!"
+        },
+        {
+          "line": 62,
+          "text": "FIDELITY custom_normal/nonplanar_quad: FAIL"
+        },
+        {
+          "line": 63,
+          "text": "[O3D_Export] Exporting concave_ngon..."
+        },
+        {
+          "line": 64,
+          "text": "[O3D_Export] Exported 1 models in 0.006504058837890625 seconds!"
+        },
+        {
+          "line": 65,
+          "text": "FIDELITY custom_normal/concave_ngon: PASS"
+        },
+        {
+          "line": 66,
+          "text": "[O3D_Export] Exporting custom_quad..."
+        },
+        {
+          "line": 67,
+          "text": "[O3D_Export] Exported 1 models in 0.005107402801513672 seconds!"
+        },
+        {
+          "line": 68,
+          "text": "FIDELITY custom_normal/custom_quad: FAIL"
+        },
+        {
+          "line": 69,
+          "text": "[O3D_Export] Exporting custom_ngon..."
+        },
+        {
+          "line": 70,
+          "text": "[O3D_Export] Exported 1 models in 0.008076667785644531 seconds!"
+        },
+        {
+          "line": 71,
+          "text": "FIDELITY custom_normal/custom_ngon: FAIL"
+        },
+        {
+          "line": 72,
+          "text": "[O3D_Export] Exporting flat_transform..."
+        },
+        {
+          "line": 73,
+          "text": "[O3D_Export] Exported 1 models in 0.007758378982543945 seconds!"
+        },
+        {
+          "line": 74,
+          "text": "FIDELITY custom_normal/flat_transform: PASS"
+        },
+        {
+          "line": 75,
+          "text": "[O3D_Export] Exporting smooth_transform..."
+        },
+        {
+          "line": 76,
+          "text": "[O3D_Export] Exported 1 models in 0.005118131637573242 seconds!"
+        },
+        {
+          "line": 77,
+          "text": "FIDELITY custom_normal/smooth_transform: FAIL"
+        },
+        {
+          "line": 78,
+          "text": "[O3D_Export] Exporting degenerate_face..."
+        },
+        {
+          "line": 79,
+          "text": "[O3D_Export] Exported 1 models in 0.007572650909423828 seconds!"
+        },
+        {
+          "line": 80,
+          "text": "FIDELITY custom_normal/degenerate_face: FAIL"
+        },
+        {
+          "line": 81,
+          "text": "[O3D_Export] Exporting identity..."
+        },
+        {
+          "line": 82,
+          "text": "[O3D_Export] Exported 1 models in 0.005218505859375 seconds!"
+        },
+        {
+          "line": 83,
+          "text": "FIDELITY transforms/identity: FAIL"
+        },
+        {
+          "line": 84,
+          "text": "[O3D_Export] Exporting positive_scale..."
+        },
+        {
+          "line": 85,
+          "text": "[O3D_Export] Exported 1 models in 0.0039212703704833984 seconds!"
+        },
+        {
+          "line": 86,
+          "text": "FIDELITY transforms/positive_scale: FAIL"
+        },
+        {
+          "line": 87,
+          "text": "[O3D_Export] Exporting negative_scale..."
+        },
+        {
+          "line": 88,
+          "text": "[O3D_Export] Exported 1 models in 0.008202552795410156 seconds!"
+        },
+        {
+          "line": 89,
+          "text": "FIDELITY transforms/negative_scale: FAIL"
+        },
+        {
+          "line": 90,
+          "text": "[O3D_Export] Exporting nonuniform_scale..."
+        },
+        {
+          "line": 91,
+          "text": "[O3D_Export] Exported 1 models in 0.004860877990722656 seconds!"
+        },
+        {
+          "line": 92,
+          "text": "FIDELITY transforms/nonuniform_scale: FAIL"
+        },
+        {
+          "line": 93,
+          "text": "[O3D_Export] Exporting translation..."
+        },
+        {
+          "line": 94,
+          "text": "[O3D_Export] Exported 1 models in 0.004306316375732422 seconds!"
+        },
+        {
+          "line": 95,
+          "text": "[O3D_Export] Exporting translation.001..."
+        },
+        {
+          "line": 96,
+          "text": "[O3D_Export] Exported 1 models in 0.006093740463256836 seconds!"
+        },
+        {
+          "line": 97,
+          "text": "FIDELITY transforms/translation: FAIL"
+        },
+        {
+          "line": 98,
+          "text": "[O3D_Export] Exporting euler_rotation..."
+        },
+        {
+          "line": 99,
+          "text": "[O3D_Export] Exported 1 models in 0.008447647094726562 seconds!"
+        },
+        {
+          "line": 100,
+          "text": "FIDELITY transforms/euler_rotation: FAIL"
+        },
+        {
+          "line": 101,
+          "text": "[O3D_Export] Exporting quaternion_rotation..."
+        },
+        {
+          "line": 102,
+          "text": "[O3D_Export] Exported 1 models in 0.006194114685058594 seconds!"
+        },
+        {
+          "line": 103,
+          "text": "FIDELITY transforms/quaternion_rotation: FAIL"
+        },
+        {
+          "line": 104,
+          "text": "[O3D_Export] Exporting parent_transform..."
+        },
+        {
+          "line": 105,
+          "text": "[O3D_Export] Exported 1 models in 0.004790067672729492 seconds!"
+        },
+        {
+          "line": 106,
+          "text": "FIDELITY transforms/parent_transform: FAIL"
+        },
+        {
+          "line": 107,
+          "text": "[O3D_Export] Exporting global_scale..."
+        },
+        {
+          "line": 108,
+          "text": "[O3D_Export] Exported 1 models in 0.007448911666870117 seconds!"
+        },
+        {
+          "line": 109,
+          "text": "FIDELITY transforms/global_scale: FAIL"
+        },
+        {
+          "line": 110,
+          "text": "[O3D_Export] Exporting weighted_rest..."
+        },
+        {
+          "line": 111,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 112,
+          "text": "[O3D_Export] Exported 1 models in 0.004765748977661133 seconds!"
+        },
+        {
+          "line": 113,
+          "text": "[O3D_Export] Exporting weighted_rest..."
+        },
+        {
+          "line": 114,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 115,
+          "text": "[O3D_Export] Exported 1 models in 0.006975412368774414 seconds!"
+        },
+        {
+          "line": 116,
+          "text": "[O3D_Export] Exporting weighted_rest..."
+        },
+        {
+          "line": 117,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 118,
+          "text": "FIDELITY transforms/weighted_rest: FAIL"
+        },
+        {
+          "line": 119,
+          "text": "[O3D_Export] Exporting evaluated_weights..."
+        },
+        {
+          "line": 120,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 121,
+          "text": "[O3D_Export] Exported 1 models in 0.005429983139038086 seconds!"
+        },
+        {
+          "line": 122,
+          "text": "[O3D_Export] Exporting evaluated_weights..."
+        },
+        {
+          "line": 123,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 124,
+          "text": "[O3D_Export] Exported 1 models in 0.006632804870605469 seconds!"
+        },
+        {
+          "line": 125,
+          "text": "[O3D_Export] Exporting evaluated_weights..."
+        },
+        {
+          "line": 126,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 127,
+          "text": "FIDELITY transforms/evaluated_weights: FAIL"
+        },
+        {
+          "line": 128,
+          "text": "[O3D_Export] Exporting custom_disabled..."
+        },
+        {
+          "line": 129,
+          "text": "[O3D_Export] Exported 1 models in 0.005806922912597656 seconds!"
+        },
+        {
+          "line": 130,
+          "text": "FIDELITY transforms/custom_disabled: FAIL"
+        },
+        {
+          "line": 131,
+          "text": "[O3D_Export] Exporting zero_scale..."
+        },
+        {
+          "line": 132,
+          "text": "[O3D_Export] Exported 1 models in 0.003688335418701172 seconds!"
+        },
+        {
+          "line": 133,
+          "text": "FIDELITY transforms/zero_scale: FAIL"
+        },
+        {
+          "line": 134,
+          "text": "[O3D_Export] Exporting singular_line..."
+        },
+        {
+          "line": 135,
+          "text": "[O3D_Export] Exported 1 models in 0.004845857620239258 seconds!"
+        },
+        {
+          "line": 136,
+          "text": "FIDELITY transforms/singular_line: FAIL"
+        },
+        {
+          "line": 137,
+          "text": "[O3D_Export] Exporting singular_point..."
+        },
+        {
+          "line": 138,
+          "text": "[O3D_Export] Exported 1 models in 0.004499673843383789 seconds!"
+        },
+        {
+          "line": 139,
+          "text": "FIDELITY transforms/singular_point: FAIL"
+        },
+        {
+          "line": 140,
+          "text": "[O3D_Export] Exporting near_singular..."
+        },
+        {
+          "line": 141,
+          "text": "[O3D_Export] Exported 1 models in 0.004502058029174805 seconds!"
+        },
+        {
+          "line": 142,
+          "text": "FIDELITY transforms/near_singular: FAIL"
+        },
+        {
+          "line": 143,
+          "text": "FIDELITY transforms/empty_preserves_destination: FAIL"
+        },
+        {
+          "line": 144,
+          "text": ""
+        },
+        {
+          "line": 145,
+          "text": "Error: script failed, file: '.superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-baseline-check.py', exiting."
+        },
+        {
+          "line": 146,
+          "text": ""
+        },
+        {
+          "line": 147,
+          "text": "Blender quit"
+        }
+      ]
+    },
+    "warning": "Harness execs git baseline modules in memory. Fidelity summary hashes read worktree source from disk and MUST NOT identify the executed baseline modules."
+  },
+  "inherited_all_groups": {
+    "attribution": "Original implementer run; not rerun/freshly collected by finalizer. Retained summary source hashes match current exporter/compatibility/codec. Historical focused-test hash and shell exit are not independently bound here.",
+    "summary_local_source": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-scratch/final-all/summary.json",
+    "summary_sha256": "ace927847e713eb259cf1e5a7f7ad6a5185a76776f5a45684cacce4ebbda2fae",
+    "source_sha256": {
+      "o3d_io/blender_compat.py": "47a133985113aaa37f77647f41b9336416f7c3a7dfd599bee2300bf88d24fbbe",
+      "o3d_io/io_o3d_export.py": "b433f9fd53c2f55fe9c96800158010680d845e367a6e8c1b6ab9f4ade94f95d4",
+      "o3d_io/o3dconvert.py": "dd3d6a34bff20494bf8f5bced7cd81815053a35f7d1eae79ada747870969ffc7"
+    },
+    "cases": [
+      {
+        "group": "custom_normal",
+        "case": "oblique_triangle",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "flat_wedge",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "smooth_wedge",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "uv_seam",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "nonplanar_quad",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "concave_ngon",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "custom_quad",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "custom_ngon",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "flat_transform",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "smooth_transform",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "custom_normal",
+        "case": "degenerate_face",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "identity",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "positive_scale",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "negative_scale",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "nonuniform_scale",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "translation",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "euler_rotation",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "quaternion_rotation",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "parent_transform",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "global_scale",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "weighted_rest",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "evaluated_weights",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "custom_disabled",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "zero_scale",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "singular_line",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "singular_point",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "near_singular",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "transforms",
+        "case": "empty_preserves_destination",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "materials",
+        "case": "roughness_0",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "materials",
+        "case": "roughness_half",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "materials",
+        "case": "roughness_1",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "materials",
+        "case": "emission",
+        "status": "FAIL",
+        "failures": [
+          "materials/emission: emission color times strength: AssertionError: (0.20000000298023224, 0.30000001192092896, 0.4000000059604645)"
+        ]
+      },
+      {
+        "group": "materials",
+        "case": "image_alpha",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "uv_mapping",
+        "case": "render_active",
+        "status": "FAIL",
+        "failures": [
+          "uv_mapping/render_active: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.6700000166893005, 0.019999980926513672)])"
+        ]
+      },
+      {
+        "group": "uv_mapping",
+        "case": "named_uv",
+        "status": "FAIL",
+        "failures": [
+          "uv_mapping/named_uv: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.6700000166893005, 0.019999980926513672)])"
+        ]
+      },
+      {
+        "group": "uv_mapping",
+        "case": "mapping_point",
+        "status": "FAIL",
+        "failures": [
+          "uv_mapping/mapping_point: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.4939582347869873, 0.12477678060531616)])"
+        ]
+      },
+      {
+        "group": "uv_mapping",
+        "case": "mapping_texture",
+        "status": "FAIL",
+        "failures": [
+          "uv_mapping/mapping_texture: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.7265059947967529, 0.22561848163604736)])"
+        ]
+      },
+      {
+        "group": "uv_mapping",
+        "case": "mapping_vector",
+        "status": "FAIL",
+        "failures": [
+          "uv_mapping/mapping_vector: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.38395825028419495, 0.054776787757873535)])"
+        ]
+      },
+      {
+        "group": "cfg_materials",
+        "case": "cfg_alpha",
+        "status": "PASS",
+        "failures": []
+      },
+      {
+        "group": "cfg_materials",
+        "case": "cfg_allcolor",
+        "status": "PASS",
+        "failures": []
+      }
+    ],
+    "passing": 34,
+    "failing": 6,
+    "log": {
+      "local_source": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-final-all.log",
+      "sha256": "59d25c1103ad35aba4e88a88e9c00229cc650b766d182fb817efc14a06aed930",
+      "total_lines": 159,
+      "lines": [
+        {
+          "line": 1,
+          "text": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py:97: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0"
+        },
+        {
+          "line": 2,
+          "text": "  material.use_nodes = True"
+        },
+        {
+          "line": 3,
+          "text": "Blender 5.0.1 (hash a3db93c5b259 built 2025-12-16 01:30:59)"
+        },
+        {
+          "line": 4,
+          "text": "Traceback (most recent call last):"
+        },
+        {
+          "line": 5,
+          "text": "  File \"/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py\", line 744, in <module>"
+        },
+        {
+          "line": 6,
+          "text": "    run_checks(addon, args.case)"
+        },
+        {
+          "line": 7,
+          "text": "  File \"/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py\", line 727, in run_checks"
+        },
+        {
+          "line": 8,
+          "text": "    assert not failures, '\\n'.join(failures) + f'\\nAll configured case manifests saved in {output}'"
+        },
+        {
+          "line": 9,
+          "text": "           ^^^^^^^^^^^^"
+        },
+        {
+          "line": 10,
+          "text": "AssertionError: materials/emission: emission color times strength: AssertionError: (0.20000000298023224, 0.30000001192092896, 0.4000000059604645)"
+        },
+        {
+          "line": 11,
+          "text": "uv_mapping/render_active: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.6700000166893005, 0.019999980926513672)])"
+        },
+        {
+          "line": 12,
+          "text": "uv_mapping/named_uv: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.6700000166893005, 0.019999980926513672)])"
+        },
+        {
+          "line": 13,
+          "text": "uv_mapping/mapping_point: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.4939582347869873, 0.12477678060531616)])"
+        },
+        {
+          "line": 14,
+          "text": "uv_mapping/mapping_texture: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.7265059947967529, 0.22561848163604736)])"
+        },
+        {
+          "line": 15,
+          "text": "uv_mapping/mapping_vector: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.38395825028419495, 0.054776787757873535)])"
+        },
+        {
+          "line": 16,
+          "text": "All configured case manifests saved in /mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/sdd/2026-11-10-o3d-export-fidelity/task-4-scratch/final-all"
+        },
+        {
+          "line": 17,
+          "text": "[O3D_IO] Registering Blender-O3D-IO version: (1, 3, 4)..."
+        },
+        {
+          "line": 18,
+          "text": "[O3D_Export] Exporting oblique_triangle..."
+        },
+        {
+          "line": 19,
+          "text": "[O3D_Export] Exported 1 models in 0.008640289306640625 seconds!"
+        },
+        {
+          "line": 20,
+          "text": "FIDELITY custom_normal/oblique_triangle: PASS"
+        },
+        {
+          "line": 21,
+          "text": "[O3D_Export] Exporting flat_wedge..."
+        },
+        {
+          "line": 22,
+          "text": "[O3D_Export] Exported 1 models in 0.0053386688232421875 seconds!"
+        },
+        {
+          "line": 23,
+          "text": "FIDELITY custom_normal/flat_wedge: PASS"
+        },
+        {
+          "line": 24,
+          "text": "[O3D_Export] Exporting smooth_wedge..."
+        },
+        {
+          "line": 25,
+          "text": "[O3D_Export] Exported 1 models in 0.006239652633666992 seconds!"
+        },
+        {
+          "line": 26,
+          "text": "FIDELITY custom_normal/smooth_wedge: PASS"
+        },
+        {
+          "line": 27,
+          "text": "[O3D_Export] Exporting uv_seam..."
+        },
+        {
+          "line": 28,
+          "text": "[O3D_Export] Exported 1 models in 0.0036773681640625 seconds!"
+        },
+        {
+          "line": 29,
+          "text": "FIDELITY custom_normal/uv_seam: PASS"
+        },
+        {
+          "line": 30,
+          "text": "[O3D_Export] Exporting nonplanar_quad..."
+        },
+        {
+          "line": 31,
+          "text": "[O3D_Export] Exported 1 models in 0.0042879581451416016 seconds!"
+        },
+        {
+          "line": 32,
+          "text": "FIDELITY custom_normal/nonplanar_quad: PASS"
+        },
+        {
+          "line": 33,
+          "text": "[O3D_Export] Exporting concave_ngon..."
+        },
+        {
+          "line": 34,
+          "text": "[O3D_Export] Exported 1 models in 0.0058252811431884766 seconds!"
+        },
+        {
+          "line": 35,
+          "text": "FIDELITY custom_normal/concave_ngon: PASS"
+        },
+        {
+          "line": 36,
+          "text": "[O3D_Export] Exporting custom_quad..."
+        },
+        {
+          "line": 37,
+          "text": "[O3D_Export] Exported 1 models in 0.004101753234863281 seconds!"
+        },
+        {
+          "line": 38,
+          "text": "FIDELITY custom_normal/custom_quad: PASS"
+        },
+        {
+          "line": 39,
+          "text": "[O3D_Export] Exporting custom_ngon..."
+        },
+        {
+          "line": 40,
+          "text": "[O3D_Export] Exported 1 models in 0.00413203239440918 seconds!"
+        },
+        {
+          "line": 41,
+          "text": "FIDELITY custom_normal/custom_ngon: PASS"
+        },
+        {
+          "line": 42,
+          "text": "[O3D_Export] Exporting flat_transform..."
+        },
+        {
+          "line": 43,
+          "text": "[O3D_Export] Exported 1 models in 0.003813028335571289 seconds!"
+        },
+        {
+          "line": 44,
+          "text": "FIDELITY custom_normal/flat_transform: PASS"
+        },
+        {
+          "line": 45,
+          "text": "[O3D_Export] Exporting smooth_transform..."
+        },
+        {
+          "line": 46,
+          "text": "[O3D_Export] Exported 1 models in 0.003511667251586914 seconds!"
+        },
+        {
+          "line": 47,
+          "text": "FIDELITY custom_normal/smooth_transform: PASS"
+        },
+        {
+          "line": 48,
+          "text": "[O3D_Export] Exporting degenerate_face..."
+        },
+        {
+          "line": 49,
+          "text": "[O3D_Export] Exported 1 models in 0.0036163330078125 seconds!"
+        },
+        {
+          "line": 50,
+          "text": "FIDELITY custom_normal/degenerate_face: PASS"
+        },
+        {
+          "line": 51,
+          "text": "[O3D_Export] Exporting identity..."
+        },
+        {
+          "line": 52,
+          "text": "[O3D_Export] Exported 1 models in 0.0037064552307128906 seconds!"
+        },
+        {
+          "line": 53,
+          "text": "FIDELITY transforms/identity: PASS"
+        },
+        {
+          "line": 54,
+          "text": "[O3D_Export] Exporting positive_scale..."
+        },
+        {
+          "line": 55,
+          "text": "[O3D_Export] Exported 1 models in 0.003864288330078125 seconds!"
+        },
+        {
+          "line": 56,
+          "text": "FIDELITY transforms/positive_scale: PASS"
+        },
+        {
+          "line": 57,
+          "text": "[O3D_Export] Exporting negative_scale..."
+        },
+        {
+          "line": 58,
+          "text": "[O3D_Export] Exported 1 models in 0.004324674606323242 seconds!"
+        },
+        {
+          "line": 59,
+          "text": "FIDELITY transforms/negative_scale: PASS"
+        },
+        {
+          "line": 60,
+          "text": "[O3D_Export] Exporting nonuniform_scale..."
+        },
+        {
+          "line": 61,
+          "text": "[O3D_Export] Exported 1 models in 0.002851247787475586 seconds!"
+        },
+        {
+          "line": 62,
+          "text": "FIDELITY transforms/nonuniform_scale: PASS"
+        },
+        {
+          "line": 63,
+          "text": "[O3D_Export] Exporting translation..."
+        },
+        {
+          "line": 64,
+          "text": "[O3D_Export] Exported 1 models in 0.004046440124511719 seconds!"
+        },
+        {
+          "line": 65,
+          "text": "[O3D_Export] Exporting translation.001..."
+        },
+        {
+          "line": 66,
+          "text": "[O3D_Export] Exported 1 models in 0.00436854362487793 seconds!"
+        },
+        {
+          "line": 67,
+          "text": "FIDELITY transforms/translation: PASS"
+        },
+        {
+          "line": 68,
+          "text": "[O3D_Export] Exporting euler_rotation..."
+        },
+        {
+          "line": 69,
+          "text": "[O3D_Export] Exported 1 models in 0.003132343292236328 seconds!"
+        },
+        {
+          "line": 70,
+          "text": "FIDELITY transforms/euler_rotation: PASS"
+        },
+        {
+          "line": 71,
+          "text": "[O3D_Export] Exporting quaternion_rotation..."
+        },
+        {
+          "line": 72,
+          "text": "[O3D_Export] Exported 1 models in 0.004168033599853516 seconds!"
+        },
+        {
+          "line": 73,
+          "text": "FIDELITY transforms/quaternion_rotation: PASS"
+        },
+        {
+          "line": 74,
+          "text": "[O3D_Export] Exporting parent_transform..."
+        },
+        {
+          "line": 75,
+          "text": "[O3D_Export] Exported 1 models in 0.005314826965332031 seconds!"
+        },
+        {
+          "line": 76,
+          "text": "FIDELITY transforms/parent_transform: PASS"
+        },
+        {
+          "line": 77,
+          "text": "[O3D_Export] Exporting global_scale..."
+        },
+        {
+          "line": 78,
+          "text": "[O3D_Export] Exported 1 models in 0.0040740966796875 seconds!"
+        },
+        {
+          "line": 79,
+          "text": "FIDELITY transforms/global_scale: PASS"
+        },
+        {
+          "line": 80,
+          "text": "[O3D_Export] Exporting weighted_rest..."
+        },
+        {
+          "line": 81,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 82,
+          "text": "[O3D_Export] Exported 1 models in 0.0045812129974365234 seconds!"
+        },
+        {
+          "line": 83,
+          "text": "[O3D_Export] Exporting weighted_rest..."
+        },
+        {
+          "line": 84,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 85,
+          "text": "[O3D_Export] Exported 1 models in 0.004683494567871094 seconds!"
+        },
+        {
+          "line": 86,
+          "text": "[O3D_Export] Exporting weighted_rest..."
+        },
+        {
+          "line": 87,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 88,
+          "text": "FIDELITY transforms/weighted_rest: PASS"
+        },
+        {
+          "line": 89,
+          "text": "[O3D_Export] Exporting evaluated_weights..."
+        },
+        {
+          "line": 90,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 91,
+          "text": "[O3D_Export] Exported 1 models in 0.004378318786621094 seconds!"
+        },
+        {
+          "line": 92,
+          "text": "[O3D_Export] Exporting evaluated_weights..."
+        },
+        {
+          "line": 93,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 94,
+          "text": "[O3D_Export] Exported 1 models in 0.008585929870605469 seconds!"
+        },
+        {
+          "line": 95,
+          "text": "[O3D_Export] Exporting evaluated_weights..."
+        },
+        {
+          "line": 96,
+          "text": "[O3D_Export] Omitting populated helper vertex group 'HelperNotABone' from armature-backed O3D export"
+        },
+        {
+          "line": 97,
+          "text": "FIDELITY transforms/evaluated_weights: PASS"
+        },
+        {
+          "line": 98,
+          "text": "[O3D_Export] Exporting custom_disabled..."
+        },
+        {
+          "line": 99,
+          "text": "[O3D_Export] Exported 1 models in 0.004331350326538086 seconds!"
+        },
+        {
+          "line": 100,
+          "text": "FIDELITY transforms/custom_disabled: PASS"
+        },
+        {
+          "line": 101,
+          "text": "[O3D_Export] Exporting zero_scale..."
+        },
+        {
+          "line": 102,
+          "text": "[O3D_Export] Exported 1 models in 0.0036432743072509766 seconds!"
+        },
+        {
+          "line": 103,
+          "text": "FIDELITY transforms/zero_scale: PASS"
+        },
+        {
+          "line": 104,
+          "text": "[O3D_Export] Exporting singular_line..."
+        },
+        {
+          "line": 105,
+          "text": "[O3D_Export] Exported 1 models in 0.004132270812988281 seconds!"
+        },
+        {
+          "line": 106,
+          "text": "FIDELITY transforms/singular_line: PASS"
+        },
+        {
+          "line": 107,
+          "text": "[O3D_Export] Exporting singular_point..."
+        },
+        {
+          "line": 108,
+          "text": "[O3D_Export] Exported 1 models in 0.0035104751586914062 seconds!"
+        },
+        {
+          "line": 109,
+          "text": "FIDELITY transforms/singular_point: PASS"
+        },
+        {
+          "line": 110,
+          "text": "[O3D_Export] Exporting near_singular..."
+        },
+        {
+          "line": 111,
+          "text": "[O3D_Export] Exported 1 models in 0.003150463104248047 seconds!"
+        },
+        {
+          "line": 112,
+          "text": "FIDELITY transforms/near_singular: PASS"
+        },
+        {
+          "line": 113,
+          "text": "FIDELITY transforms/empty_preserves_destination: PASS"
+        },
+        {
+          "line": 114,
+          "text": "[O3D_Export] Exporting roughness_0..."
+        },
+        {
+          "line": 115,
+          "text": "[O3D_Export] Exported 1 models in 0.002621173858642578 seconds!"
+        },
+        {
+          "line": 116,
+          "text": "FIDELITY materials/roughness_0: PASS"
+        },
+        {
+          "line": 117,
+          "text": "[O3D_Export] Exporting roughness_half..."
+        },
+        {
+          "line": 118,
+          "text": "[O3D_Export] Exported 1 models in 0.0030701160430908203 seconds!"
+        },
+        {
+          "line": 119,
+          "text": "FIDELITY materials/roughness_half: PASS"
+        },
+        {
+          "line": 120,
+          "text": "[O3D_Export] Exporting roughness_1..."
+        },
+        {
+          "line": 121,
+          "text": "[O3D_Export] Exported 1 models in 0.002985715866088867 seconds!"
+        },
+        {
+          "line": 122,
+          "text": "FIDELITY materials/roughness_1: PASS"
+        },
+        {
+          "line": 123,
+          "text": "[O3D_Export] Exporting emission..."
+        },
+        {
+          "line": 124,
+          "text": "[O3D_Export] Exported 1 models in 0.0037364959716796875 seconds!"
+        },
+        {
+          "line": 125,
+          "text": "FIDELITY materials/emission: FAIL"
+        },
+        {
+          "line": 126,
+          "text": "[O3D_Export] Exporting image_alpha..."
+        },
+        {
+          "line": 127,
+          "text": "[O3D_Export] Exported 1 models in 0.0032486915588378906 seconds!"
+        },
+        {
+          "line": 128,
+          "text": "FIDELITY materials/image_alpha: PASS"
+        },
+        {
+          "line": 129,
+          "text": "[O3D_Export] Exporting render_active..."
+        },
+        {
+          "line": 130,
+          "text": "[O3D_Export] Exported 1 models in 0.0030333995819091797 seconds!"
+        },
+        {
+          "line": 131,
+          "text": "FIDELITY uv_mapping/render_active: FAIL"
+        },
+        {
+          "line": 132,
+          "text": "[O3D_Export] Exporting named_uv..."
+        },
+        {
+          "line": 133,
+          "text": "[O3D_Export] Exported 1 models in 0.0032567977905273438 seconds!"
+        },
+        {
+          "line": 134,
+          "text": "FIDELITY uv_mapping/named_uv: FAIL"
+        },
+        {
+          "line": 135,
+          "text": "[O3D_Export] Exporting mapping_point..."
+        },
+        {
+          "line": 136,
+          "text": "[O3D_Export] Exported 1 models in 0.002899646759033203 seconds!"
+        },
+        {
+          "line": 137,
+          "text": "FIDELITY uv_mapping/mapping_point: FAIL"
+        },
+        {
+          "line": 138,
+          "text": "[O3D_Export] Exporting mapping_texture..."
+        },
+        {
+          "line": 139,
+          "text": "[O3D_Export] Exported 1 models in 0.0031719207763671875 seconds!"
+        },
+        {
+          "line": 140,
+          "text": "FIDELITY uv_mapping/mapping_texture: FAIL"
+        },
+        {
+          "line": 141,
+          "text": "[O3D_Export] Exporting mapping_vector..."
+        },
+        {
+          "line": 142,
+          "text": "[O3D_Export] Exported 1 models in 0.0026171207427978516 seconds!"
+        },
+        {
+          "line": 143,
+          "text": "FIDELITY uv_mapping/mapping_vector: FAIL"
+        },
+        {
+          "line": 144,
+          "text": "[O3D_Export] Exporting cfg_alpha..."
+        },
+        {
+          "line": 145,
+          "text": "[O3D_Export] Exported 1 models in 0.0031652450561523438 seconds!"
+        },
+        {
+          "line": 146,
+          "text": "[O3D_Export] Exporting cfg_alpha..."
+        },
+        {
+          "line": 147,
+          "text": "[O3D_CFG_Parser] Writing cfg file..."
+        },
+        {
+          "line": 148,
+          "text": "[O3D_Export] Exported 1 models in 0.0032253265380859375 seconds!"
+        },
+        {
+          "line": 149,
+          "text": "FIDELITY cfg_materials/cfg_alpha: PASS"
+        },
+        {
+          "line": 150,
+          "text": "[O3D_Export] Exporting cfg_allcolor..."
+        },
+        {
+          "line": 151,
+          "text": "[O3D_Export] Exported 1 models in 0.003175497055053711 seconds!"
+        },
+        {
+          "line": 152,
+          "text": "[O3D_Export] Exporting cfg_allcolor..."
+        },
+        {
+          "line": 153,
+          "text": "[O3D_CFG_Parser] Writing cfg file..."
+        },
+        {
+          "line": 154,
+          "text": "[O3D_Export] Exported 1 models in 0.004053354263305664 seconds!"
+        },
+        {
+          "line": 155,
+          "text": "FIDELITY cfg_materials/cfg_allcolor: PASS"
+        },
+        {
+          "line": 156,
+          "text": ""
+        },
+        {
+          "line": 157,
+          "text": "Error: script failed, file: 'tests/smoke_export_fidelity.py', exiting."
+        },
+        {
+          "line": 158,
+          "text": ""
+        },
+        {
+          "line": 159,
+          "text": "Blender quit"
+        }
+      ]
+    }
+  },
+  "remaining_gates": [
+    "Blender 4.2 and 5.2 runtime validation",
+    "Tasks 5/6 material and UV repairs; Task 7 CFG policy work",
+    "Native renderer sign/cull/normalization, effects/color transfer, dynamic skinning and special origin paths; no native visual parity",
+    "Lead review and board transition"
+  ]
+}
