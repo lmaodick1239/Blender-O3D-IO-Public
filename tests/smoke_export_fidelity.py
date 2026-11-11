@@ -385,7 +385,8 @@ CASES = {
                    'singular_line', 'singular_point', 'near_singular', 'empty_preserves_destination'),
     'materials': ('roughness_0', 'roughness_quarter', 'roughness_half', 'roughness_1', 'emission', 'emission_zero', 'image_alpha',
                   'native_power_0', 'native_power_32', 'native_power_500', 'native_power_1500',
-                  'native_components', 'native_cfg_overrides', 'constant_nodes', 'non_node_constants', 'unsupported_paths', 'cfg_image_paths'),
+                  'native_components', 'native_cfg_overrides', 'constant_nodes', 'non_node_constants',
+                  'active_unsupported_output', 'active_supported_output', 'unsupported_paths', 'cfg_image_paths'),
     'uv_mapping': ('render_active', 'named_uv', 'mapping_point', 'mapping_texture', 'mapping_vector'),
     'cfg_materials': ('cfg_alpha', 'cfg_allcolor'),
 }
@@ -571,7 +572,38 @@ def _material_regression(addon, name, directory):
     material, wrapper = _material(obj)
     nodes, links = material.node_tree.nodes, material.node_tree.links
     shader = wrapper.node_principled_bsdf
-    if name == 'constant_nodes':
+    if name.startswith('active_'):
+        inactive = nodes.get('Export')
+        active = nodes.new('ShaderNodeOutputMaterial')
+        active.is_active_output = True
+        assert active.is_active_output and not inactive.is_active_output
+        if name == 'active_unsupported_output':
+            tree = bpy.data.node_groups.new('Unsupported Active Surface', 'ShaderNodeTree')
+            tree.interface.new_socket(name='Shader', in_out='OUTPUT', socket_type='NodeSocketShader')
+            group = nodes.new('ShaderNodeGroup')
+            group.node_tree = tree
+            links.new(group.outputs['Shader'], active.inputs['Surface'])
+        else:
+            supported = nodes.new('ShaderNodeBsdfPrincipled')
+            supported.inputs['Base Color'].default_value = (.1, .2, .3, 1.)
+            supported.inputs['Alpha'].default_value = .25
+            supported.inputs['Roughness'].default_value = .25
+            supported.inputs['Specular IOR Level'].default_value = 0.
+            links.new(supported.outputs['BSDF'], active.inputs['Surface'])
+        before = [(link.from_socket, link.to_socket) for link in links]
+        try:
+            actual = export()[0]
+        except ValueError as error:
+            assert 'material' in str(error).lower(), str(error)
+            assert ('unsupported' if name == 'active_unsupported_output' else 'ambiguous') in str(error).lower(), str(error)
+            assert not (directory / 'roundtrip.o3d').exists(), 'refusal published output'
+        else:
+            assert name == 'active_supported_output', 'active unsupported surface silently exported inactive Principled'
+            _assert_close(actual[:4], (.1, .2, .3, .25))
+            assert actual[10] == 750., actual
+        assert active.is_active_output and not inactive.is_active_output
+        assert [(link.from_socket, link.to_socket) for link in links] == before
+    elif name == 'constant_nodes':
         rgb = nodes.new('ShaderNodeRGB')
         rgb.outputs[0].default_value = (.2, .3, .4, 1.)
         value = nodes.new('ShaderNodeValue')
@@ -662,7 +694,7 @@ def _run_case(addon, reference, group, name, directory):
             manifest['checks'].append({'name': label, 'status': 'PASS'})
 
     try:
-        if name.startswith('native_') or name in ('constant_nodes', 'non_node_constants', 'unsupported_paths', 'cfg_image_paths'):
+        if name.startswith(('native_', 'active_')) or name in ('constant_nodes', 'non_node_constants', 'unsupported_paths', 'cfg_image_paths'):
             check('material import/export contract', lambda: _material_regression(addon, name, directory))
         elif name == 'empty_preserves_destination':
             check('rejected empty export preserves sentinel', lambda: _empty_regression(addon, directory, manifest))

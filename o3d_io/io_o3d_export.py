@@ -329,9 +329,19 @@ def _build_o3d_materials(filepath, materials, texture_filepath=None):
             o3d_mats.append([*material.diffuse_color[:3], 1., *([0.] * 6),
                              _o3d_specular_power(material, material), ''])
             continue
+        outputs = [node for node in material.node_tree.nodes
+                   if node.bl_idname == 'ShaderNodeOutputMaterial' and node.is_active_output]
+        if len(outputs) != 1:
+            raise ValueError(f"Unsupported material {material.name!r}: ambiguous active Material Outputs")
+        surface = outputs[0].inputs['Surface']
+        if not surface.is_linked or surface.links[0].from_node.bl_idname != 'ShaderNodeBsdfPrincipled':
+            raise ValueError(f"Unsupported material {material.name!r}: expected direct Principled active surface")
         mat = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
-        if mat.node_principled_bsdf is None:
-            raise ValueError(f"Unsupported material {material.name!r}: expected direct Principled surface")
+        # The wrapper selects the first direct pair, even when its output is
+        # inactive. Refuse a mismatch so embedded and existing CFG extraction
+        # cannot silently serialize a different shader from the active surface.
+        if mat.node_out != outputs[0] or mat.node_principled_bsdf != surface.links[0].from_node:
+            raise ValueError(f"Unsupported material {material.name!r}: ambiguous inactive Principled selection")
         base, textured = _material_input(mat, 'Base Color', image=True)
         alpha, _ = _material_input(mat, 'Alpha', image=textured)
         level, _ = _material_input(mat, 'Specular IOR Level', image=textured)
