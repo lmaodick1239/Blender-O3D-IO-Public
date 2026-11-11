@@ -1,0 +1,302 @@
+{
+  "date": "2026-11-12",
+  "evidence_class": "Blender construction/CPU Cycles shader observations, not native rendering",
+  "focused_final": [
+    {
+      "argv": [
+        "/mnt/Random/blender-5.0.1-linux-x64/blender",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "1",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "tests/smoke_export_fidelity.py",
+        "--",
+        "--case",
+        "uv_mapping",
+        "--case",
+        "custom_normal",
+        "--case",
+        "transforms",
+        "--case",
+        "materials",
+        "--output-dir",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-scratch/exact-final-5.0.1"
+      ],
+      "build": "a3db93c5b259",
+      "exit_code": 0,
+      "groups": {
+        "custom_normal": 11,
+        "materials": 19,
+        "transforms": 17,
+        "uv_mapping": 29
+      },
+      "job": "bash-a49f2139afac48b0",
+      "log": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-exact-final-5.0.1.log",
+        "sha256": "959cc7d3fdb5a893f6cb944156c5193d007cb69c91eb7b9b2be4738ffda17bed"
+      },
+      "passed": 76,
+      "summary": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-scratch/exact-final-5.0.1/summary.json",
+        "sha256": "8364483903f767c616bdedb27d2b39c2caa8f6da72e35c91ca6fc22f80b3ae51"
+      },
+      "version": "5.0.1"
+    },
+    {
+      "argv": [
+        ".superpowers/blender-runtimes/4.2.23/extracted/blender-4.2.23-linux-x64/blender",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "1",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "tests/smoke_export_fidelity.py",
+        "--",
+        "--case",
+        "uv_mapping",
+        "--case",
+        "custom_normal",
+        "--case",
+        "transforms",
+        "--case",
+        "materials",
+        "--output-dir",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-scratch/exact-final-4.2.23"
+      ],
+      "build": "d0cbe84903e8",
+      "exit_code": 0,
+      "groups": {
+        "custom_normal": 11,
+        "materials": 19,
+        "transforms": 17,
+        "uv_mapping": 29
+      },
+      "job": "bash-a49f2139afac48b0",
+      "log": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-exact-final-4.2.23.log",
+        "sha256": "a3c532d0c479b4dc71471e4f1aef179dc214a70c6812dc03ade1290eb2f360fd"
+      },
+      "passed": 76,
+      "summary": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-scratch/exact-final-4.2.23/summary.json",
+        "sha256": "ff82a286fe5952b90a8b6eeb65d7e48453dd75d5d16d778f6f26f775ad3a9be7"
+      },
+      "version": "4.2.23 LTS"
+    },
+    {
+      "argv": [
+        ".superpowers/blender-runtimes/5.2.4/extracted/blender-5.2.4-linux-x64/blender",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "1",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "tests/smoke_export_fidelity.py",
+        "--",
+        "--case",
+        "uv_mapping",
+        "--case",
+        "custom_normal",
+        "--case",
+        "transforms",
+        "--case",
+        "materials",
+        "--output-dir",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-scratch/exact-final-5.2.4"
+      ],
+      "build": "cd5dc428cce1",
+      "exit_code": 0,
+      "groups": {
+        "custom_normal": 11,
+        "materials": 19,
+        "transforms": 17,
+        "uv_mapping": 29
+      },
+      "job": "bash-a49f2139afac48b0",
+      "log": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-exact-final-5.2.4.log",
+        "sha256": "5d219cc1a6a51801d7d6a21ae98a42b58e15791975573fee771a5a1eb3fd96c6"
+      },
+      "passed": 76,
+      "summary": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-scratch/exact-final-5.2.4/summary.json",
+        "sha256": "1424f9c05ba047810e0c8ff8b7ee4721332f6adf138819bcf0431be283225593"
+      },
+      "version": "5.2.4 LTS"
+    }
+  ],
+  "followup_red": [
+    {
+      "exit_code": 1,
+      "failure": "AttributeError at prepare_o3d_geometry material slot lookup before >65535 material-count guard; unchanged existing section-count regression",
+      "job": "bash-981b7f7d78144f98",
+      "log": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-fullsmoke-5.0.1.log",
+        "sha256": "36aa171b847e6dba78c6b15f363b82fa8b173865856d7c1bdfc9a292e04de2ab"
+      },
+      "source_commit": "51c914e75fed77d601c4f365a5f21d1a39e80797"
+    },
+    {
+      "exit_code": 1,
+      "failure": "Existing geometry-only MMD readiness assertion rejects new material surface ERROR; fixed with explicit supported-active-image eligibility, not broad exception swallowing",
+      "job": "bash-298c354736824f16",
+      "log": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-fullsmoke-fix-5.0.1.log",
+        "sha256": "79f88dedcf37965275a823db7dd258617ba1b7f1bf32e5ecb7c4f4e3115246a0"
+      },
+      "source_state": "51c914e plus count-guard relocation only"
+    }
+  ],
+  "full_smoke_final": {
+    "argv": [
+      "/mnt/Random/blender-5.0.1-linux-x64/blender",
+      "--background",
+      "--factory-startup",
+      "--threads",
+      "1",
+      "--python-exit-code",
+      "1",
+      "--python",
+      "tests/blender_smoke.py"
+    ],
+    "exit_code": 0,
+    "human_checks": 33,
+    "job": "bash-c9b7967681f54e31",
+    "log": {
+      "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-fullsmoke-exact-final-5.0.1.log",
+      "sha256": "463417e1c459bf9bf936159d08f2345810619970b9e86406d45be4e9055b2add"
+    },
+    "success_marker": "BLENDER_O3D_IO_SMOKE_OK 5.0.1"
+  },
+  "helpers_final": {
+    "argv": [
+      "/mnt/Random/blender-5.0.1-linux-x64/blender",
+      "--background",
+      "--factory-startup",
+      "--threads",
+      "1",
+      "--python-exit-code",
+      "1",
+      "--python",
+      ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-helper-check.py"
+    ],
+    "checks": [
+      "assert_pre_v3_section_count_preservation",
+      "assert_preflight_images_and_runtime"
+    ],
+    "exit_code": 0,
+    "job": "bash-c9b7967681f54e31",
+    "log": {
+      "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-exact-final-helpers.log",
+      "sha256": "aa0ef6fa02fdd80eec8943218299b686a22726129408803e8c0209ca52660c66"
+    },
+    "passed": 2
+  },
+  "initial_parent": "7014ccb3084132c6068ab7987051994213947788",
+  "initial_uv_commit": "51c914e75fed77d601c4f365a5f21d1a39e80797",
+  "limits": [
+    "No native/OMSI run or reference exporter oracle",
+    "No CFG writer/gamma/env/light/night policy changes",
+    "Tree animation conservatively diagnosed; no arbitrary graph flattening",
+    "Lead final integrated full matrix remains separate",
+    "Historical frozen4.2 setup failure and5.2 pass remain unchanged"
+  ],
+  "local_artifact_policy": "Scratch paths are local-only leads, not required public dependencies. Reproduce with committed tests and exact argv; generated binaries/images are not retained here. Exit codes are collected managed-job results, not inferred from log silence.",
+  "parent": "51c914e75fed77d601c4f365a5f21d1a39e80797",
+  "pure_final": {
+    "argv": [
+      "python3",
+      "-B",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "job": "bash-a49f2139afac48b0",
+    "log": {
+      "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-exact-final-pure.log",
+      "sha256": "e469972d5d3cb9a47bc373fbfd7f9c90b1cb94fc3bda78b341afddcc204442e4"
+    },
+    "passed": 30
+  },
+  "red": [
+    {
+      "exit_code": 1,
+      "failed": 5,
+      "failures": [
+        "uv_mapping/render_active: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.6700000166893005, 0.019999980926513672)])",
+        "uv_mapping/named_uv: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.6700000166893005, 0.019999980926513672)])",
+        "uv_mapping/mapping_point: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.4939582347869873, 0.12477678060531616)])",
+        "uv_mapping/mapping_texture: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.7265059947967529, 0.22561848163604736)])",
+        "uv_mapping/mapping_vector: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.38395825028419495, 0.054776787757873535)])"
+      ],
+      "job": "bash-0726c4f749cb4e7a",
+      "log": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-red-existing.log",
+        "sha256": "fa9b4c0ca87e7d6bb2c361dbc1d8a42b354d277d326900efda28f6b0a1c66bb1"
+      },
+      "name": "red-existing",
+      "passed": 0,
+      "source_sha256": {
+        "o3d_io/blender_compat.py": "47a133985113aaa37f77647f41b9336416f7c3a7dfd599bee2300bf88d24fbbe",
+        "o3d_io/io_o3d_export.py": "b133a5a5bf7845896586a53129e998cc85d1bdb7f592a4b8f7c360be5b77f06f",
+        "o3d_io/io_o3d_import.py": "905fbbab75fd995b6ac02cc1a7c1892fe72cbb2880f3ea801c885f0c08f4f075",
+        "o3d_io/o3d_cfg_parser.py": "34bd5d2c70b20d22b99a664b9993197ddaec5d6b2919a2177ef02aa4872a0824",
+        "o3d_io/o3dconvert.py": "dd3d6a34bff20494bf8f5bced7cd81815053a35f7d1eae79ada747870969ffc7",
+        "tests/smoke_export_fidelity.py": "20b6ede509c5aa1702d805af4e19b37aca507002151476e1d72dad5ea9cf5b6a"
+      },
+      "summary": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-scratch/red-existing/summary.json",
+        "sha256": "71e5bb7396ef1b00be7208e16f720db03d302acac3439edc8f69a933b4f33d7c"
+      }
+    },
+    {
+      "exit_code": 1,
+      "failed": 27,
+      "failures": [
+        "uv_mapping/render_active: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.6700000166893005, 0.019999980926513672)])",
+        "uv_mapping/named_uv: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.6700000166893005, 0.019999980926513672)])",
+        "uv_mapping/mapping_point: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.4939582347869873, 0.12477678060531616)])",
+        "uv_mapping/mapping_texture: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.7265059947967529, 0.22561848163604736)])",
+        "uv_mapping/mapping_vector: every source position/normal/UV corner preserved: AssertionError: ('UV', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.007145914249122143, 0.9897087216377258, -0.14291821420192719, 0.38395825028419495, 0.054776787757873535)])"
+      ],
+      "job": "bash-291e557819154ffb",
+      "log": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-red-complete.log",
+        "sha256": "a1ce3dd03ae58d046fb90f9dd2468f0ddade6e0c4e04ffe76b0c009b3c10aeca"
+      },
+      "name": "red-complete",
+      "passed": 2,
+      "source_sha256": {
+        "o3d_io/blender_compat.py": "47a133985113aaa37f77647f41b9336416f7c3a7dfd599bee2300bf88d24fbbe",
+        "o3d_io/io_o3d_export.py": "b133a5a5bf7845896586a53129e998cc85d1bdb7f592a4b8f7c360be5b77f06f",
+        "o3d_io/io_o3d_import.py": "905fbbab75fd995b6ac02cc1a7c1892fe72cbb2880f3ea801c885f0c08f4f075",
+        "o3d_io/o3d_cfg_parser.py": "34bd5d2c70b20d22b99a664b9993197ddaec5d6b2919a2177ef02aa4872a0824",
+        "o3d_io/o3dconvert.py": "dd3d6a34bff20494bf8f5bced7cd81815053a35f7d1eae79ada747870969ffc7",
+        "tests/smoke_export_fidelity.py": "a2acdca4e14fd250ac7d92d9c89dda07ec6d3a4a534a5326ec6ae797b79aa48c"
+      },
+      "summary": {
+        "local_path": ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-6-scratch/red-complete/summary.json",
+        "sha256": "90490e9db55cd26d4cba4a24047a41a41c6b3218111158d22c7e96f8ed30b762"
+      }
+    }
+  ],
+  "source_commit": "76007bc242d54b16fba09c9e11fd7d64e48380e6",
+  "source_sha256": {
+    "o3d_io/io_o3d_export.py": "b27b969aab2ec28805b7e52666cdfa30cccbd83557b1f8731d34e427f2ad8b2e",
+    "tests/smoke_export_fidelity.py": "a2acdca4e14fd250ac7d92d9c89dda07ec6d3a4a534a5326ec6ae797b79aa48c"
+  },
+  "timezone": "Asia/Hong_Kong"
+}
