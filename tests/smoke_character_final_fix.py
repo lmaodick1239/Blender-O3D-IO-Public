@@ -70,14 +70,15 @@ def assert_conversion_private_key_ownership(addon):
         keys_before = set(bpy.data.shape_keys)
         original_clear = rig._remove_shape_keys
         original_bind = rig.reconcile_character_bindings
+        original_error = RuntimeError('injected ' + boundary)
         def fail_clear(obj):
             if boundary == 'before-clear':
-                raise RuntimeError('injected before private clear')
+                raise original_error
             original_clear(obj)
-            raise RuntimeError('injected after private clear')
+            raise original_error
         def fail_bind(*args, **kwargs):
             original_bind(*args, **kwargs)
-            raise RuntimeError('injected after real bindings')
+            raise original_error
         if boundary in {'before-clear', 'after-clear'}:
             rig._remove_shape_keys = fail_clear
         elif boundary == 'late-bindings':
@@ -87,8 +88,14 @@ def assert_conversion_private_key_ownership(addon):
                 result = rig.convert(mesh, source, rig.ConversionOptions())
                 assert result.mesh.data.shape_keys is None
                 assert all(abs(vertex.co.z - 2) < 1e-5 for vertex in result.mesh.data.vertices)
+                assert _source_snapshot(mesh, source)[1:] == before[1:], boundary
             else:
-                _refuses(lambda: rig.convert(mesh, source, rig.ConversionOptions()))
+                try:
+                    rig.convert(mesh, source, rig.ConversionOptions())
+                except RuntimeError as error:
+                    assert error is original_error, boundary
+                else:
+                    raise AssertionError('injected conversion failure was swallowed: ' + boundary)
                 assert _source_snapshot(mesh, source) == before, boundary
             assert set(bpy.data.shape_keys) == keys_before, boundary
             assert mesh.data.shape_keys == original_key and unrelated['source_key'] == original_key

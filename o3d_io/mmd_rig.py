@@ -819,15 +819,17 @@ def convert(mesh, armature, options, *, on_complete=None):
         target_collection.objects.link(new_mesh)
         if options.remove_shape_keys and new_mesh.data.shape_keys:
             private_key = new_mesh.data.shape_keys
+            private_key_name = private_key.name
             try:
                 _remove_shape_keys(new_mesh)
             finally:
-                # Clearing a copied Mesh detaches its private Key without
-                # deleting that ID. Clean only this exact owned copy while its
-                # Mesh is alive, including helper failures before/after clear.
-                _validate_id_deletion(
-                    private_key, new_mesh.data, new_mesh.data.user_of_id(private_key))
-                bpy.data.batch_remove(ids=(private_key,))
+                # Newer Blender clears the Key ID too; older versions leave it
+                # orphaned. Clean only the surviving exact owned copy, including
+                # helper failures before/after clear, while its Mesh is alive.
+                if bpy.data.shape_keys.get(private_key_name) == private_key:
+                    _validate_id_deletion(
+                        private_key, new_mesh.data, new_mesh.data.user_of_id(private_key))
+                    bpy.data.batch_remove(ids=(private_key,))
         for modifier in list(new_mesh.modifiers):
             if modifier.type == "ARMATURE":
                 new_mesh.modifiers.remove(modifier)
