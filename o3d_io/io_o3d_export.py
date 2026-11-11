@@ -3,6 +3,7 @@
 # ==============================================================================
 
 import os
+import json
 import time
 from contextlib import contextmanager
 from io import BytesIO
@@ -21,16 +22,86 @@ def log(*args):
     print("[O3D_Export]", *args)
 
 
-def _o3d_specular_power(material, wrapper):
+def _material_input(wrapper, name, *, image=False):
+    """Resolve only unlinked defaults and direct RGB/Value constants.
+
+    Established CFG image routes keep their independent fallback constants;
+    they are never treated as evaluated shader values.
+    """
+    socket = wrapper.node_principled_bsdf.inputs[name]
+    value = socket.default_value
+    linked_image = False
+    if socket.is_linked:
+        link = socket.links[0]
+        node = link.from_node
+        if node.bl_idname in ('ShaderNodeRGB', 'ShaderNodeValue'):
+            value = link.from_socket.default_value
+        elif image and node.bl_idname == 'ShaderNodeTexImage' and node.image is not None:
+            if name == 'Base Color' and link.from_socket.name != 'Color':
+                raise ValueError(f"Unsupported material {wrapper.material.name!r}: image Alpha to Base Color")
+            if name != 'Base Color':
+                log(f"Material {wrapper.material.name!r} {name}: CFG image fallback constant, not evaluated graph value")
+            linked_image = True
+        else:
+            raise ValueError(f"Unsupported material {wrapper.material.name!r} input {name}: {node.bl_idname}")
+    if socket.type == 'RGBA':
+        value = tuple(value[:3]) if hasattr(value, '__len__') else (value,) * 3
+    elif hasattr(value, '__len__'):
+        raise ValueError(f"Unsupported material {wrapper.material.name!r}: color to scalar {name}")
+    values = value if isinstance(value, tuple) else (value,)
+    if not all(isfinite(float(v)) for v in values):
+        raise ValueError(f"Non-finite material {wrapper.material.name!r} input {name}")
+    return value, linked_image
+
+
+def _material_preview(wrapper, names):
+    """Small per-component edit baseline, including source socket/image identity."""
+    state = []
+    for name in names:
+        socket = wrapper.node_principled_bsdf.inputs[name]
+        value = socket.default_value
+        entry = [name, list(value) if hasattr(value, '__len__') else value]
+        for link in socket.links:
+            node = link.from_node
+            source = [node.name, node.bl_idname, link.from_socket.name]
+            if node.bl_idname == 'ShaderNodeTexImage':
+                source.append([node.image.name, node.image.filepath] if node.image else None)
+            elif node.bl_idname in ('ShaderNodeRGB', 'ShaderNodeValue'):
+                constant = link.from_socket.default_value
+                source.append(list(constant) if hasattr(constant, '__len__') else constant)
+            entry.append(source)
+        state.append(entry)
+    return json.dumps(state, separators=(',', ':'))
+
+
+_MATERIAL_COMPONENTS = {
+    'diffuse': ('Base Color',), 'alpha': ('Alpha',),
+    'specular': ('Specular Tint', 'Specular IOR Level'),
+    'emission': ('Emission Color', 'Emission Strength'),
+}
+
+
+def _raw_material_component(material, wrapper, component, authored):
+    raw = material.get('o3d_raw_' + component)
+    baseline = material.get('o3d_preview_' + component)
+    if raw is not None and baseline == _material_preview(wrapper, _MATERIAL_COMPONENTS[component]):
+        values = tuple(raw)
+        if all(isfinite(float(value)) for value in values):
+            return values
+    return authored
+
+
+def _o3d_specular_power(material, wrapper, roughness=None):
+    roughness = float(wrapper.roughness if roughness is None else roughness)
     stored = material.get("o3d_specular_power")
     baseline = material.get("o3d_specular_roughness")
     if stored is not None and baseline is not None:
         try:
-            if abs(float(wrapper.roughness) - float(baseline)) <= 1e-6:
+            if isfinite(float(stored)) and abs(roughness - float(baseline)) <= 1e-6:
                 return float(stored)
         except (TypeError, ValueError):
             pass
-    return max(0.0, 1.0 - float(wrapper.roughness))
+    return 1000.0 * (1.0 - roughness)
 
 
 def default_o3d_material():
@@ -252,14 +323,30 @@ def _build_o3d_materials(filepath, materials, texture_filepath=None):
             raise ValueError(
                 f"Layered material {material.name!r} cannot be represented by one O3D texture"
             )
+        if not material.use_nodes:
+            # Preserve the wrapper's established non-node Material-property
+            # fallback (alpha1, black tint/emission), without creating nodes.
+            o3d_mats.append([*material.diffuse_color[:3], 1., *([0.] * 6),
+                             _o3d_specular_power(material, material), ''])
+            continue
         mat = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
-        o3d_mat = [*mat.base_color[:3], mat.alpha]
-        if bpy.app.version >= (4, 0):
-            o3d_mat.extend(np.array(mat.specular_tint[:3]) * mat.specular)
-        else:
-            o3d_mat.extend([mat.specular, mat.specular, mat.specular])
-        o3d_mat.extend(mat.emission_color[:3])
-        o3d_mat.append(_o3d_specular_power(material, mat))
+        if mat.node_principled_bsdf is None:
+            raise ValueError(f"Unsupported material {material.name!r}: expected direct Principled surface")
+        base, textured = _material_input(mat, 'Base Color', image=True)
+        alpha, _ = _material_input(mat, 'Alpha', image=textured)
+        level, _ = _material_input(mat, 'Specular IOR Level', image=textured)
+        tint, _ = _material_input(mat, 'Specular Tint')
+        roughness, _ = _material_input(mat, 'Roughness')
+        emission, emission_image = _material_input(mat, 'Emission Color', image=textured)
+        strength, _ = _material_input(mat, 'Emission Strength')
+        o3d_mat = [*_raw_material_component(material, mat, 'diffuse', (1., 1., 1.) if textured else base),
+                   *_raw_material_component(material, mat, 'alpha', (alpha,))]
+        o3d_mat.extend(_raw_material_component(material, mat, 'specular', tuple(channel * level for channel in tint)))
+        # A CFG light/night image has its own existing strength routing. Its
+        # inactive color is a fallback, not a constant emission to bake.
+        emitted = emission if emission_image else tuple(channel * strength if strength else 0. for channel in emission)
+        o3d_mat.extend(_raw_material_component(material, mat, 'emission', emitted))
+        o3d_mat.append(_o3d_specular_power(material, mat, roughness))
         if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
             o3d_mat.append(o3d_cfg_parser.texture_name(texture_filepath, mat.base_color_texture.image))
         else:

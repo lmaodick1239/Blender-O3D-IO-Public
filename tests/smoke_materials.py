@@ -159,8 +159,8 @@ def assert_import_preserves_material_slots(addon: ModuleType) -> None:
             "[mesh]\nslots.o3d\n\n"
             "[matl]\npresent.png\n0\n[matl_alpha]\n1\n\n"
             "[matl]\npresent.png\n1\n[matl_alpha]\n2\n\n"
-            "[matl]\nmissing.png\n2\n[matl_alpha]\n1\n\n"
-            "[matl]\nmissing.png\n3\n[matl_alpha]\n2\n\n",
+            "[matl]\nmissing.png\n0\n[matl_alpha]\n1\n\n"
+            "[matl]\nmissing.png\n1\n[matl_alpha]\n2\n\n",
             encoding="cp1252",
         )
         imported = addon.o3d_io.io_o3d_import.do_import(

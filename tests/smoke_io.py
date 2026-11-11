@@ -201,6 +201,7 @@ def assert_emission_round_trip(addon: ModuleType) -> None:
         source.data.materials[0], is_readonly=False
     )
     wrapper.emission_color = (0.25, 0.5, 0.75)
+    wrapper.emission_strength = 1.0
     with tempfile.TemporaryDirectory(prefix="blender-o3d-io-emission-") as temporary:
         filepath = Path(temporary) / "emission.o3d"
         addon.o3d_io.io_o3d_export.do_export(
@@ -1667,6 +1668,7 @@ def assert_embedded_material_round_trip(addon: ModuleType) -> None:
             wrapper = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
             assert abs(wrapper.alpha - 0.25) < 0.001, wrapper.alpha
             assert abs(material["o3d_specular_power"] - 32.0) < 0.001
+            assert abs(wrapper.roughness - .968) < 0.00001
             exported_path = Path(temporary) / "embedded-export.o3d"
             addon.o3d_io.io_o3d_export.do_export(
                 str(exported_path), bpy.context, Matrix.Identity(4), True, 7, True

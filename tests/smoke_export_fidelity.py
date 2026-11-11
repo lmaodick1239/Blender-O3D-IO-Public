@@ -1,4 +1,4 @@
-"""Synthetic export fidelity checkpoint; geometry repaired, material/UV cases still RED.
+"""Synthetic export fidelity checkpoint; geometry/materials repaired, UV cases still RED.
 
 Standalone owns add-on registration. run_checks never does. No input .blend is
 loaded or saved. Raw O3Ds/PNGs/CFGs stay in --output-dir, never in fixtures.
@@ -6,9 +6,12 @@ Reference output is comparison evidence, not authority for native rendering.
 """
 import argparse
 import hashlib
+import contextlib
+import io
 import importlib
 import json
 import math
+import struct
 from pathlib import Path
 import sys
 import tempfile
@@ -319,8 +322,17 @@ def _make_case(group, name, directory):
     if group in ('uv_mapping', 'cfg_materials') or name == 'image_alpha':
         material, wrapper = _textured(obj, directory)
     else:
-        roughness = {'roughness_0': 0., 'roughness_half': .5, 'roughness_1': 1.}.get(name, 1.)
-        material, wrapper = _material(obj, roughness=roughness, emission=name == 'emission')
+        roughness = {'roughness_0': 0., 'roughness_quarter': .25, 'roughness_half': .5, 'roughness_1': 1.}.get(name, 1.)
+        material, wrapper = _material(obj, roughness=roughness, emission=name in ('emission', 'emission_zero'))
+    if name == 'emission_zero':
+        wrapper.emission_strength = 0.
+    if name == 'image_alpha':
+        wrapper.base_color = (.8, .8, .8)
+        wrapper.alpha = .25
+        socket = wrapper.node_principled_bsdf.inputs['Alpha']
+        for link in list(socket.links):
+            material.node_tree.links.remove(link)
+        wrapper.base_color_texture.image.pixels = [1.] * len(wrapper.base_color_texture.image.pixels)
     settings['shader'] = {'base_color': tuple(wrapper.base_color), 'alpha': wrapper.alpha,
                           'roughness': wrapper.roughness, 'specular': wrapper.specular,
                           'emission_color': tuple(wrapper.emission_color),
@@ -371,7 +383,9 @@ CASES = {
                    'euler_rotation', 'quaternion_rotation', 'parent_transform', 'global_scale',
                    'weighted_rest', 'evaluated_weights', 'custom_disabled', 'zero_scale',
                    'singular_line', 'singular_point', 'near_singular', 'empty_preserves_destination'),
-    'materials': ('roughness_0', 'roughness_half', 'roughness_1', 'emission', 'image_alpha'),
+    'materials': ('roughness_0', 'roughness_quarter', 'roughness_half', 'roughness_1', 'emission', 'emission_zero', 'image_alpha',
+                  'native_power_0', 'native_power_32', 'native_power_500', 'native_power_1500',
+                  'native_components', 'native_cfg_overrides', 'constant_nodes', 'non_node_constants', 'unsupported_paths', 'cfg_image_paths'),
     'uv_mapping': ('render_active', 'named_uv', 'mapping_point', 'mapping_texture', 'mapping_vector'),
     'cfg_materials': ('cfg_alpha', 'cfg_allcolor'),
 }
@@ -456,6 +470,177 @@ def _empty_regression(addon, directory, manifest):
         assert actual == sentinel, ('rejected empty export destroyed existing bytes', actual)
 
 
+def _material_regression(addon, name, directory):
+    exporter = addon.o3d_io.io_o3d_export
+    importer = addon.o3d_io.io_o3d_import
+    parser = addon.o3d_io.o3d_cfg_parser
+    obj = _mesh(name)
+
+    def export():
+        path = directory / 'roundtrip.o3d'
+        exporter.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7, True, objects=[obj])
+        return read_export(path.read_bytes())['materials']
+
+    if name == 'non_node_constants':
+        material = bpy.data.materials.new('Non-node constant fixture')
+        material.use_nodes = False
+        if material.use_nodes:
+            assert bpy.app.version >= (5, 0), bpy.app.version_string
+            print('NON_NODE_UNAVAILABLE_ON_BUILD', bpy.app.version_string)
+            return
+        material.diffuse_color = (.2, .3, .4, .25)
+        material.roughness = .25
+        material.specular_intensity = .4
+        obj.data.materials.append(material)
+        tree = material.node_tree
+        nodes = list(tree.nodes) if tree else []
+        _assert_close(export()[0][:11], (.2,.3,.4,1.,0.,0.,0.,0.,0.,0.,750.))
+        assert not material.use_nodes and material.node_tree == tree
+        assert (list(tree.nodes) if tree else []) == nodes
+        return
+
+    if name.startswith('native_'):
+        power = float(name.rsplit('_', 1)[1]) if name.startswith('native_power_') else 32.
+        raw = (.2, .4, .6, .25, 1.2, .3, .7, 2., .9, 1.2, power, 'MISSING.PNG')
+        cfg = {}
+        records = [raw]
+        if name == 'native_cfg_overrides':
+            # Nonadjacent duplicates, ASCII-only normalization, no slash folding.
+            records = [raw, (*raw[:11], 'OTHER.PNG'), (*raw[:11], 'missing.png'),
+                       (*raw[:11], 'Ä.PNG'), (*raw[:11], 'ä.png'), (*raw[:11], '')]
+            block = ['.1', '.2', '.3', '.4', '.5', '.6', '.7', '.8', '.9', '1', '2', '3', '4', '1500']
+            path = directory / 'input.cfg'
+            _image(directory)
+            path.write_text('[mesh]\ninput.o3d\n[matl]\nOTHER.PNG\n0\n[matl_envmap]\nenv.bmp\n.7\n[matl_alpha]\n2\n[matl_nightmap]\narrow-checker.png\n[matl]\nmissing.png\n1\n[matl_envmap]\nenv.bmp\n.6\n[matl_allcolor]\n' + '\n'.join(block) +
+                            '\n[matl_noZwrite]\n[matl_noZcheck]\n[alphascale]\nalpha_var\n[matl]\nä.png\n0\n[matl_allcolor]\n' + '\n'.join(block) +
+                            '\n[matl]\n\n0\n[matl_allcolor]\n' + '\n'.join(block) + '\n', encoding='cp1252')
+            cfg = parser.read_cfg(str(path), '')[0][-1]['meshes']['input.o3d']['matls']
+        # Exercise the real binary codec on input, not a hand-built parser tuple.
+        binary = io.BytesIO()
+        addon.o3d_io.o3dconvert.export_o3d(binary, [(0,0,0,0,0,1,0,0), (1,0,0,0,0,1,1,0), (0,1,0,0,0,1,0,1)],
+                                           [(0,1,2,0)], records, [], None)
+        decoded = addon.o3d_io.o3dconvert.import_o3d(binary.getvalue())[3]
+        importer.generate_materials(cfg, str(directory / 'input.cfg'), 0, decoded, obj.data)
+        material = obj.data.materials[0]
+        wrapper = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=False)
+        _assert_close((wrapper.roughness,), ({0.: 1., 32.: .968, 500.: .5, 1500.: 0.}[power],))
+        _assert_close(wrapper.emission_color[:3], (2., .9, 1.2))
+        assert wrapper.emission_strength == 1.
+        first = export()
+        for index, (actual, expected) in enumerate(zip(first, records)):
+            expected = expected[:11] if name != 'native_cfg_overrides' or index not in (2, 4, 5) else (*expected[:10], 1500.)
+            assert struct.pack('<11f', *actual[:11]) == struct.pack('<11f', *expected), (index, actual, expected)
+        wrapper.roughness = .25
+        edited = export()[0]
+        _assert_close(edited[:10], raw[:10])
+        assert edited[10] == 750.
+        if name == 'native_components':
+            wrapper.alpha = .75
+            alpha_edit = export()[0]
+            _assert_close(alpha_edit[:4], (.2, .4, .6, .75))
+            _assert_close(alpha_edit[4:10], raw[4:10])
+            wrapper.emission_strength = 0.
+            _assert_close(export()[0][7:10], (0., 0., 0.))
+            wrapper.specular = .5
+            _assert_close(export()[0][4:7], (.5, .125, 7 / 24))
+            # Changing image identity is a relevant diffuse edit, unlike roughness.
+            wrapper.base_color_texture.image = _image(directory)
+            _assert_close(export()[0][:4], (1., 1., 1., .75))
+        if name == 'native_cfg_overrides':
+            env = obj.data.materials[1]
+            env_preview = node_shader_utils.PrincipledBSDFWrapper(env, is_readonly=True)
+            _assert_close((env_preview.roughness, env['o3d_specular_roughness']), (.01, .01))
+            assert env['o3d_specular_power'] == 32.
+            assert env_preview.emission_color_texture.image is not None
+            for index in (2, 4, 5):
+                mat = obj.data.materials[index]
+                preview = node_shader_utils.PrincipledBSDFWrapper(mat, is_readonly=True)
+                assert mat['o3d_specular_power'] == 1500.
+                assert preview.roughness == mat['o3d_specular_roughness'] == 0.
+                assert any(list(b) == ['[matl_allcolor]', *block] for b in mat['cfg_data'])
+            assert obj.data.materials[3]['o3d_specular_power'] == 32.
+            assert any(list(b) == ['[matl_noZwrite]'] for b in obj.data.materials[2]['cfg_data'])
+            assert any(list(b) == ['[alphascale]', 'alpha_var'] for b in obj.data.materials[2]['cfg_data'])
+            before = export()
+            stream = io.StringIO()
+            parser.write_cfg_materials(stream, obj, str(directory / 'output.cfg'))
+            assert '[matl_allcolor]' in stream.getvalue()
+            assert export() == before, 'CFG writer mutated embedded components'
+        return
+
+    material, wrapper = _material(obj)
+    nodes, links = material.node_tree.nodes, material.node_tree.links
+    shader = wrapper.node_principled_bsdf
+    if name == 'constant_nodes':
+        rgb = nodes.new('ShaderNodeRGB')
+        rgb.outputs[0].default_value = (.2, .3, .4, 1.)
+        value = nodes.new('ShaderNodeValue')
+        value.outputs[0].default_value = .25
+        strength = nodes.new('ShaderNodeValue')
+        strength.outputs[0].default_value = 3.
+        for socket in ('Base Color', 'Emission Color', 'Specular Tint'):
+            links.new(rgb.outputs[0], shader.inputs[socket])
+        for socket in ('Alpha', 'Roughness', 'Specular IOR Level'):
+            links.new(value.outputs[0], shader.inputs[socket])
+        links.new(strength.outputs[0], shader.inputs['Emission Strength'])
+        _assert_close(export()[0][:11], (.2,.3,.4,.25,.05,.075,.1,.6,.9,1.2,750.))
+    elif name == 'unsupported_paths':
+        for kind in ('alpha_base', 'strength_image', 'math', 'group', 'surface'):
+            test = material.copy()
+            obj.data.materials[0] = test
+            graph = test.node_tree
+            principled = graph.nodes.get('Principled BSDF')
+            image = graph.nodes.new('ShaderNodeTexImage')
+            image.image = _image(directory)
+            if kind == 'alpha_base':
+                graph.links.new(image.outputs['Alpha'], principled.inputs['Base Color'])
+            elif kind == 'strength_image':
+                graph.links.new(image.outputs['Color'], principled.inputs['Emission Strength'])
+            elif kind == 'math':
+                math_node = graph.nodes.new('ShaderNodeMath')
+                graph.links.new(math_node.outputs[0], principled.inputs['Roughness'])
+            elif kind == 'group':
+                group = graph.nodes.new('ShaderNodeGroup')
+                tree = bpy.data.node_groups.new('Unsupported', 'ShaderNodeTree')
+                tree.interface.new_socket(name='Color', in_out='OUTPUT', socket_type='NodeSocketColor')
+                group.node_tree = tree
+                graph.links.new(group.outputs[0], principled.inputs['Base Color'])
+            else:
+                graph.links.new(graph.nodes.new('ShaderNodeEmission').outputs[0], graph.nodes.get('Export').inputs['Surface'])
+            try:
+                export()
+            except ValueError as error:
+                assert 'material' in str(error).lower() and ('unsupported' in str(error).lower() or 'cannot' in str(error).lower()), str(error)
+            else:
+                raise AssertionError(f'unsupported {kind} silently exported destination defaults')
+        obj.data.materials[0] = material
+    elif name == 'cfg_image_paths':
+        wrapper.base_color_texture.image = _image(directory)
+        wrapper.alpha = .25
+        wrapper.specular = .4
+        wrapper.specular_tint = (.2, .3, .4)
+        wrapper.roughness = .01
+        wrapper.emission_color = (.2, .3, .4)
+        wrapper.emission_strength = 3.
+        wrapper.alpha_texture.image = wrapper.base_color_texture.image
+        wrapper.specular_texture.image = wrapper.base_color_texture.image
+        wrapper.emission_color_texture.image = wrapper.base_color_texture.image
+        addon.o3d_io.blender_compat.apply_bump_map(wrapper, wrapper.base_color_texture.image, .4)
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            actual = export()[0]
+        _assert_close(actual[:10], (1,1,1,.25,.08,.12,.16,.2,.3,.4))
+        assert 'fallback' in stdout.getvalue().lower() and 'not evaluated' in stdout.getvalue().lower(), stdout.getvalue()
+        stream = io.StringIO()
+        parser.write_cfg_materials(stream, obj, str(directory / 'output.cfg'))
+        for command in ('[matl_alpha]', '[matl_envmap]', '[matl_envmap_mask]', '[matl_bumpmap]', '[matl_lightmap]'):
+            assert command in stream.getvalue(), (command, stream.getvalue())
+        wrapper.emission_strength = .5
+        stream = io.StringIO()
+        parser.write_cfg_materials(stream, obj, str(directory / 'output.cfg'))
+        assert '[matl_nightmap]' in stream.getvalue()
+
+
 def _run_case(addon, reference, group, name, directory):
     directory.mkdir(parents=True, exist_ok=True)
     manifest = {'group': group, 'case': name, 'blender': bpy.app.version_string,
@@ -477,7 +662,9 @@ def _run_case(addon, reference, group, name, directory):
             manifest['checks'].append({'name': label, 'status': 'PASS'})
 
     try:
-        if name == 'empty_preserves_destination':
+        if name.startswith('native_') or name in ('constant_nodes', 'non_node_constants', 'unsupported_paths', 'cfg_image_paths'):
+            check('material import/export contract', lambda: _material_regression(addon, name, directory))
+        elif name == 'empty_preserves_destination':
             check('rejected empty export preserves sentinel', lambda: _empty_regression(addon, directory, manifest))
         else:
             obj, settings = _make_case(group, name, directory)
@@ -576,7 +763,13 @@ def _run_case(addon, reference, group, name, directory):
                           lambda: _restoration_regression(addon, obj, directory, snapshot))
                 if name == 'emission':
                     check('emission color times strength', lambda: assert_emission_record(current['materials'][0]))
+                if name == 'emission_zero':
+                    check('zero strength emits black', lambda: _assert_equal(current['materials'][0][7:10], (0., 0., 0.)))
+                if name == 'image_alpha':
+                    check('neutral image RGB and independent alpha', lambda: _assert_close(current['materials'][0][:4], (1., 1., 1., .25)))
                 if name.startswith('roughness_'):
+                    powers = {'roughness_0': 1000., 'roughness_quarter': 750., 'roughness_half': 500., 'roughness_1': 0.}
+                    check('authored exponent policy', lambda: _assert_equal(current['materials'][0][10], powers[name]))
                     manifest['authoring_policy_comparison'] = {
                         'current_exponent': current['materials'][0][10],
                         'reference_linear_1000_exponent': 1000 * (1 - settings['shader']['roughness']),
@@ -606,6 +799,10 @@ def _run_case(addon, reference, group, name, directory):
             obj.select_set(True)
         bpy.context.view_layer.objects.active = active
     return manifest
+
+
+def _assert_close(actual, expected):
+    assert len(actual) == len(expected) and all(math.isclose(a, b, abs_tol=2e-6) for a, b in zip(actual, expected)), (actual, expected)
 
 
 def _assert_equal(actual, expected):
@@ -712,7 +909,8 @@ def run_checks(addon, names: list[str] | None = None) -> None:
             manifests.append(manifest)
             print(f'FIDELITY {group}/{name}: {manifest["status"]}')
     source = Path(addon.__file__).resolve().parent
-    current_files = [source / 'o3d_io' / name for name in ('io_o3d_export.py', 'blender_compat.py', 'o3dconvert.py')]
+    current_files = [source / 'o3d_io' / name for name in ('io_o3d_export.py', 'io_o3d_import.py', 'o3d_cfg_parser.py', 'blender_compat.py', 'o3dconvert.py')]
+    current_files.append(Path(__file__).resolve())
     reference_files = [Path(REFERENCE) / 'io_export_o3d' / name for name in ('exporter.py', 'node_shader.py', 'meshio.py')] if REFERENCE else []
     summary = {'blender': bpy.app.version_string, 'blender_build': bpy.app.build_hash.decode(),
                'source_sha256': {str(path.relative_to(source)) if path.is_relative_to(source) else str(path):

@@ -1295,6 +1295,68 @@ def assert_supplied_panel_bundle(addon, human):
                    for error in settings.errors.splitlines()), settings.errors
         print('HUMAN_FIXTURE_REQUIRED_OVERRIDES', settings.errors)
     else:
+        # The original MMD group is unsupported, rather than silently exporting
+        # orphan Principled/material defaults. Both paths must refuse before IO.
+        original_context = (bpy.context.view_layer.objects.active, set(bpy.context.selected_objects), converted.mode)
+        original_slots = tuple(converted.data.materials)
+        original_faces = [face.material_index for face in converted.data.polygons]
+        original_positions = [vertex.co[:] for vertex in converted.data.vertices]
+        original_weights = [[(g.group, g.weight) for g in vertex.groups] for vertex in converted.data.vertices]
+        original_graphs = [[(l.from_node.name, l.from_socket.name, l.to_node.name, l.to_socket.name)
+                            for l in mat.node_tree.links] for mat in original_slots]
+        with tempfile.TemporaryDirectory(prefix='omsi-human-unsupported-fixture-') as temporary:
+            real_open = builtins.open
+            def no_output(file, mode='r', *args, **kwargs):
+                assert not any(flag in mode for flag in ('w', 'a', 'x', '+')), ('unsupported fixture opened output', file)
+                return real_open(file, mode, *args, **kwargs)
+            builtins.open = no_output
+            try:
+                for operation in (lambda: bpy.ops.omsi.human_preflight(),
+                                  lambda: bpy.ops.omsi.export_human(filepath=str(Path(temporary) / 'refused.hum'))):
+                    try:
+                        result = operation()
+                    except RuntimeError as error:
+                        assert 'Unsupported material' in str(error) and 'Principled' in str(error), str(error)
+                    else:
+                        assert result == {'CANCELLED'}, result
+                        assert 'Unsupported material' in settings.errors, settings.errors
+                assert not list(Path(temporary).rglob('*'))
+            finally:
+                builtins.open = real_open
+        assert (bpy.context.view_layer.objects.active, set(bpy.context.selected_objects), converted.mode) == original_context
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_hash
+
+        # Positive bundle coverage uses an explicitly authored fixture variant;
+        # these constants make no claim to flatten the original MMD shader.
+        from bpy_extras import node_shader_utils
+        variant = converted.copy()
+        variant.data = converted.data.copy()
+        variant.name = 'Supported Material Fixture'
+        bpy.context.scene.collection.objects.link(variant)
+        for index, material in enumerate(original_slots):
+            authored = material.copy()
+            authored.name = 'Supported Fixture Material ' + str(index)
+            authored.node_tree.nodes.clear()
+            for key in list(authored.keys()):
+                del authored[key]
+            wrapper = node_shader_utils.PrincipledBSDFWrapper(authored, is_readonly=False)
+            wrapper.base_color = (.7, .4, .2)
+            wrapper.alpha = .65
+            wrapper.specular = .25
+            wrapper.specular_tint = (1., 1., 1.)
+            wrapper.roughness = .5
+            wrapper.emission_color = (0., 0., 0.)
+            wrapper.emission_strength = 0.
+            variant.data.materials[index] = authored
+        assert [face.material_index for face in variant.data.polygons] == original_faces
+        assert [vertex.co[:] for vertex in variant.data.vertices] == original_positions
+        assert [[(g.group, g.weight) for g in vertex.groups] for vertex in variant.data.vertices] == original_weights
+        bpy.ops.object.select_all(action='DESELECT')
+        variant.select_set(True)
+        bpy.context.view_layer.objects.active = variant
+        props.source_mesh = variant
+        settings.selection_only = True
+        assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
         assert bpy.ops.omsi.human_preflight() == {'FINISHED'}
         with tempfile.TemporaryDirectory(prefix='omsi-human-fixture-panel-') as temporary:
             root = Path(temporary)
@@ -1306,7 +1368,24 @@ def assert_supplied_panel_bundle(addon, human):
             assert (root / 'fixture.cfg').is_file()
             meshes = list(root.rglob('*.o3d'))
             assert meshes and all(addon.o3d_io.o3dconvert.import_o3d(item.read_bytes()) for item in meshes)
-            print('HUMAN_FIXTURE_PANEL_BUNDLE_OK', len(links), len(meshes), settings.measured_height)
+            print('HUMAN_FIXTURE_PANEL_BUNDLE_OK_SUPPORTED_VARIANT', len(links), len(meshes), settings.measured_height)
+        assert tuple(converted.data.materials) == original_slots
+        assert [[(l.from_node.name, l.from_socket.name, l.to_node.name, l.to_socket.name)
+                 for l in mat.node_tree.links] for mat in original_slots] == original_graphs
+        assert [vertex.co[:] for vertex in converted.data.vertices] == original_positions
+        assert [[(g.group, g.weight) for g in vertex.groups] for vertex in converted.data.vertices] == original_weights
+        props.source_mesh = converted
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in original_context[1]:
+            obj.select_set(True)
+        bpy.context.view_layer.objects.active = original_context[0]
+        variant_data = variant.data
+        variant_materials = list(variant.data.materials)
+        bpy.data.objects.remove(variant, do_unlink=True)
+        bpy.data.meshes.remove(variant_data)
+        for material in variant_materials:
+            bpy.data.materials.remove(material)
+        assert (bpy.context.view_layer.objects.active, set(bpy.context.selected_objects), converted.mode) == original_context
     assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_hash
     print('HUMAN_FIXTURE_HASH_UNCHANGED', expected_hash)
 

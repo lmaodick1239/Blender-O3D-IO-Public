@@ -19,7 +19,7 @@ from . import blender_compat, o3dconvert, o3d_armature
 
 # from . import log
 from mathutils import Matrix, Vector
-from .o3d_cfg_parser import read_cfg
+from .o3d_cfg_parser import read_cfg, material_texture_key
 from .blender_texture_io import TextureSlotWrapper, load_texture_into_new_slot, load_image, missing_texture_files
 from .omsi_paths import platform_related_path, resolve_case_insensitive_path
 
@@ -519,8 +519,13 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
     :return: the new global material counter
     """
 
-    # Create materials
+    # Per-texture repeat ordinals select CFG overrides; mesh face slots stay absolute.
+    from .io_o3d_export import _material_preview, _MATERIAL_COMPONENTS
+    repeats = Counter()
     for mat_index, matl in enumerate(materials):
+        texture_key = material_texture_key(matl[4])
+        key = (texture_key, repeats[texture_key])
+        repeats[texture_key] += 1
         # log(matl)
         diffuse_r = matl[0][0]
         diffuse_g = matl[0][1]
@@ -539,9 +544,7 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
         mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=False)
         mat.base_color = (diffuse_r, diffuse_g, diffuse_b)
         mat.alpha = diffuse_a
-        mat.roughness = 1 - spec_h
-        mat_blender["o3d_specular_power"] = float(spec_h)
-        mat_blender["o3d_specular_roughness"] = float(mat.roughness)
+        mat.roughness = max(0., min(1., 1. - spec_h / 1000.))
         if max(emit_r, emit_g, emit_b) > 0:
             mat.emission_color = (emit_r, emit_g, emit_b)
             mat.emission_strength = 1.0
@@ -575,103 +578,109 @@ def generate_materials(cfg_materials, cfg_file_path, mat_counter, materials, mes
             # In some versions of Blender the colourspace isn't correctly detected, force it to sRGB for diffuse
             diff_tex.texture.image.colorspace_settings.name = 'sRGB'
             diff_tex.texture.image.alpha_mode = "NONE"
-            # Read the material config to see if we need to apply transparency
-            key = (matl[4].lower(), mat_index)
-            if key in cfg_materials and "diffuse" in cfg_materials[key]:
-                if "alpha" in cfg_materials[key] and cfg_materials[key]["alpha"][0] > 0:
-                    # Material uses alpha stored in diffuse texture alpha channel
-                    mat.alpha_texture.image = diff_tex.texture.image
-                    if cfg_materials[key]["alpha"][0] == 1:
-                        blender_compat.set_material_alpha_mode(mat_blender, "CLIP")
-                    else:
-                        blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
+        # Read the material config to see if we need to apply transparency
+        if key in cfg_materials and "diffuse" in cfg_materials[key]:
+            if diff_tex and "alpha" in cfg_materials[key] and cfg_materials[key]["alpha"][0] > 0:
+                # Material uses alpha stored in diffuse texture alpha channel
+                mat.alpha_texture.image = diff_tex.texture.image
+                if cfg_materials[key]["alpha"][0] == 1:
+                    blender_compat.set_material_alpha_mode(mat_blender, "CLIP")
+                else:
+                    blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
 
-                    mat.alpha = 0
+                mat.alpha = 0
 
-                if "transmap" in cfg_materials[key]:
-                    # Material uses dedicated transparency texture
-                    # Set the specular texture to the alpha channel of the diffuse texture
+            if "transmap" in cfg_materials[key]:
+                # Material uses dedicated transparency texture
+                # Set the specular texture to the alpha channel of the diffuse texture
+                if diff_tex:
                     mat.specular_texture.image = diff_tex.texture.image
+                # Load the new transmap
+                trans_map = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["transmap"][0], mat)
+                if trans_map:
+                    mat.alpha_texture.image = trans_map.texture.image
+                    blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
+                else:
+                    mat.alpha = 1
+
+            if "envmap" in cfg_materials[key]:
+                mat.specular = cfg_materials[key]["envmap"][0] ** 2
+                mat.roughness = 0.01
+
+                if "envmap_mask" in cfg_materials[key]:
                     # Load the new transmap
-                    trans_map = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["transmap"][0], mat)
-                    if trans_map:
-                        mat.alpha_texture.image = trans_map.texture.image
-                        blender_compat.set_material_alpha_mode(mat_blender, "HASHED")
-                    else:
-                        mat.alpha = 1
+                    envmap_mask = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["envmap_mask"][0],
+                                                             mat)
+                    if envmap_mask:
+                        # TODO: Doesn't multiply by the envmap strength
+                        mat.specular_texture.image = envmap_mask.texture.image
 
-                if "envmap" in cfg_materials[key]:
-                    mat.specular = cfg_materials[key]["envmap"][0] ** 2
-                    mat.roughness = 0.01
+            if "bumpmap" in cfg_materials[key]:
+                bump = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["bumpmap"][0], mat)
+                if bump is not None:
+                    blender_compat.apply_bump_map(mat, bump.texture.image,
+                                                  cfg_materials[key]["bumpmap_strength"][0])
 
-                    if "envmap_mask" in cfg_materials[key]:
-                        # Load the new transmap
-                        envmap_mask = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["envmap_mask"][0],
-                                                                 mat)
-                        if envmap_mask:
-                            # TODO: Doesn't multiply by the envmap strength
-                            mat.specular_texture.image = envmap_mask.texture.image
-
-                if "bumpmap" in cfg_materials[key]:
-                    bump = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["bumpmap"][0], mat)
-                    if bump is not None:
-                        blender_compat.apply_bump_map(mat, bump.texture.image,
-                                                      cfg_materials[key]["bumpmap_strength"][0])
-
-                if "alphascale" in cfg_materials[key]:
-                    # TODO: parameterize the default alphascale value
-                    # mat_blender.blend_method = "BLEND"
-                    # TODO: alpha_hash doesn't work correctly on  z-intersecting faces (a frequent problem with dirt maps)
-                    pass
-
-                if "allcolor" in cfg_materials[key]:
-                    # TODO: Work out if this is meant to override the material values or not
-                    # Allcolor allows material properties to be set to constant values
-                    allcolor = cfg_materials[key]["allcolor"]
-                    mat.base_color = [x[0] for x in allcolor[0:3]]
-                    mat.alpha = allcolor[3][0]
-                    emission = [allcolor[4][0] * 0.1 + allcolor[10][0],
-                                allcolor[5][0] * 0.1 + allcolor[11][0],
-                                allcolor[6][0] * 0.1 + allcolor[12][0]]
-                    mat.emission_color = emission
-                    # The allcolor emission values always seem to look bad, for now it's just disabled
-                    mat.emission_strength = 0
-                    mat.specular = sum([x[0] for x in allcolor[7:10]]) / 3
-                    mat.roughness = 1 / max(allcolor[13][0] / 10, 0.1)
-
-                if "nightmap" in cfg_materials[key]:
-                    # A nightmap is an emission texture which is automatically toggled at night
-                    nightmap = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["nightmap"][0], mat)
-                    if nightmap is not None:
-                        mat.emission_color_texture.image = nightmap.texture.image
-                        # TODO: Parameterise the nightmaps and lightmaps
-                        mat.emission_strength = 0.5
-
-                if "lightmap" in cfg_materials[key]:
-                    # A lightmap is an emission texture which is controlled by a script_var
-                    lightmap = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["lightmap"][0], mat)
-                    if lightmap is not None:
-                        mat.emission_color_texture.image = lightmap.texture.image
-                        mat.emission_strength = 1.5
-
-                # Populate some useful properties
-                bpy.data.materials[mat_blender.name]["type"] = cfg_materials[key]["type"]
-                # bpy.data.materials[mat_blender.name]["mat_id"] = cfg_materials[key]["mat_id"]
-                if cfg_materials[key]["type"] == "[matl_change]":
-                    bpy.data.materials[mat_blender.name]["change_var"] = cfg_materials[key]["change_var"]
-                if "envmap_tex" in cfg_materials[key]:
-                    bpy.data.materials[mat_blender.name]["envmap_tex"] = cfg_materials[key]["envmap_tex"]
-
-                # Populate remaining properties
-                bpy.data.materials[mat_blender.name]["cfg_data"] = cfg_materials[key].get("cfg_data", {})
-                # for prop in cfg_materials[key].keys():
-                #     if prop[0] == "[" and prop[-1] == "]":
-                #         # This must be an unparsed property, therefore we add it to the custom properties of the mesh
-                #         bpy.data.materials[mat_blender.name][prop] = cfg_materials[key][prop]
-                #         # log("WARNING: Unsupported material property: " + prop + " used on " + mat_blender.name)
-            else:
+            if "alphascale" in cfg_materials[key]:
+                # TODO: parameterize the default alphascale value
+                # mat_blender.blend_method = "BLEND"
+                # TODO: alpha_hash doesn't work correctly on  z-intersecting faces (a frequent problem with dirt maps)
                 pass
-                # log("WARNING: Material with texture={0} not found in cfg file!".format(matl[3]))
+
+            if "allcolor" in cfg_materials[key]:
+                # TODO: Work out if this is meant to override the material values or not
+                # Allcolor allows material properties to be set to constant values
+                allcolor = cfg_materials[key]["allcolor"]
+                mat.base_color = [x[0] for x in allcolor[0:3]]
+                mat.alpha = allcolor[3][0]
+                emission = [allcolor[4][0] * 0.1 + allcolor[10][0],
+                            allcolor[5][0] * 0.1 + allcolor[11][0],
+                            allcolor[6][0] * 0.1 + allcolor[12][0]]
+                mat.emission_color = emission
+                # The allcolor emission values always seem to look bad, for now it's just disabled
+                mat.emission_strength = 0
+                mat.specular = sum([x[0] for x in allcolor[7:10]]) / 3
+                spec_h = allcolor[13][0]
+                mat.roughness = max(0., min(1., 1. - spec_h / 1000.))
+
+            if "nightmap" in cfg_materials[key]:
+                # A nightmap is an emission texture which is automatically toggled at night
+                nightmap = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["nightmap"][0], mat)
+                if nightmap is not None:
+                    mat.emission_color_texture.image = nightmap.texture.image
+                    # TODO: Parameterise the nightmaps and lightmaps
+                    mat.emission_strength = 0.5
+
+            if "lightmap" in cfg_materials[key]:
+                # A lightmap is an emission texture which is controlled by a script_var
+                lightmap = load_texture_into_new_slot(cfg_file_path, cfg_materials[key]["lightmap"][0], mat)
+                if lightmap is not None:
+                    mat.emission_color_texture.image = lightmap.texture.image
+                    mat.emission_strength = 1.5
+
+            # Populate some useful properties
+            bpy.data.materials[mat_blender.name]["type"] = cfg_materials[key]["type"]
+            # bpy.data.materials[mat_blender.name]["mat_id"] = cfg_materials[key]["mat_id"]
+            if cfg_materials[key]["type"] == "[matl_change]":
+                bpy.data.materials[mat_blender.name]["change_var"] = cfg_materials[key]["change_var"]
+            if "envmap_tex" in cfg_materials[key]:
+                bpy.data.materials[mat_blender.name]["envmap_tex"] = cfg_materials[key]["envmap_tex"]
+
+            # Preserve explicit raw blocks independently of lossy preview inputs.
+            blocks = [list(block) for block in cfg_materials[key].get('cfg_data', [])]
+            blocks.extend([name, *values] for name, values in cfg_materials[key].items()
+                          if name.startswith('[') and name.endswith(']'))
+            mat_blender['cfg_data'] = blocks
+
+        # Capture each component only after all effective CFG preview processing.
+        # Embedded RGB/A remain native truth; power follows explicit allcolor.
+        mat_blender['o3d_specular_power'] = float(spec_h)
+        mat_blender['o3d_specular_roughness'] = float(mat.roughness)
+        raw = {'diffuse': matl[0][:3], 'alpha': (matl[0][3],),
+               'specular': matl[1], 'emission': matl[2]}
+        for component, names in _MATERIAL_COMPONENTS.items():
+            mat_blender['o3d_raw_' + component] = list(raw[component])
+            mat_blender['o3d_preview_' + component] = _material_preview(mat, names)
 
         mesh.materials.append(mat_blender)
         mat_counter += 1

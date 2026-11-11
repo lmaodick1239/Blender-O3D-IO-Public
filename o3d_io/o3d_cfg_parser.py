@@ -19,6 +19,11 @@ def log(*args):
     print("[O3D_CFG_Parser]", *args)
 
 
+def material_texture_key(name):
+    """Native material matching lowercases ASCII A–Z only."""
+    return str(name).translate(str.maketrans('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'))
+
+
 def texture_name(filepath, image):
     raw = str(image.filepath or "").replace("\\", "/")
     if not raw:
@@ -319,7 +324,7 @@ def read_cfg(filepath, override_text_encoding):
 
         elif current_command == "[matl]" or current_command == "[matl_change]":
             if param_ind == 0:
-                matl = line.lower()
+                matl = material_texture_key(line)
                 current_mat = (matl, None)
                 cfg_data[current_lod]["meshes"][current_mesh]["matls"][current_mat] = {
                     "diffuse": (line, i),
@@ -330,7 +335,7 @@ def read_cfg(filepath, override_text_encoding):
                 matls = cfg_data[current_lod]["meshes"][current_mesh]["matls"]
                 material = matls.pop(current_mat)
                 material["mat_id"] = int(line)
-                current_mat = (material["diffuse"][0].lower(), material["mat_id"])
+                current_mat = (material_texture_key(material["diffuse"][0]), material["mat_id"])
                 matls[current_mat] = material
             elif current_command == "[matl_change]" and param_ind == 2:
                 cfg_data[current_lod]["meshes"][current_mesh]["matls"][current_mat]["change_var"] = line
