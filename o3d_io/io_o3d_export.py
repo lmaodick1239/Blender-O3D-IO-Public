@@ -245,11 +245,23 @@ def _image_uvs(mesh, material, image, loops):
 def _material_uvs(mesh, material, loops):
     if material is None or not material.use_nodes:
         return _image_uvs(mesh, material, None, loops)
-    wrapper = _material_wrapper(material)
-    _, textured = _material_input(wrapper, 'Base Color', image=True)
-    if not textured:
+    wrapper = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=True)
+    shader, output = wrapper.node_principled_bsdf, wrapper.node_out
+    # Geometry-only readiness also serves unconverted MMD graphs. Resolve only
+    # the supported active image path here; actual export still validates every
+    # material strictly in _build_o3d_materials before publishing any file.
+    if shader is None or output is None or not output.is_active_output:
         return _image_uvs(mesh, material, None, loops)
-    base = wrapper.base_color_texture.node_image
+    surface = output.inputs['Surface']
+    if not surface.is_linked or surface.links[0].from_node != shader:
+        return _image_uvs(mesh, material, None, loops)
+    socket = shader.inputs['Base Color']
+    if not socket.is_linked:
+        return _image_uvs(mesh, material, None, loops)
+    link = socket.links[0]
+    base = link.from_node
+    if base.bl_idname != 'ShaderNodeTexImage' or base.image is None or link.from_socket.name != 'Color':
+        return _image_uvs(mesh, material, None, loops)
     result = _image_uvs(mesh, material, base, loops)
     # These are the established CFG texture routes, NOT a graph traversal or
     # new env/light/night conversion policy. All share the one serialized UV0.
@@ -481,6 +493,8 @@ def _build_o3d_materials(filepath, materials, texture_filepath=None):
 def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, materials, o3d_version,
                 export_custom_normals, allow_smoothskin=False, allowed_names=None,
                 texture_filepath=None):
+    if len(materials) > 65535:
+        raise ValueError("O3D supports at most 65535 materials")
     geometry = prepare_o3d_geometry(
         blender_obj, mesh, export_custom_normals, allowed_names=allowed_names, materials=materials
     )
@@ -488,8 +502,6 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
         geometry, o3d_version, character_runtime=bool(geometry["bones"])
     )
     verts, tris, bones = (geometry[key] for key in ("verts", "tris", "bones"))
-    if len(materials) > 65535:
-        raise ValueError("O3D supports at most 65535 materials")
     if geometry["smoothskin"] and not allow_smoothskin:
         log("WARNING: direct O3D export cannot express [smoothskin]; blended weights may load rigidly")
     o3d_mats = _build_o3d_materials(filepath, materials, texture_filepath)
