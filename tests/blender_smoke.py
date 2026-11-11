@@ -1,5 +1,7 @@
-"""Entry point: blender --background --factory-startup --python tests/blender_smoke.py"""
+"""Public synthetic suite; opt in to private scenes with -- --with-private-fixtures."""
+import argparse
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -20,6 +22,7 @@ import smoke_character_fix_round_2
 import smoke_character_final_fix
 import smoke_lod
 import smoke_human
+import smoke_export_fidelity
 from smoke_support import load_addon
 
 CHECKS = [
@@ -111,28 +114,55 @@ CHECKS = [
 
 
 def run() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--with-private-fixtures', action='store_true')
+    parser.add_argument('--fidelity-output-dir', type=Path)
+    args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
+    human_checks = smoke_human.select_checks(with_private=args.with_private_fixtures)
     addon = load_addon()
     metadata = addon.bl_info.copy()
     del addon.bl_info
     addon.register()
-    assert metadata["blender"] == (4, 0, 0)
-    assert addon.ADDON_VERSION == (1, 3, 4)
-    assert hasattr(bpy.ops.import_scene, "omsi_model_cfg")
-    assert hasattr(bpy.ops.export_scene, "omsi_model_cfg")
-    assert hasattr(bpy.ops.import_scene, "omsi_tile")
-    for check in CHECKS:
-        check(addon)
-    # Human checks use (addon, human), unlike the historical addon-only list.
-    # The root suite owns registration; do not run the standalone wrapper here.
-    import importlib
-    human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
-    for check in smoke_human.CHECKS:
-        check(addon, human)
-        print('HUMAN_CHECK_OK', check.__name__)
-    addon.unregister()
-    smoke_character_panel.assert_character_panel_unregistered(addon)
-    smoke_human.assert_human_unregistered(addon)
-    print("BLENDER_O3D_IO_SMOKE_OK", bpy.app.version_string)
+    try:
+        assert metadata["blender"] == (4, 2, 0)
+        assert addon.ADDON_VERSION == (1, 3, 4)
+        assert hasattr(bpy.ops.import_scene, "omsi_model_cfg")
+        assert hasattr(bpy.ops.export_scene, "omsi_model_cfg")
+        assert hasattr(bpy.ops.import_scene, "omsi_tile")
+        for check in CHECKS:
+            check(addon)
+            print('ROOT_CHECK_OK', check.__name__)
+        # The root owns registration; run fidelity before human save/reload checks.
+        before = smoke_human.source_snapshot()
+        previous_output = smoke_export_fidelity.OUTPUT_DIR
+        caller_scene = bpy.context.window.scene
+        fidelity_scene = bpy.data.scenes.new('O3D Fidelity Smoke')
+        try:
+            # Cycles can materialize scene settings even when restoring defaults.
+            # Keep that fixture state out of the caller's scene on every series.
+            bpy.context.window.scene = fidelity_scene
+            with tempfile.TemporaryDirectory(prefix='o3d-integrated-fidelity-') as temporary:
+                smoke_export_fidelity.OUTPUT_DIR = args.fidelity_output_dir or Path(temporary)
+                smoke_export_fidelity.run_checks(addon)
+        finally:
+            bpy.context.window.scene = caller_scene
+            bpy.data.scenes.remove(fidelity_scene)
+            smoke_export_fidelity.OUTPUT_DIR = previous_output
+        assert smoke_human.source_snapshot() == before, 'fidelity changed caller scene/source/context'
+        print('FIDELITY_CALLER_RESTORATION_OK')
+        # Human checks use (addon, human), unlike the historical addon-only list.
+        import importlib
+        human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
+        for check in human_checks:
+            check(addon, human)
+            print('HUMAN_CHECK_OK', check.__name__)
+    finally:
+        addon.unregister()
+        smoke_character_panel.assert_character_panel_unregistered(addon)
+        smoke_human.assert_human_unregistered(addon)
+    print('BLENDER_O3D_IO_PUBLIC_SYNTHETIC_SMOKE_OK', bpy.app.version_string,
+          'root_checks', len(CHECKS), 'human_synthetic_checks', len(smoke_human.CHECKS),
+          'optional_private_checks', len(smoke_human.PRIVATE_CHECKS) if args.with_private_fixtures else 0)
 
 
 run()

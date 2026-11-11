@@ -46,11 +46,12 @@ jobs:
             - name: "Validate extension manifest"
               run: blender --command extension validate .
 
-            - name: "Run codec tests"
-              run: python3 -m unittest discover -s tests -p 'test_o3dconvert.py' -v
+            - name: "Run pure tests (codec, independent decoder, packaging)"
+              run: python3 -m unittest discover -s tests -p 'test_*.py' -v
 
-            - name: "Run smoke test"
+            - name: "Run public synthetic smoke test"
               shell: bash
               run: |
-                  blender --background --factory-startup --python tests/blender_smoke.py | tee smoke.log
-                  grep -q BLENDER_O3D_IO_SMOKE_OK smoke.log
+                  set -eo pipefail
+                  blender --background --factory-startup --threads 1 --python-exit-code 1 --python tests/blender_smoke.py 2>&1 | tee smoke.log
+                  grep -q BLENDER_O3D_IO_PUBLIC_SYNTHETIC_SMOKE_OK smoke.log

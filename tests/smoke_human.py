@@ -1,9 +1,12 @@
 """Standalone: blender --background --factory-startup --disable-autoexec
---python-exit-code 1 --python tests/smoke_human.py [-- --check NAME].
+--python-exit-code 1 --python tests/smoke_human.py [-- --check NAME]
+[--with-private-fixtures]. Public synthetic checks are the default.
 Real Blender fixtures; never resave the supplied integration scene.
 """
 from contextlib import contextmanager
+import argparse
 import builtins
+import hashlib
 import importlib
 import math
 import os
@@ -425,8 +428,18 @@ def assert_save_reload(addon, human):
     print('HUMAN_METADATA_RELOAD_OK')
 
 
-def assert_supplied_physics(addon, human):
+PRIVATE_FIXTURE_SHA256 = '644fd4743f202dcd336e89848a9de42bb513da7cb553396f471b81369ac88622'
+
+
+def supplied_fixture():
+    # Requested private coverage is strict: missing, changed or unreadable inputs fail.
     path = HERE / 'Untitled2.blend'
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == PRIVATE_FIXTURE_SHA256, 'private fixture hash mismatch'
+    return path
+
+
+def assert_supplied_physics(addon, human):
+    path = supplied_fixture()
     bpy.ops.wm.open_mainfile(filepath=str(path), use_scripts=False)
     rig = next(obj for obj in bpy.context.scene.objects if obj.type == 'ARMATURE')
     dirty_before = bpy.data.is_dirty  # Blender version migration can already dirty a loaded file.
@@ -1263,10 +1276,8 @@ def assert_human_readiness_no_write(addon, human):
 
 def assert_supplied_panel_bundle(addon, human):
     # Read-only user fixture: all conversion/export changes are in memory or a temp directory.
-    import hashlib
-    path = HERE / 'Untitled2.blend'
-    expected_hash = '644fd4743f202dcd336e89848a9de42bb513da7cb553396f471b81369ac88622'
-    assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_hash
+    path = supplied_fixture()
+    expected_hash = PRIVATE_FIXTURE_SHA256
     bpy.ops.wm.open_mainfile(filepath=str(path), use_scripts=False)
     source = next(obj for obj in bpy.context.scene.objects if obj.type == 'ARMATURE')
     assert 'omsi_human_landmarks' not in source
@@ -1416,16 +1427,34 @@ CHECKS = [assert_human_native_registration, assert_human_panel_draw, assert_huma
           assert_export_candidates, assert_export_preflight,
           assert_export_alias_parent_preflight, assert_export_alias_suffix_preflight,
           assert_export_transform_preflight, assert_export_texture_preflight,
-          assert_export_io_failure, assert_supplied_physics, assert_supplied_panel_bundle]
+          assert_export_io_failure]
+PRIVATE_CHECKS = [assert_supplied_physics, assert_supplied_panel_bundle]
+
+
+def select_checks(*, with_private=False, name=None):
+    if with_private:
+        supplied_fixture()  # Validate before registration or scene changes; load errors still propagate.
+        checks = [*CHECKS, *PRIVATE_CHECKS]
+        print('HUMAN_PRIVATE_CHECKS requested', len(PRIVATE_CHECKS))
+    else:
+        checks = CHECKS
+        availability = 'present (not loaded)' if (HERE / 'Untitled2.blend').is_file() else 'unavailable'
+        print('HUMAN_PRIVATE_CHECKS not requested', len(PRIVATE_CHECKS), availability,
+              ','.join(check.__name__ for check in PRIVATE_CHECKS))
+    if name is not None:
+        checks = [check for check in checks if check.__name__ == name]
+        assert checks, 'unknown human check or private check requires --with-private-fixtures'
+    return checks
 
 
 def run():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--check')
+    parser.add_argument('--with-private-fixtures', action='store_true')
+    args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
+    checks = select_checks(with_private=args.with_private_fixtures, name=args.check)
     addon = load_addon()
     human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
-    checks = CHECKS
-    if '--check' in sys.argv:
-        checks = [check for check in CHECKS if check.__name__ == sys.argv[sys.argv.index('--check') + 1]]
-        assert checks, 'unknown human check'
     failures = []
     addon.register()
     try:

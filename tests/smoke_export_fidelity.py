@@ -97,7 +97,8 @@ def _mesh(name, vertices=None, faces=None, custom=True):
 
 def _material(obj, name='Fidelity', roughness=1., emission=False):
     material = bpy.data.materials.new(name)
-    material.use_nodes = True
+    if material.node_tree is None:
+        material.use_nodes = True
     # Both exporters read the same explicitly named material output.
     material.node_tree.nodes.get('Material Output').name = 'Export'
     wrapper = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=False)
@@ -601,11 +602,10 @@ def _material_regression(addon, name, directory):
 
     if name == 'non_node_constants':
         material = bpy.data.materials.new('Non-node constant fixture')
-        material.use_nodes = False
-        if material.use_nodes:
-            assert bpy.app.version >= (5, 0), bpy.app.version_string
+        if bpy.app.version >= (5, 0):
             print('NON_NODE_UNAVAILABLE_ON_BUILD', bpy.app.version_string)
             return
+        material.use_nodes = False
         material.diffuse_color = (.2, .3, .4, .25)
         material.roughness = .25
         material.specular_intensity = .4
