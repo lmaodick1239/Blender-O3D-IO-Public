@@ -427,7 +427,7 @@ def _run_case(addon, reference, group, name, directory):
                     'oriented_surface_equal_5dp': _rounded(oriented_surface(current)) == _rounded(oriented_surface(ref)),
                     'materials_equal_5dp': _rounded(current['materials']) == _rounded(ref['materials']),
                     'matrix_equal_5dp': _rounded(current['matrix']) == _rounded(ref['matrix']),
-                    'reference_limitations': 'No equality oracle for translation, parents, quaternion, nonuniform normals or skin widths.'}
+                    'reference_limitations': 'No equality oracle for polygon tessellation, translation, parents, quaternion, nonuniform normals or skin widths.'}
             # Persist comparisons and raw data even if the first assertion fails.
             _json(directory / 'manifest.json', manifest)
             check('source mesh and modifier state unchanged', lambda: _assert_equal(_snapshot(obj), snapshot))
@@ -462,8 +462,10 @@ def _run_case(addon, reference, group, name, directory):
                         'status': 'observation only; PBR-to-O3D exponent policy not a native fact'}
                 if group == 'cfg_materials':
                     check('CFG material command/embedded separation', lambda: _cfg_check(addon, obj, directory, name, manifest))
-                # Only use reference equality on bounded, compatible construction cases.
-                if ref and group == 'custom_normal':
+                # Already-triangulated fixtures have compatible construction.
+                # Polygon reference deltas remain observations above; source
+                # corners and Blender's own loop triangles are their invariants.
+                if ref and group == 'custom_normal' and all(len(face) == 3 for face in snapshot['faces']):
                     check('oriented reference surface including winding', lambda: _assert_equal(
                         _rounded(oriented_surface(current)), _rounded(oriented_surface(ref))))
     except Exception as error:

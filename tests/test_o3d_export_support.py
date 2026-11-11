@@ -112,6 +112,23 @@ class DecoderTests(unittest.TestCase):
         changed_uv['vertices'][0] = (*VERTICES[0][:6], .5, .5)
         self.assertNotEqual(oriented_surface(original), oriented_surface(changed_uv))
 
+    def test_polygon_tessellation_deltas_remain_observable(self):
+        # Equal source corners do not imply equal oriented triangle surfaces.
+        # Polygon fixtures use Blender's tessellation as their invariant; the
+        # reference may choose another diagonal, which must stay visible as data.
+        vertices = [(0., 0., 0., 0., 0., 1., 0., 0.),
+                    (2., 0., 0., 0., 0., 1., 1., 0.),
+                    (2., 1., .35, 0., 0., 1., 1., 1.),
+                    (0., 1., 0., 0., 0., 1., 0., 1.)]
+        first = {'vertices': vertices, 'triangles': [(0, 1, 2, 0), (0, 2, 3, 0)],
+                 'materials': [MATERIAL]}
+        other_diagonal = {'vertices': vertices, 'triangles': [(0, 1, 3, 0), (1, 2, 3, 0)],
+                          'materials': [MATERIAL]}
+        self.assertNotEqual(oriented_surface(first), oriented_surface(other_diagonal))
+        reversed_face = copy.deepcopy(first)
+        reversed_face['triangles'][0] = (2, 1, 0, 0)
+        self.assertNotEqual(oriented_surface(first), oriented_surface(reversed_face))
+
     def test_oriented_surface_uses_material_identity_not_slot_index(self):
         records = {'vertices': VERTICES, 'triangles': [(0, 1, 2, 0)], 'materials': [MATERIAL]}
         swapped = {'vertices': VERTICES, 'triangles': [(1, 2, 0, 1)],

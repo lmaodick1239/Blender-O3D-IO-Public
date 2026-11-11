@@ -1,0 +1,5813 @@
+{
+  "commands": [
+    {
+      "args": [
+        "blender",
+        "--background",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "tests/smoke_export_fidelity.py",
+        "--",
+        "--case",
+        "custom_normal",
+        "--compare-reference",
+        ".gitignorefolder/Blender-OMSI-Exporter",
+        "--output-dir",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/red"
+      ],
+      "exit_code": 1,
+      "stderr": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py:97: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0\n  material.use_nodes = True\nTraceback (most recent call last):\n  File \"/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py\", line 608, in <module>\n    run_checks(addon, args.case)\n  File \"/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py\", line 591, in run_checks\n    assert not failures, '\\n'.join(failures) + f'\\nAll configured case manifests saved in {output}'\n           ^^^^^^^^^^^^\nAssertionError: custom_normal/oblique_triangle: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, -0.21717190742492676, 0.9654355645179749, 0.14412030577659607, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.23051118850708008, 0.8820549845695496, -0.41090595722198486, 0.27000001072883606, 0.11000001430511475)])\ncustom_normal/oblique_triangle: oriented reference surface including winding: AssertionError: ((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.21717, 0.96544, 0.14413, 0.13, 0.79), (0.3, 0.2, 1.4, -0.21717, 0.96544, 0.14412, 0.27, 0.11), (2.0, 0.0, 0.1, -0.21715, 0.96544, 0.14414, 0.81, 0.68))),), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, 0.23051, 0.88205, -0.41091, 0.13, 0.79), (0.3, 0.2, 1.4, 0.23051, 0.88205, -0.41091, 0.27, 0.11), (2.0, 0.0, 0.1, 0.23049, 0.88205, -0.41092, 0.81, 0.68))),))\ncustom_normal/nonplanar_quad: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.0, 0.0, 0.0, -0.0, 1.0, -0.0, 0.12999999523162842, 0.7900000214576721), [(0.0, 0.0, 0.0, -0.08587179332971573, 0.981391966342926, -0.17174358665943146, 0.12999999523162842, 0.7900000065565109)])\ncustom_normal/nonplanar_quad: oriented triangles under established export basis: AssertionError: ([(0, 3, 1), (1, 3, 2)], [(0, 2, 1), (0, 3, 2)])\ncustom_normal/nonplanar_quad: oriented reference surface including winding: AssertionError: ((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.0, 1.0, -0.0, 0.13, 0.79), (0.0, 0.0, 1.0, -0.05094, 0.99349, -0.10189, 0.13, 0.79), (2.0, 0.0, 0.0, -0.11738, 0.96494, -0.23475, 0.81, 0.68))), ((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 1.0, -0.05094, 0.99349, -0.10189, 0.13, 0.79), (2.0, 0.35, 1.0, -0.16297, 0.93124, -0.32593, 0.27, 0.11), (2.0, 0.0, 0.0, -0.11738, 0.96494, -0.23475, 0.81, 0.68)))), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.08587, 0.98139, -0.17174, 0.13, 0.79), (0.0, 0.0, 1.0, -0.08587, 0.98139, -0.17174, 0.13, 0.79), (2.0, 0.35, 1.0, -0.08587, 0.98139, -0.17174, 0.27, 0.11))), ((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.08587, 0.98139, -0.17174, 0.13, 0.79), (2.0, 0.35, 1.0, -0.08587, 0.98139, -0.17174, 0.27, 0.11), (2.0, 0.0, 0.0, -0.08587, 0.98139, -0.17174, 0.81, 0.68)))))\nAll configured case manifests saved in /mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/red\n\nError: script failed, file: 'tests/smoke_export_fidelity.py', exiting.\n",
+      "stdout": "Blender 5.0.1 (hash a3db93c5b259 built 2025-12-16 01:30:59)\n[O3D_IO] Registering Blender-O3D-IO version: (1, 3, 4)...\n[O3D_Export] Exporting oblique_triangle...\n[O3D_Export] Exported 1 models in 0.0064351558685302734 seconds!\nFIDELITY custom_normal/oblique_triangle: FAIL\n[O3D_Export] Exporting flat_wedge...\n[O3D_Export] Exported 1 models in 0.004729032516479492 seconds!\nFIDELITY custom_normal/flat_wedge: PASS\n[O3D_Export] Exporting smooth_wedge...\n[O3D_Export] Exported 1 models in 0.005454540252685547 seconds!\nFIDELITY custom_normal/smooth_wedge: PASS\n[O3D_Export] Exporting uv_seam...\n[O3D_Export] Exported 1 models in 0.003960132598876953 seconds!\nFIDELITY custom_normal/uv_seam: PASS\n[O3D_Export] Exporting nonplanar_quad...\n[O3D_Export] Exported 1 models in 0.004294633865356445 seconds!\nFIDELITY custom_normal/nonplanar_quad: FAIL\n[O3D_Export] Exporting concave_ngon...\n[O3D_Export] Exported 1 models in 0.0042536258697509766 seconds!\nFIDELITY custom_normal/concave_ngon: PASS\n\nBlender quit\n"
+    },
+    {
+      "args": [
+        "python3",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/check_policy.py",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/red"
+      ],
+      "exit_code": 1,
+      "stderr": "Traceback (most recent call last):\n  File \"/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/check_policy.py\", line 14, in <module>\n    assert label not in [check['name'] for check in manifest['checks']], (name, 'reference tessellation is still a pass condition')\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: ('nonplanar_quad', 'reference tessellation is still a pass condition')\n",
+      "stdout": ""
+    },
+    {
+      "args": [
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_o3d_export_support.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "stderr": "test_absent_matrix_defaults_to_identity (test_o3d_export_support.DecoderTests.test_absent_matrix_defaults_to_identity) ... ok\ntest_complete_v7_values_and_both_section_orders (test_o3d_export_support.DecoderTests.test_complete_v7_values_and_both_section_orders) ... ok\ntest_exact_eof_unknown_tag_and_duplicate_section (test_o3d_export_support.DecoderTests.test_exact_eof_unknown_tag_and_duplicate_section) ... ok\ntest_legacy_v1_counts_short_triangles_and_values (test_o3d_export_support.DecoderTests.test_legacy_v1_counts_short_triangles_and_values) ... ok\ntest_oriented_surface_ignores_numbering_and_cyclic_rotation_not_reversal (test_o3d_export_support.DecoderTests.test_oriented_surface_ignores_numbering_and_cyclic_rotation_not_reversal) ... ok\ntest_oriented_surface_uses_material_identity_not_slot_index (test_o3d_export_support.DecoderTests.test_oriented_surface_uses_material_identity_not_slot_index) ... ok\ntest_polygon_tessellation_deltas_remain_observable (test_o3d_export_support.DecoderTests.test_polygon_tessellation_deltas_remain_observable) ... ok\ntest_rejects_encryption_magic_and_unsupported_version (test_o3d_export_support.DecoderTests.test_rejects_encryption_magic_and_unsupported_version) ... ok\ntest_truncation_at_each_record_and_string_boundary (test_o3d_export_support.DecoderTests.test_truncation_at_each_record_and_string_boundary) ... ok\ntest_versions_and_triangle_width_do_not_widen_skin (test_o3d_export_support.DecoderTests.test_versions_and_triangle_width_do_not_widen_skin) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.007s\n\nOK\n",
+      "stdout": ""
+    },
+    {
+      "args": [
+        "blender",
+        "--background",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "tests/smoke_export_fidelity.py",
+        "--",
+        "--case",
+        "custom_normal",
+        "--compare-reference",
+        ".gitignorefolder/Blender-OMSI-Exporter",
+        "--output-dir",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/fixed"
+      ],
+      "exit_code": 1,
+      "stderr": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py:97: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0\n  material.use_nodes = True\nTraceback (most recent call last):\n  File \"/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py\", line 610, in <module>\n    run_checks(addon, args.case)\n  File \"/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/tests/smoke_export_fidelity.py\", line 593, in run_checks\n    assert not failures, '\\n'.join(failures) + f'\\nAll configured case manifests saved in {output}'\n           ^^^^^^^^^^^^\nAssertionError: custom_normal/oblique_triangle: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, -0.21717190742492676, 0.9654355645179749, 0.14412030577659607, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.23051118850708008, 0.8820549845695496, -0.41090595722198486, 0.27000001072883606, 0.11000001430511475)])\ncustom_normal/oblique_triangle: oriented reference surface including winding: AssertionError: ((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.21717, 0.96544, 0.14413, 0.13, 0.79), (0.3, 0.2, 1.4, -0.21717, 0.96544, 0.14412, 0.27, 0.11), (2.0, 0.0, 0.1, -0.21715, 0.96544, 0.14414, 0.81, 0.68))),), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, 0.23051, 0.88205, -0.41091, 0.13, 0.79), (0.3, 0.2, 1.4, 0.23051, 0.88205, -0.41091, 0.27, 0.11), (2.0, 0.0, 0.1, 0.23049, 0.88205, -0.41092, 0.81, 0.68))),))\ncustom_normal/nonplanar_quad: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.0, 0.0, 0.0, -0.0, 1.0, -0.0, 0.12999999523162842, 0.7900000214576721), [(0.0, 0.0, 0.0, -0.08587179332971573, 0.981391966342926, -0.17174358665943146, 0.12999999523162842, 0.7900000065565109)])\ncustom_normal/nonplanar_quad: oriented triangles under established export basis: AssertionError: ([(0, 3, 1), (1, 3, 2)], [(0, 2, 1), (0, 3, 2)])\nAll configured case manifests saved in /mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/fixed\n\nError: script failed, file: 'tests/smoke_export_fidelity.py', exiting.\n",
+      "stdout": "Blender 5.0.1 (hash a3db93c5b259 built 2025-12-16 01:30:59)\n[O3D_IO] Registering Blender-O3D-IO version: (1, 3, 4)...\n[O3D_Export] Exporting oblique_triangle...\n[O3D_Export] Exported 1 models in 0.004084110260009766 seconds!\nFIDELITY custom_normal/oblique_triangle: FAIL\n[O3D_Export] Exporting flat_wedge...\n[O3D_Export] Exported 1 models in 0.003500223159790039 seconds!\nFIDELITY custom_normal/flat_wedge: PASS\n[O3D_Export] Exporting smooth_wedge...\n[O3D_Export] Exported 1 models in 0.0044841766357421875 seconds!\nFIDELITY custom_normal/smooth_wedge: PASS\n[O3D_Export] Exporting uv_seam...\n[O3D_Export] Exported 1 models in 0.005477190017700195 seconds!\nFIDELITY custom_normal/uv_seam: PASS\n[O3D_Export] Exporting nonplanar_quad...\n[O3D_Export] Exported 1 models in 0.0030739307403564453 seconds!\nFIDELITY custom_normal/nonplanar_quad: FAIL\n[O3D_Export] Exporting concave_ngon...\n[O3D_Export] Exported 1 models in 0.004119396209716797 seconds!\nFIDELITY custom_normal/concave_ngon: PASS\n\nBlender quit\n"
+    },
+    {
+      "args": [
+        "python3",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/check_policy.py",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/fixed"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "POLYGON_REFERENCE_OBSERVATIONS_AND_LIVE_INVARIANTS_OK; TRIANGLE_REFERENCE_ASSERTIONS_OK\n"
+    },
+    {
+      "args": [
+        "blender",
+        "--background",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/check_invariants.py",
+        "--",
+        ".superpowers/sdd/2026-11-10-o3d-export-fidelity/task-2-scratch/fix-round1/fixed"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "POLYGON_MUTATION_DETECTED nonplanar_quad normal\nPOLYGON_MUTATION_DETECTED nonplanar_quad winding\nPOLYGON_MUTATION_DETECTED nonplanar_quad lost_corner\nBLENDER_TESSELLATION_MISMATCH_DETECTED nonplanar_quad\nPOLYGON_MUTATION_DETECTED concave_ngon normal\nPOLYGON_MUTATION_DETECTED concave_ngon winding\nPOLYGON_MUTATION_DETECTED concave_ngon lost_corner\nPOLYGON_INVARIANT_POSITIVE_CONTROLS_AND_MUTATIONS_OK\nBlender 5.0.1 (hash a3db93c5b259 built 2025-12-16 01:30:59)\n\nBlender quit\n"
+    }
+  ],
+  "fix_base": "d458bc996b06fdf388082b7b96ac76f1421a735f",
+  "fixed_manifests": [
+    {
+      "blender": "5.0.1",
+      "blender_build": "a3db93c5b259",
+      "case": "oblique_triangle",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "error": "('normal direction', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, -0.21717190742492676, 0.9654355645179749, 0.14412030577659607, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.23051118850708008, 0.8820549845695496, -0.41090595722198486, 0.27000001072883606, 0.11000001430511475)])",
+          "name": "every source position/normal/UV corner preserved",
+          "status": "FAIL"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "error": "((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.21717, 0.96544, 0.14413, 0.13, 0.79), (0.3, 0.2, 1.4, -0.21717, 0.96544, 0.14412, 0.27, 0.11), (2.0, 0.0, 0.1, -0.21715, 0.96544, 0.14414, 0.81, 0.68))),), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, 0.23051, 0.88205, -0.41091, 0.13, 0.79), (0.3, 0.2, 1.4, 0.23051, 0.88205, -0.41091, 0.27, 0.11), (2.0, 0.0, 0.1, 0.23049, 0.88205, -0.41092, 0.81, 0.68))),))",
+          "name": "oriented reference surface including winding",
+          "status": "FAIL"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": false,
+        "reference_limitations": "No equality oracle for polygon tessellation, translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "expected_corners": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.23050501942634583,
+          0.8820542097091675,
+          -0.41091078519821167,
+          0.12999999523162842,
+          0.7900000065565109
+        ],
+        [
+          2.0,
+          0.0,
+          0.10000000149011612,
+          0.23049196600914001,
+          0.8820528388023376,
+          -0.4109210968017578,
+          0.8100000023841858,
+          0.6800000071525574
+        ],
+        [
+          0.30000001192092896,
+          0.20000000298023224,
+          1.399999976158142,
+          0.23051118850708008,
+          0.8820549845695496,
+          -0.41090595722198486,
+          0.27000001072883606,
+          0.11000001430511475
+        ]
+      ],
+      "exporters": {
+        "current": {
+          "file": "current.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.2171657681465149,
+                  0.9654362201690674,
+                  0.14412520825862885,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.30000001192092896,
+                  0.20000000298023224,
+                  1.399999976158142,
+                  -0.21717190742492676,
+                  0.9654355645179749,
+                  0.14412030577659607,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.10000000149011612,
+                  -0.21715271472930908,
+                  0.9654375910758972,
+                  0.14413553476333618,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 2,
+            "triangles": [
+              [
+                2,
+                1,
+                0,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.2171657681465149,
+                0.9654362201690674,
+                0.14412520825862885,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                2.0,
+                0.0,
+                0.10000000149011612,
+                -0.21715271472930908,
+                0.9654375910758972,
+                0.14413553476333618,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.30000001192092896,
+                0.20000000298023224,
+                1.399999976158142,
+                -0.21717190742492676,
+                0.9654355645179749,
+                0.14412030577659607,
+                0.27000001072883606,
+                0.11000001430511475
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "f4aa4225ac7cb84d4e2f8c5b0e8e322348c5f8202bfd1444ba2d7ecb4fc02009",
+          "size": 235
+        },
+        "reference": {
+          "file": "reference.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.2305050492286682,
+                  0.882054328918457,
+                  -0.41091084480285645,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.30000001192092896,
+                  0.20000000298023224,
+                  1.399999976158142,
+                  0.23051118850708008,
+                  0.8820549845695496,
+                  -0.41090595722198486,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.10000000149011612,
+                  0.2304919958114624,
+                  0.8820529580116272,
+                  -0.4109211564064026,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 0,
+            "triangles": [
+              [
+                0,
+                1,
+                2,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                0.30000001192092896,
+                0.20000000298023224,
+                1.399999976158142,
+                0.23051118850708008,
+                0.8820549845695496,
+                -0.41090595722198486,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                2.0,
+                0.0,
+                0.10000000149011612,
+                0.2304919958114624,
+                0.8820529580116272,
+                -0.4109211564064026,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2305050492286682,
+                0.882054328918457,
+                -0.41091084480285645,
+                0.12999999523162842,
+                0.7900000214576721
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "global_scale_emulation": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "0b5bd01345f3d097f1ea72f68ddbf4c98a1ae6bde4ce09c705052329d534de59",
+          "size": 235
+        }
+      },
+      "failures": [
+        "custom_normal/oblique_triangle: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, -0.21717190742492676, 0.9654355645179749, 0.14412030577659607, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.23051118850708008, 0.8820549845695496, -0.41090595722198486, 0.27000001072883606, 0.11000001430511475)])",
+        "custom_normal/oblique_triangle: oriented reference surface including winding: AssertionError: ((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.21717, 0.96544, 0.14413, 0.13, 0.79), (0.3, 0.2, 1.4, -0.21717, 0.96544, 0.14412, 0.27, 0.11), (2.0, 0.0, 0.1, -0.21715, 0.96544, 0.14414, 0.81, 0.68))),), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, 0.23051, 0.88205, -0.41091, 0.13, 0.79), (0.3, 0.2, 1.4, 0.23051, 0.88205, -0.41091, 0.27, 0.11), (2.0, 0.0, 0.1, 0.23049, 0.88205, -0.41092, 0.81, 0.68))),))"
+      ],
+      "group": "custom_normal",
+      "input": {
+        "corner_normals": [
+          [
+            0.2305050492286682,
+            -0.41091084480285645,
+            0.882054328918457
+          ],
+          [
+            0.2304919958114624,
+            -0.4109211564064026,
+            0.8820529580116272
+          ],
+          [
+            0.23051118850708008,
+            -0.41090595722198486,
+            0.8820549845695496
+          ]
+        ],
+        "editing_uv": "Editing",
+        "faces": [
+          [
+            0,
+            1,
+            2
+          ]
+        ],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "loop_triangles": [
+          [
+            0,
+            1,
+            2
+          ]
+        ],
+        "loop_vertices": [
+          0,
+          1,
+          2
+        ],
+        "materials": [
+          "Fidelity"
+        ],
+        "matrix_world": [
+          [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "modifiers": [],
+        "parent_matrix_world": null,
+        "rotation_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_mode": "XYZ",
+        "rotation_quaternion": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "smooth": [
+          true
+        ],
+        "uv_layers": [
+          {
+            "active_render": true,
+            "name": "Editing",
+            "uvs": [
+              [
+                0.12999999523162842,
+                0.20999999344348907
+              ],
+              [
+                0.8100000023841858,
+                0.3199999928474426
+              ],
+              [
+                0.27000001072883606,
+                0.8899999856948853
+              ]
+            ]
+          }
+        ],
+        "vertices": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            2.0,
+            0.10000000149011612,
+            0.0
+          ],
+          [
+            0.30000001192092896,
+            1.399999976158142,
+            0.20000000298023224
+          ]
+        ],
+        "weights": [
+          [],
+          [],
+          []
+        ]
+      },
+      "settings": {
+        "export_custom_normals": true,
+        "global_scale": 1.0,
+        "local_transforms": [
+          "LOC",
+          "ROT",
+          "SCA"
+        ],
+        "origin": true,
+        "reference_weights": false,
+        "shader": {
+          "alpha": 0.6499999761581421,
+          "base_color": [
+            0.699999988079071,
+            0.4000000059604645,
+            0.20000000298023224
+          ],
+          "emission_color": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "emission_strength": 0.0,
+          "image": null,
+          "roughness": 1.0,
+          "specular": 0.0
+        },
+        "version": 7
+      },
+      "status": "FAIL"
+    },
+    {
+      "blender": "5.0.1",
+      "blender_build": "a3db93c5b259",
+      "case": "flat_wedge",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented reference surface including winding",
+          "status": "PASS"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": true,
+        "reference_limitations": "No equality oracle for polygon tessellation, translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "expected_corners": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.12999999523162842,
+          0.7900000065565109
+        ],
+        [
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.8100000023841858,
+          0.6800000071525574
+        ],
+        [
+          0.20000000298023224,
+          0.0,
+          1.2999999523162842,
+          0.0,
+          1.0,
+          0.0,
+          0.27000001072883606,
+          0.11000001430511475
+        ],
+        [
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          -0.2631174325942993,
+          0.964763879776001,
+          0.12999999523162842,
+          0.7900000065565109
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -0.2631174325942993,
+          0.964763879776001,
+          0.8100000023841858,
+          0.6800000071525574
+        ],
+        [
+          0.20000000298023224,
+          1.100000023841858,
+          0.30000001192092896,
+          0.0,
+          -0.2631174325942993,
+          0.964763879776001,
+          0.27000001072883606,
+          0.11000001430511475
+        ]
+      ],
+      "exporters": {
+        "current": {
+          "file": "current.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  -0.26311740279197693,
+                  0.9647637605667114,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  -0.26311740279197693,
+                  0.9647637605667114,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.20000000298023224,
+                  1.100000023841858,
+                  0.30000001192092896,
+                  -0.0,
+                  -0.26311740279197693,
+                  0.9647637605667114,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.20000000298023224,
+                  0.0,
+                  1.2999999523162842,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 2,
+            "triangles": [
+              [
+                2,
+                1,
+                0,
+                0
+              ],
+              [
+                5,
+                4,
+                3,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.0,
+                1.0,
+                -0.0,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                -0.0,
+                1.0,
+                -0.0,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.20000000298023224,
+                0.0,
+                1.2999999523162842,
+                -0.0,
+                1.0,
+                -0.0,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                -0.0,
+                -0.26311740279197693,
+                0.9647637605667114,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.0,
+                -0.26311740279197693,
+                0.9647637605667114,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.20000000298023224,
+                1.100000023841858,
+                0.30000001192092896,
+                -0.0,
+                -0.26311740279197693,
+                0.9647637605667114,
+                0.27000001072883606,
+                0.11000001430511475
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "ade2c4103bb756b7aa70b091bad2f849d3dcf39423a243e15433c08ff3a89a73",
+          "size": 339
+        },
+        "reference": {
+          "file": "reference.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.26311740279197693,
+                  0.9647637605667114,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.26311740279197693,
+                  0.9647637605667114,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.20000000298023224,
+                  1.100000023841858,
+                  0.30000001192092896,
+                  0.0,
+                  -0.26311740279197693,
+                  0.9647637605667114,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.20000000298023224,
+                  0.0,
+                  1.2999999523162842,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 0,
+            "triangles": [
+              [
+                0,
+                1,
+                2,
+                0
+              ],
+              [
+                3,
+                4,
+                5,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                0.20000000298023224,
+                0.0,
+                1.2999999523162842,
+                0.0,
+                1.0,
+                0.0,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                0.20000000298023224,
+                1.100000023841858,
+                0.30000001192092896,
+                0.0,
+                -0.26311740279197693,
+                0.9647637605667114,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                -0.26311740279197693,
+                0.9647637605667114,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                -0.26311740279197693,
+                0.9647637605667114,
+                0.12999999523162842,
+                0.7900000214576721
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "global_scale_emulation": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "61754a0ba282f195986617598264118aa654bd1f1f533bdb36ecf64c1b4130d9",
+          "size": 339
+        }
+      },
+      "failures": [],
+      "group": "custom_normal",
+      "input": {
+        "corner_normals": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.9647637605667114,
+            -0.26311740279197693
+          ],
+          [
+            0.0,
+            0.9647637605667114,
+            -0.26311740279197693
+          ],
+          [
+            0.0,
+            0.9647637605667114,
+            -0.26311740279197693
+          ]
+        ],
+        "editing_uv": "Editing",
+        "faces": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            1,
+            0,
+            3
+          ]
+        ],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "loop_triangles": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            3,
+            4,
+            5
+          ]
+        ],
+        "loop_vertices": [
+          0,
+          1,
+          2,
+          1,
+          0,
+          3
+        ],
+        "materials": [
+          "Fidelity"
+        ],
+        "matrix_world": [
+          [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "modifiers": [],
+        "parent_matrix_world": null,
+        "rotation_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_mode": "XYZ",
+        "rotation_quaternion": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "smooth": [
+          false,
+          false
+        ],
+        "uv_layers": [
+          {
+            "active_render": true,
+            "name": "Editing",
+            "uvs": [
+              [
+                0.12999999523162842,
+                0.20999999344348907
+              ],
+              [
+                0.8100000023841858,
+                0.3199999928474426
+              ],
+              [
+                0.27000001072883606,
+                0.8899999856948853
+              ],
+              [
+                0.12999999523162842,
+                0.20999999344348907
+              ],
+              [
+                0.8100000023841858,
+                0.3199999928474426
+              ],
+              [
+                0.27000001072883606,
+                0.8899999856948853
+              ]
+            ]
+          }
+        ],
+        "vertices": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            2.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.20000000298023224,
+            1.2999999523162842,
+            0.0
+          ],
+          [
+            0.20000000298023224,
+            0.30000001192092896,
+            1.100000023841858
+          ]
+        ],
+        "weights": [
+          [],
+          [],
+          [],
+          []
+        ]
+      },
+      "settings": {
+        "export_custom_normals": true,
+        "global_scale": 1.0,
+        "local_transforms": [
+          "LOC",
+          "ROT",
+          "SCA"
+        ],
+        "origin": true,
+        "reference_weights": false,
+        "shader": {
+          "alpha": 0.6499999761581421,
+          "base_color": [
+            0.699999988079071,
+            0.4000000059604645,
+            0.20000000298023224
+          ],
+          "emission_color": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "emission_strength": 0.0,
+          "image": null,
+          "roughness": 1.0,
+          "specular": 0.0
+        },
+        "version": 7
+      },
+      "status": "PASS"
+    },
+    {
+      "blender": "5.0.1",
+      "blender_build": "a3db93c5b259",
+      "case": "smooth_wedge",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented reference surface including winding",
+          "status": "PASS"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": true,
+        "reference_limitations": "No equality oracle for polygon tessellation, translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "expected_corners": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6147273182868958,
+          0.788739800453186,
+          0.12999999523162842,
+          0.7900000065565109
+        ],
+        [
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6587255597114563,
+          0.7523833513259888,
+          0.8100000023841858,
+          0.6800000071525574
+        ],
+        [
+          0.20000000298023224,
+          0.0,
+          1.2999999523162842,
+          0.0,
+          1.0,
+          0.0,
+          0.27000001072883606,
+          0.11000001430511475
+        ],
+        [
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6587255597114563,
+          0.7523833513259888,
+          0.12999999523162842,
+          0.7900000065565109
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6147273182868958,
+          0.788739800453186,
+          0.8100000023841858,
+          0.6800000071525574
+        ],
+        [
+          0.20000000298023224,
+          1.100000023841858,
+          0.30000001192092896,
+          0.0,
+          -0.26311740279197693,
+          0.9647638201713562,
+          0.27000001072883606,
+          0.11000001430511475
+        ]
+      ],
+      "exporters": {
+        "current": {
+          "file": "current.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  0.614727258682251,
+                  0.7887396812438965,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.20000000298023224,
+                  0.0,
+                  1.2999999523162842,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  0.6587255597114563,
+                  0.7523833513259888,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  0.614727258682251,
+                  0.7887396812438965,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  0.6587255597114563,
+                  0.7523833513259888,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.20000000298023224,
+                  1.100000023841858,
+                  0.30000001192092896,
+                  -0.0,
+                  -0.26311740279197693,
+                  0.9647638201713562,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 2,
+            "triangles": [
+              [
+                2,
+                1,
+                0,
+                0
+              ],
+              [
+                5,
+                4,
+                3,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.0,
+                0.614727258682251,
+                0.7887396812438965,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                -0.0,
+                0.6587255597114563,
+                0.7523833513259888,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.20000000298023224,
+                0.0,
+                1.2999999523162842,
+                -0.0,
+                1.0,
+                -0.0,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                -0.0,
+                0.6587255597114563,
+                0.7523833513259888,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.0,
+                0.614727258682251,
+                0.7887396812438965,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.20000000298023224,
+                1.100000023841858,
+                0.30000001192092896,
+                -0.0,
+                -0.26311740279197693,
+                0.9647638201713562,
+                0.27000001072883606,
+                0.11000001430511475
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "03d5b60b35b00e60e258fe0dee26d9697f28f34b3a50b2ea15d9cbd25cf958a9",
+          "size": 339
+        },
+        "reference": {
+          "file": "reference.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.614727258682251,
+                  0.7887396812438965,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.20000000298023224,
+                  0.0,
+                  1.2999999523162842,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.6587255597114563,
+                  0.7523833513259888,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.614727258682251,
+                  0.7887396812438965,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.6587255597114563,
+                  0.7523833513259888,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.20000000298023224,
+                  1.100000023841858,
+                  0.30000001192092896,
+                  0.0,
+                  -0.26311740279197693,
+                  0.9647638201713562,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 0,
+            "triangles": [
+              [
+                0,
+                1,
+                2,
+                0
+              ],
+              [
+                3,
+                4,
+                5,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                0.20000000298023224,
+                0.0,
+                1.2999999523162842,
+                0.0,
+                1.0,
+                0.0,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.6587255597114563,
+                0.7523833513259888,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.614727258682251,
+                0.7887396812438965,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                0.20000000298023224,
+                1.100000023841858,
+                0.30000001192092896,
+                0.0,
+                -0.26311740279197693,
+                0.9647638201713562,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.614727258682251,
+                0.7887396812438965,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.6587255597114563,
+                0.7523833513259888,
+                0.12999999523162842,
+                0.7900000214576721
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "global_scale_emulation": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "bdd4bbbf456b69c7e1a3aea9f597686f1aad9bb4e67cf0451306fef4907382fb",
+          "size": 339
+        }
+      },
+      "failures": [],
+      "group": "custom_normal",
+      "input": {
+        "corner_normals": [
+          [
+            0.0,
+            0.7887396812438965,
+            0.614727258682251
+          ],
+          [
+            0.0,
+            0.7523833513259888,
+            0.6587255597114563
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.7523833513259888,
+            0.6587255597114563
+          ],
+          [
+            0.0,
+            0.7887396812438965,
+            0.614727258682251
+          ],
+          [
+            0.0,
+            0.9647638201713562,
+            -0.26311740279197693
+          ]
+        ],
+        "editing_uv": "Editing",
+        "faces": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            1,
+            0,
+            3
+          ]
+        ],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "loop_triangles": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            3,
+            4,
+            5
+          ]
+        ],
+        "loop_vertices": [
+          0,
+          1,
+          2,
+          1,
+          0,
+          3
+        ],
+        "materials": [
+          "Fidelity"
+        ],
+        "matrix_world": [
+          [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "modifiers": [],
+        "parent_matrix_world": null,
+        "rotation_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_mode": "XYZ",
+        "rotation_quaternion": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "smooth": [
+          true,
+          true
+        ],
+        "uv_layers": [
+          {
+            "active_render": true,
+            "name": "Editing",
+            "uvs": [
+              [
+                0.12999999523162842,
+                0.20999999344348907
+              ],
+              [
+                0.8100000023841858,
+                0.3199999928474426
+              ],
+              [
+                0.27000001072883606,
+                0.8899999856948853
+              ],
+              [
+                0.12999999523162842,
+                0.20999999344348907
+              ],
+              [
+                0.8100000023841858,
+                0.3199999928474426
+              ],
+              [
+                0.27000001072883606,
+                0.8899999856948853
+              ]
+            ]
+          }
+        ],
+        "vertices": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            2.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.20000000298023224,
+            1.2999999523162842,
+            0.0
+          ],
+          [
+            0.20000000298023224,
+            0.30000001192092896,
+            1.100000023841858
+          ]
+        ],
+        "weights": [
+          [],
+          [],
+          [],
+          []
+        ]
+      },
+      "settings": {
+        "export_custom_normals": true,
+        "global_scale": 1.0,
+        "local_transforms": [
+          "LOC",
+          "ROT",
+          "SCA"
+        ],
+        "origin": true,
+        "reference_weights": false,
+        "shader": {
+          "alpha": 0.6499999761581421,
+          "base_color": [
+            0.699999988079071,
+            0.4000000059604645,
+            0.20000000298023224
+          ],
+          "emission_color": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "emission_strength": 0.0,
+          "image": null,
+          "roughness": 1.0,
+          "specular": 0.0
+        },
+        "version": 7
+      },
+      "status": "PASS"
+    },
+    {
+      "blender": "5.0.1",
+      "blender_build": "a3db93c5b259",
+      "case": "uv_seam",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented reference surface including winding",
+          "status": "PASS"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": true,
+        "reference_limitations": "No equality oracle for polygon tessellation, translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "expected_corners": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6147273182868958,
+          0.788739800453186,
+          0.10000000149011612,
+          0.7999999970197678
+        ],
+        [
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6587255597114563,
+          0.7523833513259888,
+          0.800000011920929,
+          0.7999999970197678
+        ],
+        [
+          0.20000000298023224,
+          0.0,
+          1.2999999523162842,
+          0.0,
+          1.0,
+          0.0,
+          0.30000001192092896,
+          0.10000002384185791
+        ],
+        [
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6587255597114563,
+          0.7523833513259888,
+          0.8999999761581421,
+          0.19999998807907104
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6147273182868958,
+          0.788739800453186,
+          0.6000000238418579,
+          0.30000001192092896
+        ],
+        [
+          0.20000000298023224,
+          1.100000023841858,
+          0.30000001192092896,
+          0.0,
+          -0.26311740279197693,
+          0.9647638201713562,
+          0.20000000298023224,
+          0.8999999985098839
+        ]
+      ],
+      "exporters": {
+        "current": {
+          "file": "current.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  0.614727258682251,
+                  0.7887396812438965,
+                  0.10000000149011612,
+                  0.800000011920929
+                ],
+                [
+                  0.20000000298023224,
+                  0.0,
+                  1.2999999523162842,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.30000001192092896,
+                  0.10000002384185791
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  0.6587255597114563,
+                  0.7523833513259888,
+                  0.800000011920929,
+                  0.800000011920929
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  0.614727258682251,
+                  0.7887396812438965,
+                  0.6000000238418579,
+                  0.30000001192092896
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  0.6587255597114563,
+                  0.7523833513259888,
+                  0.8999999761581421,
+                  0.19999998807907104
+                ],
+                [
+                  0.20000000298023224,
+                  1.100000023841858,
+                  0.30000001192092896,
+                  -0.0,
+                  -0.26311740279197693,
+                  0.9647638201713562,
+                  0.20000000298023224,
+                  0.8999999761581421
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 2,
+            "triangles": [
+              [
+                2,
+                1,
+                0,
+                0
+              ],
+              [
+                5,
+                4,
+                3,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.0,
+                0.614727258682251,
+                0.7887396812438965,
+                0.10000000149011612,
+                0.800000011920929
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                -0.0,
+                0.6587255597114563,
+                0.7523833513259888,
+                0.800000011920929,
+                0.800000011920929
+              ],
+              [
+                0.20000000298023224,
+                0.0,
+                1.2999999523162842,
+                -0.0,
+                1.0,
+                -0.0,
+                0.30000001192092896,
+                0.10000002384185791
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                -0.0,
+                0.6587255597114563,
+                0.7523833513259888,
+                0.8999999761581421,
+                0.19999998807907104
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.0,
+                0.614727258682251,
+                0.7887396812438965,
+                0.6000000238418579,
+                0.30000001192092896
+              ],
+              [
+                0.20000000298023224,
+                1.100000023841858,
+                0.30000001192092896,
+                -0.0,
+                -0.26311740279197693,
+                0.9647638201713562,
+                0.20000000298023224,
+                0.8999999761581421
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "86b3d0e29eeb02da7e5e3136955276a8cd49e186dd9c25ea1c4a701e54b2645a",
+          "size": 339
+        },
+        "reference": {
+          "file": "reference.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.614727258682251,
+                  0.7887396812438965,
+                  0.10000000149011612,
+                  0.800000011920929
+                ],
+                [
+                  0.20000000298023224,
+                  0.0,
+                  1.2999999523162842,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.30000001192092896,
+                  0.10000002384185791
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.6587255597114563,
+                  0.7523833513259888,
+                  0.800000011920929,
+                  0.800000011920929
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.614727258682251,
+                  0.7887396812438965,
+                  0.6000000238418579,
+                  0.30000001192092896
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.6587255597114563,
+                  0.7523833513259888,
+                  0.8999999761581421,
+                  0.19999998807907104
+                ],
+                [
+                  0.20000000298023224,
+                  1.100000023841858,
+                  0.30000001192092896,
+                  0.0,
+                  -0.26311740279197693,
+                  0.9647638201713562,
+                  0.20000000298023224,
+                  0.8999999761581421
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 0,
+            "triangles": [
+              [
+                0,
+                1,
+                2,
+                0
+              ],
+              [
+                3,
+                4,
+                5,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                0.20000000298023224,
+                0.0,
+                1.2999999523162842,
+                0.0,
+                1.0,
+                0.0,
+                0.30000001192092896,
+                0.10000002384185791
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.6587255597114563,
+                0.7523833513259888,
+                0.800000011920929,
+                0.800000011920929
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.614727258682251,
+                0.7887396812438965,
+                0.10000000149011612,
+                0.800000011920929
+              ],
+              [
+                0.20000000298023224,
+                1.100000023841858,
+                0.30000001192092896,
+                0.0,
+                -0.26311740279197693,
+                0.9647638201713562,
+                0.20000000298023224,
+                0.8999999761581421
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.614727258682251,
+                0.7887396812438965,
+                0.6000000238418579,
+                0.30000001192092896
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.6587255597114563,
+                0.7523833513259888,
+                0.8999999761581421,
+                0.19999998807907104
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "global_scale_emulation": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "d4babcf0bb598d9f6d97982a3e77efb8e150493466cdc11c34b645e00ed4351b",
+          "size": 339
+        }
+      },
+      "failures": [],
+      "group": "custom_normal",
+      "input": {
+        "corner_normals": [
+          [
+            0.0,
+            0.7887396812438965,
+            0.614727258682251
+          ],
+          [
+            0.0,
+            0.7523833513259888,
+            0.6587255597114563
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.7523833513259888,
+            0.6587255597114563
+          ],
+          [
+            0.0,
+            0.7887396812438965,
+            0.614727258682251
+          ],
+          [
+            0.0,
+            0.9647638201713562,
+            -0.26311740279197693
+          ]
+        ],
+        "editing_uv": "Editing",
+        "faces": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            1,
+            0,
+            3
+          ]
+        ],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "loop_triangles": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            3,
+            4,
+            5
+          ]
+        ],
+        "loop_vertices": [
+          0,
+          1,
+          2,
+          1,
+          0,
+          3
+        ],
+        "materials": [
+          "Fidelity"
+        ],
+        "matrix_world": [
+          [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "modifiers": [],
+        "parent_matrix_world": null,
+        "rotation_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_mode": "XYZ",
+        "rotation_quaternion": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "smooth": [
+          true,
+          true
+        ],
+        "uv_layers": [
+          {
+            "active_render": true,
+            "name": "Editing",
+            "uvs": [
+              [
+                0.10000000149011612,
+                0.20000000298023224
+              ],
+              [
+                0.800000011920929,
+                0.20000000298023224
+              ],
+              [
+                0.30000001192092896,
+                0.8999999761581421
+              ],
+              [
+                0.8999999761581421,
+                0.800000011920929
+              ],
+              [
+                0.6000000238418579,
+                0.699999988079071
+              ],
+              [
+                0.20000000298023224,
+                0.10000000149011612
+              ]
+            ]
+          }
+        ],
+        "vertices": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            2.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.20000000298023224,
+            1.2999999523162842,
+            0.0
+          ],
+          [
+            0.20000000298023224,
+            0.30000001192092896,
+            1.100000023841858
+          ]
+        ],
+        "weights": [
+          [],
+          [],
+          [],
+          []
+        ]
+      },
+      "settings": {
+        "export_custom_normals": true,
+        "global_scale": 1.0,
+        "local_transforms": [
+          "LOC",
+          "ROT",
+          "SCA"
+        ],
+        "origin": true,
+        "reference_weights": false,
+        "shader": {
+          "alpha": 0.6499999761581421,
+          "base_color": [
+            0.699999988079071,
+            0.4000000059604645,
+            0.20000000298023224
+          ],
+          "emission_color": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "emission_strength": 0.0,
+          "image": null,
+          "roughness": 1.0,
+          "specular": 0.0
+        },
+        "version": 7
+      },
+      "status": "PASS"
+    },
+    {
+      "blender": "5.0.1",
+      "blender_build": "a3db93c5b259",
+      "case": "nonplanar_quad",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "error": "('normal direction', (0.0, 0.0, 0.0, -0.0, 1.0, -0.0, 0.12999999523162842, 0.7900000214576721), [(0.0, 0.0, 0.0, -0.08587179332971573, 0.981391966342926, -0.17174358665943146, 0.12999999523162842, 0.7900000065565109)])",
+          "name": "every source position/normal/UV corner preserved",
+          "status": "FAIL"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "error": "([(0, 3, 1), (1, 3, 2)], [(0, 2, 1), (0, 3, 2)])",
+          "name": "oriented triangles under established export basis",
+          "status": "FAIL"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": false,
+        "reference_limitations": "No equality oracle for polygon tessellation, translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "expected_corners": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          -0.08587179332971573,
+          0.981391966342926,
+          -0.17174358665943146,
+          0.12999999523162842,
+          0.7900000065565109
+        ],
+        [
+          2.0,
+          0.0,
+          0.0,
+          -0.08587179332971573,
+          0.981391966342926,
+          -0.17174358665943146,
+          0.8100000023841858,
+          0.6800000071525574
+        ],
+        [
+          2.0,
+          0.3499999940395355,
+          1.0,
+          -0.08587179332971573,
+          0.981391966342926,
+          -0.17174358665943146,
+          0.27000001072883606,
+          0.11000001430511475
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          -0.08587179332971573,
+          0.981391966342926,
+          -0.17174358665943146,
+          0.12999999523162842,
+          0.7900000065565109
+        ]
+      ],
+      "exporters": {
+        "current": {
+          "file": "current.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.0,
+                  0.0,
+                  1.0,
+                  -0.050944216549396515,
+                  0.9934905171394348,
+                  -0.10188843309879303,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.11737712472677231,
+                  0.9649419784545898,
+                  -0.23475424945354462,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  1.0,
+                  -0.050944216549396515,
+                  0.9934905171394348,
+                  -0.10188843309879303,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  2.0,
+                  0.3499999940395355,
+                  1.0,
+                  -0.16296708583831787,
+                  0.931240439414978,
+                  -0.32593417167663574,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.11737712472677231,
+                  0.9649419784545898,
+                  -0.23475424945354462,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 2,
+            "triangles": [
+              [
+                2,
+                1,
+                0,
+                0
+              ],
+              [
+                1,
+                3,
+                0,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                2.0,
+                0.0,
+                0.0,
+                -0.11737712472677231,
+                0.9649419784545898,
+                -0.23475424945354462,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                -0.050944216549396515,
+                0.9934905171394348,
+                -0.10188843309879303,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.0,
+                1.0,
+                -0.0,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                2.0,
+                0.3499999940395355,
+                1.0,
+                -0.16296708583831787,
+                0.931240439414978,
+                -0.32593417167663574,
+                0.27000001072883606,
+                0.11000001430511475
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "bcdaf5206177ce15f92154662f4251fedfd5d3aa37aa8ec143ee9cf1f45c092c",
+          "size": 275
+        },
+        "reference": {
+          "file": "reference.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.08587179332971573,
+                  0.981391966342926,
+                  -0.17174358665943146,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.0,
+                  0.0,
+                  1.0,
+                  -0.08587179332971573,
+                  0.981391966342926,
+                  -0.17174358665943146,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  2.0,
+                  0.3499999940395355,
+                  1.0,
+                  -0.08587179332971573,
+                  0.981391966342926,
+                  -0.17174358665943146,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.08587179332971573,
+                  0.981391966342926,
+                  -0.17174358665943146,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  2.0,
+                  0.3499999940395355,
+                  1.0,
+                  -0.08587179332971573,
+                  0.981391966342926,
+                  -0.17174358665943146,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.08587179332971573,
+                  0.981391966342926,
+                  -0.17174358665943146,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 0,
+            "triangles": [
+              [
+                0,
+                1,
+                2,
+                0
+              ],
+              [
+                3,
+                0,
+                2,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                2.0,
+                0.3499999940395355,
+                1.0,
+                -0.08587179332971573,
+                0.981391966342926,
+                -0.17174358665943146,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                -0.08587179332971573,
+                0.981391966342926,
+                -0.17174358665943146,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.08587179332971573,
+                0.981391966342926,
+                -0.17174358665943146,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                -0.08587179332971573,
+                0.981391966342926,
+                -0.17174358665943146,
+                0.12999999523162842,
+                0.7900000214576721
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "global_scale_emulation": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "2a67ed4dfa3d17f7e73e65524b61ce0ae05d92063b0fb72fad75fa11e9bf2831",
+          "size": 275
+        }
+      },
+      "failures": [
+        "custom_normal/nonplanar_quad: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.0, 0.0, 0.0, -0.0, 1.0, -0.0, 0.12999999523162842, 0.7900000214576721), [(0.0, 0.0, 0.0, -0.08587179332971573, 0.981391966342926, -0.17174358665943146, 0.12999999523162842, 0.7900000065565109)])",
+        "custom_normal/nonplanar_quad: oriented triangles under established export basis: AssertionError: ([(0, 3, 1), (1, 3, 2)], [(0, 2, 1), (0, 3, 2)])"
+      ],
+      "group": "custom_normal",
+      "input": {
+        "corner_normals": [
+          [
+            -0.08587179332971573,
+            -0.17174358665943146,
+            0.981391966342926
+          ],
+          [
+            -0.08587179332971573,
+            -0.17174358665943146,
+            0.981391966342926
+          ],
+          [
+            -0.08587179332971573,
+            -0.17174358665943146,
+            0.981391966342926
+          ],
+          [
+            -0.08587179332971573,
+            -0.17174358665943146,
+            0.981391966342926
+          ]
+        ],
+        "editing_uv": "Editing",
+        "faces": [
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "loop_triangles": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            0,
+            2,
+            3
+          ]
+        ],
+        "loop_vertices": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "materials": [
+          "Fidelity"
+        ],
+        "matrix_world": [
+          [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "modifiers": [],
+        "parent_matrix_world": null,
+        "rotation_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_mode": "XYZ",
+        "rotation_quaternion": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "smooth": [
+          true
+        ],
+        "uv_layers": [
+          {
+            "active_render": true,
+            "name": "Editing",
+            "uvs": [
+              [
+                0.12999999523162842,
+                0.20999999344348907
+              ],
+              [
+                0.8100000023841858,
+                0.3199999928474426
+              ],
+              [
+                0.27000001072883606,
+                0.8899999856948853
+              ],
+              [
+                0.12999999523162842,
+                0.20999999344348907
+              ]
+            ]
+          }
+        ],
+        "vertices": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            2.0,
+            0.0,
+            0.0
+          ],
+          [
+            2.0,
+            1.0,
+            0.3499999940395355
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "weights": [
+          [],
+          [],
+          [],
+          []
+        ]
+      },
+      "settings": {
+        "export_custom_normals": true,
+        "global_scale": 1.0,
+        "local_transforms": [
+          "LOC",
+          "ROT",
+          "SCA"
+        ],
+        "origin": true,
+        "reference_weights": false,
+        "shader": {
+          "alpha": 0.6499999761581421,
+          "base_color": [
+            0.699999988079071,
+            0.4000000059604645,
+            0.20000000298023224
+          ],
+          "emission_color": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "emission_strength": 0.0,
+          "image": null,
+          "roughness": 1.0,
+          "specular": 0.0
+        },
+        "version": 7
+      },
+      "status": "FAIL"
+    },
+    {
+      "blender": "5.0.1",
+      "blender_build": "a3db93c5b259",
+      "case": "concave_ngon",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": true,
+        "reference_limitations": "No equality oracle for polygon tessellation, translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "expected_corners": [
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.12999999523162842,
+          0.7900000065565109
+        ],
+        [
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.8100000023841858,
+          0.6800000071525574
+        ],
+        [
+          2.0,
+          0.0,
+          2.0,
+          0.0,
+          1.0,
+          0.0,
+          0.27000001072883606,
+          0.11000001430511475
+        ],
+        [
+          1.0,
+          0.0,
+          0.699999988079071,
+          0.0,
+          1.0,
+          0.0,
+          0.12999999523162842,
+          0.7900000065565109
+        ],
+        [
+          0.0,
+          0.0,
+          2.0,
+          0.0,
+          1.0,
+          0.0,
+          0.8100000023841858,
+          0.6800000071525574
+        ]
+      ],
+      "exporters": {
+        "current": {
+          "file": "current.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.0,
+                  0.0,
+                  2.0,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ],
+                [
+                  1.0,
+                  0.0,
+                  0.699999988079071,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  1.0,
+                  0.0,
+                  0.699999988079071,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  1.0,
+                  0.0,
+                  0.699999988079071,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  2.0,
+                  0.0,
+                  2.0,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  -0.0,
+                  1.0,
+                  -0.0,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 2,
+            "triangles": [
+              [
+                2,
+                1,
+                0,
+                0
+              ],
+              [
+                2,
+                3,
+                1,
+                0
+              ],
+              [
+                0,
+                4,
+                2,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                -0.0,
+                1.0,
+                -0.0,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                -0.0,
+                1.0,
+                -0.0,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                1.0,
+                0.0,
+                0.699999988079071,
+                -0.0,
+                1.0,
+                -0.0,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                2.0,
+                0.0,
+                2.0,
+                -0.0,
+                1.0,
+                -0.0,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                0.0,
+                0.0,
+                2.0,
+                -0.0,
+                1.0,
+                -0.0,
+                0.8100000023841858,
+                0.6800000071525574
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "595f87c99d664b27cb21cde3865cfefff27ee01c24ffa14304ba5c94480d0c8f",
+          "size": 315
+        },
+        "reference": {
+          "file": "reference.o3d",
+          "input_transforms": {
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matrix_world": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "parent_matrix_world": null,
+            "rotation_euler": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_mode": "XYZ",
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "material_texture_identities": [
+            [
+              0.699999988079071,
+              0.4000000059604645,
+              0.20000000298023224,
+              0.6499999761581421,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              ""
+            ]
+          ],
+          "oriented_surface": [
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  0.0,
+                  0.0,
+                  2.0,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ],
+                [
+                  1.0,
+                  0.0,
+                  0.699999988079071,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  1.0,
+                  0.0,
+                  0.699999988079071,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ],
+            [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ],
+              [
+                [
+                  1.0,
+                  0.0,
+                  0.699999988079071,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.12999999523162842,
+                  0.7900000214576721
+                ],
+                [
+                  2.0,
+                  0.0,
+                  2.0,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.27000001072883606,
+                  0.11000001430511475
+                ],
+                [
+                  2.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.8100000023841858,
+                  0.6800000071525574
+                ]
+              ]
+            ]
+          ],
+          "records": {
+            "bones": [],
+            "materials": [
+              [
+                0.699999988079071,
+                0.4000000059604645,
+                0.20000000298023224,
+                0.6499999761581421,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                ""
+              ]
+            ],
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
+            "options": 0,
+            "triangles": [
+              [
+                0,
+                1,
+                2,
+                0
+              ],
+              [
+                3,
+                4,
+                0,
+                0
+              ],
+              [
+                0,
+                2,
+                3,
+                0
+              ]
+            ],
+            "version": 7,
+            "vertices": [
+              [
+                1.0,
+                0.0,
+                0.699999988079071,
+                0.0,
+                1.0,
+                0.0,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                2.0,
+                0.0,
+                2.0,
+                0.0,
+                1.0,
+                0.0,
+                0.27000001072883606,
+                0.11000001430511475
+              ],
+              [
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.8100000023841858,
+                0.6800000071525574
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.12999999523162842,
+                0.7900000214576721
+              ],
+              [
+                0.0,
+                0.0,
+                2.0,
+                0.0,
+                1.0,
+                0.0,
+                0.8100000023841858,
+                0.6800000071525574
+              ]
+            ]
+          },
+          "settings": {
+            "global_scale": 1.0,
+            "global_scale_emulation": 1.0,
+            "local_transforms": [
+              "LOC",
+              "ROT",
+              "SCA"
+            ],
+            "origin": true,
+            "version": 7,
+            "weights": false
+          },
+          "sha256": "e97bef317aaf6821f6c9c7815e0dd64332ac669957cad0e3c08f47ea160b2f74",
+          "size": 315
+        }
+      },
+      "failures": [],
+      "group": "custom_normal",
+      "input": {
+        "corner_normals": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "editing_uv": "Editing",
+        "faces": [
+          [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        ],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "loop_triangles": [
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            3,
+            4,
+            0
+          ],
+          [
+            0,
+            1,
+            3
+          ]
+        ],
+        "loop_vertices": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "materials": [
+          "Fidelity"
+        ],
+        "matrix_world": [
+          [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "modifiers": [],
+        "parent_matrix_world": null,
+        "rotation_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_mode": "XYZ",
+        "rotation_quaternion": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "smooth": [
+          true
+        ],
+        "uv_layers": [
+          {
+            "active_render": true,
+            "name": "Editing",
+            "uvs": [
+              [
+                0.12999999523162842,
+                0.20999999344348907
+              ],
+              [
+                0.8100000023841858,
+                0.3199999928474426
+              ],
+              [
+                0.27000001072883606,
+                0.8899999856948853
+              ],
+              [
+                0.12999999523162842,
+                0.20999999344348907
+              ],
+              [
+                0.8100000023841858,
+                0.3199999928474426
+              ]
+            ]
+          }
+        ],
+        "vertices": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            2.0,
+            0.0,
+            0.0
+          ],
+          [
+            2.0,
+            2.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.699999988079071,
+            0.0
+          ],
+          [
+            0.0,
+            2.0,
+            0.0
+          ]
+        ],
+        "weights": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      },
+      "settings": {
+        "export_custom_normals": true,
+        "global_scale": 1.0,
+        "local_transforms": [
+          "LOC",
+          "ROT",
+          "SCA"
+        ],
+        "origin": true,
+        "reference_weights": false,
+        "shader": {
+          "alpha": 0.6499999761581421,
+          "base_color": [
+            0.699999988079071,
+            0.4000000059604645,
+            0.20000000298023224
+          ],
+          "emission_color": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "emission_strength": 0.0,
+          "image": null,
+          "roughness": 1.0,
+          "specular": 0.0
+        },
+        "version": 7
+      },
+      "status": "PASS"
+    }
+  ],
+  "focused_summary": {
+    "blender": "5.0.1",
+    "blender_build": "a3db93c5b259",
+    "cases": [
+      {
+        "case": "oblique_triangle",
+        "failures": [
+          "custom_normal/oblique_triangle: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, -0.21717190742492676, 0.9654355645179749, 0.14412030577659607, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.23051118850708008, 0.8820549845695496, -0.41090595722198486, 0.27000001072883606, 0.11000001430511475)])",
+          "custom_normal/oblique_triangle: oriented reference surface including winding: AssertionError: ((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.21717, 0.96544, 0.14413, 0.13, 0.79), (0.3, 0.2, 1.4, -0.21717, 0.96544, 0.14412, 0.27, 0.11), (2.0, 0.0, 0.1, -0.21715, 0.96544, 0.14414, 0.81, 0.68))),), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, 0.23051, 0.88205, -0.41091, 0.13, 0.79), (0.3, 0.2, 1.4, 0.23051, 0.88205, -0.41091, 0.27, 0.11), (2.0, 0.0, 0.1, 0.23049, 0.88205, -0.41092, 0.81, 0.68))),))"
+        ],
+        "group": "custom_normal",
+        "manifest": "custom_normal/oblique_triangle/manifest.json",
+        "status": "FAIL"
+      },
+      {
+        "case": "flat_wedge",
+        "failures": [],
+        "group": "custom_normal",
+        "manifest": "custom_normal/flat_wedge/manifest.json",
+        "status": "PASS"
+      },
+      {
+        "case": "smooth_wedge",
+        "failures": [],
+        "group": "custom_normal",
+        "manifest": "custom_normal/smooth_wedge/manifest.json",
+        "status": "PASS"
+      },
+      {
+        "case": "uv_seam",
+        "failures": [],
+        "group": "custom_normal",
+        "manifest": "custom_normal/uv_seam/manifest.json",
+        "status": "PASS"
+      },
+      {
+        "case": "nonplanar_quad",
+        "failures": [
+          "custom_normal/nonplanar_quad: every source position/normal/UV corner preserved: AssertionError: ('normal direction', (0.0, 0.0, 0.0, -0.0, 1.0, -0.0, 0.12999999523162842, 0.7900000214576721), [(0.0, 0.0, 0.0, -0.08587179332971573, 0.981391966342926, -0.17174358665943146, 0.12999999523162842, 0.7900000065565109)])",
+          "custom_normal/nonplanar_quad: oriented triangles under established export basis: AssertionError: ([(0, 3, 1), (1, 3, 2)], [(0, 2, 1), (0, 3, 2)])"
+        ],
+        "group": "custom_normal",
+        "manifest": "custom_normal/nonplanar_quad/manifest.json",
+        "status": "FAIL"
+      },
+      {
+        "case": "concave_ngon",
+        "failures": [],
+        "group": "custom_normal",
+        "manifest": "custom_normal/concave_ngon/manifest.json",
+        "status": "PASS"
+      }
+    ],
+    "groups": [
+      "custom_normal"
+    ],
+    "reference_requested": ".gitignorefolder/Blender-OMSI-Exporter",
+    "source_sha256": {
+      ".gitignorefolder/Blender-OMSI-Exporter/io_export_o3d/exporter.py": "a51396f9c0360a728dc224fcbd7b78602375edc1d50c1013a2134060fedeb340",
+      ".gitignorefolder/Blender-OMSI-Exporter/io_export_o3d/meshio.py": "205da29f652a7c439c9dfde348cf8eedbefb05c7e58fe3f0e23a4778e54bc526",
+      ".gitignorefolder/Blender-OMSI-Exporter/io_export_o3d/node_shader.py": "64776f9b6fbfe6b76a8b49f647cab4598b59bcea3077d5b10d69ff5b07f57f07",
+      "o3d_io/blender_compat.py": "679c1b236d3c2d3745843e28f8a7d02c1c29c985244dcb5fea0002fc9ee82f5a",
+      "o3d_io/io_o3d_export.py": "11550df0dbface1c7c5fc0b547e84c1506de74d088cdcb9900a6509921881af4",
+      "o3d_io/o3dconvert.py": "dd3d6a34bff20494bf8f5bced7cd81815053a35f7d1eae79ada747870969ffc7"
+    }
+  },
+  "historical_evidence": {
+    "task-2-baseline.json": "Historical pre-fix full corpus at d458bc9; not regenerated or represented as current.",
+    "task-2-validation.json": "Historical pre-fix validation at d458bc9; this dated evidence supersedes its custom_normal policy and test-module hashes only."
+  },
+  "proof_sources": {
+    "check_invariants.py": "\"\"\"Exercise unmodified polygon invariants using analytic corners and mutations.\"\"\"\nimport copy\nimport importlib.util\nimport json\nfrom pathlib import Path\nfrom types import SimpleNamespace\nimport sys\n\nroot = Path(__file__).resolve().parents[5]\nsys.path.insert(0, str(root / 'tests'))\nimport smoke_export_fidelity as fidelity\nfrom mathutils import Matrix\n\noutput = Path(sys.argv[sys.argv.index('--') + 1])\nfor name in ('nonplanar_quad', 'concave_ngon'):\n    manifest = json.loads((output / 'custom_normal' / name / 'manifest.json').read_text())\n    snapshot, expected = manifest['input'], manifest['expected_corners']\n    obj = SimpleNamespace(matrix_world=Matrix(snapshot['matrix_world']))\n    settings = manifest['settings']\n    records = {'vertices': expected, 'triangles': [(*reversed(loops), 0) for loops in snapshot['loop_triangles']]}\n    fidelity._assert_corners(records, expected)\n    fidelity._assert_winding(records, snapshot, expected, obj, settings)\n    for mutation in ('normal', 'winding', 'lost_corner'):\n        bad = copy.deepcopy(records)\n        if mutation == 'normal':\n            bad['vertices'][0][3:6] = [1., 0., 0.]\n            assertion = lambda: fidelity._assert_corners(bad, expected)\n        elif mutation == 'winding':\n            a, b, c, material = bad['triangles'][0]\n            bad['triangles'][0] = (c, b, a, material)\n            assertion = lambda: fidelity._assert_winding(bad, snapshot, expected, obj, settings)\n        else:\n            bad['triangles'] = bad['triangles'][:1]\n            assertion = lambda: fidelity._assert_corners(bad, expected)\n        try:\n            assertion()\n        except AssertionError:\n            print('POLYGON_MUTATION_DETECTED', name, mutation)\n        else:\n            raise AssertionError((name, mutation, 'escaped invariant'))\n    if name == 'nonplanar_quad':\n        bad = copy.deepcopy(records)\n        bad['triangles'] = [(1, 3, 0, 0), (2, 3, 1, 0)]\n        fidelity._assert_corners(bad, expected)\n        try:\n            fidelity._assert_winding(bad, snapshot, expected, obj, settings)\n        except AssertionError:\n            print('BLENDER_TESSELLATION_MISMATCH_DETECTED', name)\n        else:\n            raise AssertionError('alternate diagonal escaped Blender loop triangle invariant')\nprint('POLYGON_INVARIANT_POSITIVE_CONTROLS_AND_MUTATIONS_OK')\n",
+    "check_policy.py": "\"\"\"Policy regression: run against a focused custom_normal output directory.\"\"\"\nimport json\nfrom pathlib import Path\nimport sys\n\nroot = Path(sys.argv[1])\nlabel = 'oriented reference surface including winding'\nfor name in ('nonplanar_quad', 'concave_ngon'):\n    manifest = json.loads((root / 'custom_normal' / name / 'manifest.json').read_text())\n    assert 'oriented_surface_equal_5dp' in manifest['comparison'], name\n    for exporter in ('current', 'reference'):\n        assert manifest['exporters'][exporter]['records']['triangles'], (name, exporter)\n        assert manifest['exporters'][exporter]['oriented_surface'], (name, exporter)\n    assert label not in [check['name'] for check in manifest['checks']], (name, 'reference tessellation is still a pass condition')\n    assert 'every source position/normal/UV corner preserved' in [check['name'] for check in manifest['checks']]\n    assert 'oriented triangles under established export basis' in [check['name'] for check in manifest['checks']]\nquad = json.loads((root / 'custom_normal/nonplanar_quad/manifest.json').read_text())\nassert not quad['comparison']['oriented_surface_equal_5dp']\nfor label in ('every source position/normal/UV corner preserved', 'oriented triangles under established export basis'):\n    assert next(check['status'] for check in quad['checks'] if check['name'] == label) == 'FAIL', label\nfor name, status in (('oblique_triangle', 'FAIL'), ('flat_wedge', 'PASS'), ('smooth_wedge', 'PASS'), ('uv_seam', 'PASS')):\n    manifest = json.loads((root / 'custom_normal' / name / 'manifest.json').read_text())\n    assert next(check['status'] for check in manifest['checks'] if check['name'] == 'oriented reference surface including winding') == status, name\nprint('POLYGON_REFERENCE_OBSERVATIONS_AND_LIVE_INVARIANTS_OK; TRIANGLE_REFERENCE_ASSERTIONS_OK')\n"
+  },
+  "recorded_at": "2026-11-11T22:29:29.492384+08:00",
+  "red_check_results": [
+    {
+      "case": "oblique_triangle",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "error": "('normal direction', (0.30000001192092896, 0.20000000298023224, 1.399999976158142, -0.21717190742492676, 0.9654355645179749, 0.14412030577659607, 0.27000001072883606, 0.11000001430511475), [(0.30000001192092896, 0.20000000298023224, 1.399999976158142, 0.23051118850708008, 0.8820549845695496, -0.41090595722198486, 0.27000001072883606, 0.11000001430511475)])",
+          "name": "every source position/normal/UV corner preserved",
+          "status": "FAIL"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "error": "((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.21717, 0.96544, 0.14413, 0.13, 0.79), (0.3, 0.2, 1.4, -0.21717, 0.96544, 0.14412, 0.27, 0.11), (2.0, 0.0, 0.1, -0.21715, 0.96544, 0.14414, 0.81, 0.68))),), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, 0.23051, 0.88205, -0.41091, 0.13, 0.79), (0.3, 0.2, 1.4, 0.23051, 0.88205, -0.41091, 0.27, 0.11), (2.0, 0.0, 0.1, 0.23049, 0.88205, -0.41092, 0.81, 0.68))),))",
+          "name": "oriented reference surface including winding",
+          "status": "FAIL"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": false,
+        "reference_limitations": "No equality oracle for translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "status": "FAIL"
+    },
+    {
+      "case": "flat_wedge",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented reference surface including winding",
+          "status": "PASS"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": true,
+        "reference_limitations": "No equality oracle for translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "smooth_wedge",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented reference surface including winding",
+          "status": "PASS"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": true,
+        "reference_limitations": "No equality oracle for translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "uv_seam",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented reference surface including winding",
+          "status": "PASS"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": true,
+        "reference_limitations": "No equality oracle for translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "nonplanar_quad",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "error": "('normal direction', (0.0, 0.0, 0.0, -0.0, 1.0, -0.0, 0.12999999523162842, 0.7900000214576721), [(0.0, 0.0, 0.0, -0.08587179332971573, 0.981391966342926, -0.17174358665943146, 0.12999999523162842, 0.7900000065565109)])",
+          "name": "every source position/normal/UV corner preserved",
+          "status": "FAIL"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "error": "([(0, 3, 1), (1, 3, 2)], [(0, 2, 1), (0, 3, 2)])",
+          "name": "oriented triangles under established export basis",
+          "status": "FAIL"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "error": "((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.0, 1.0, -0.0, 0.13, 0.79), (0.0, 0.0, 1.0, -0.05094, 0.99349, -0.10189, 0.13, 0.79), (2.0, 0.0, 0.0, -0.11738, 0.96494, -0.23475, 0.81, 0.68))), ((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 1.0, -0.05094, 0.99349, -0.10189, 0.13, 0.79), (2.0, 0.35, 1.0, -0.16297, 0.93124, -0.32593, 0.27, 0.11), (2.0, 0.0, 0.0, -0.11738, 0.96494, -0.23475, 0.81, 0.68)))), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.08587, 0.98139, -0.17174, 0.13, 0.79), (0.0, 0.0, 1.0, -0.08587, 0.98139, -0.17174, 0.13, 0.79), (2.0, 0.35, 1.0, -0.08587, 0.98139, -0.17174, 0.27, 0.11))), ((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((0.0, 0.0, 0.0, -0.08587, 0.98139, -0.17174, 0.13, 0.79), (2.0, 0.35, 1.0, -0.08587, 0.98139, -0.17174, 0.27, 0.11), (2.0, 0.0, 0.0, -0.08587, 0.98139, -0.17174, 0.81, 0.68)))))",
+          "name": "oriented reference surface including winding",
+          "status": "FAIL"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": false,
+        "reference_limitations": "No equality oracle for translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "status": "FAIL"
+    },
+    {
+      "case": "concave_ngon",
+      "checks": [
+        {
+          "name": "source mesh and modifier state unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "version and unencrypted output",
+          "status": "PASS"
+        },
+        {
+          "name": "every source position/normal/UV corner preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "all rest-space positions preserved",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented triangles under established export basis",
+          "status": "PASS"
+        },
+        {
+          "name": "triangle count",
+          "status": "PASS"
+        },
+        {
+          "name": "stored origin frame",
+          "status": "PASS"
+        },
+        {
+          "name": "oriented reference surface including winding",
+          "status": "PASS"
+        }
+      ],
+      "comparison": {
+        "materials_equal_5dp": true,
+        "matrix_equal_5dp": true,
+        "oriented_surface_equal_5dp": true,
+        "reference_limitations": "No equality oracle for translation, parents, quaternion, nonuniform normals or skin widths."
+      },
+      "status": "PASS"
+    }
+  ],
+  "remaining_discrepancies": [
+    "oblique_triangle: authored source-normal preservation and compatible triangle reference comparison still fail.",
+    "nonplanar_quad: authored source-normal preservation and Blender loop-triangle tessellation/winding invariant still fail.",
+    "Other groups were not rerun; their historical genuine failures remain live in unchanged assertion paths.",
+    "Native rendering/sign/culling/origin/material consumer unknowns remain unknown; executed Blender 5.0.1 only."
+  ],
+  "scope": "Task 2 review fix round 1: restrict reference surface equality to already-triangulated custom_normal fixtures; polygon deltas stay observations and Blender source-corner/loop-triangle invariants stay live.",
+  "tdd_note": "Policy proof fails on fresh pre-fix output (assertion, exit 1) and passes on fixed output (exit 0). New pure polygon differential test characterizes already-correct oriented_surface behavior; it is not claimed as the RED gate regression. Overall Blender exit 1 intentionally remains for genuine defects.",
+  "test_module_sha256": {
+    "tests/o3d_export_support.py": "e5037886accdc2e3247ffb27d2ad95a1eea9a6097938081603fb2c71d6589cc3",
+    "tests/smoke_export_fidelity.py": "8d41d28816ce90e6ccf35bd06883e79a4218c8072d6e530913b217c028b9dc13",
+    "tests/test_o3d_export_support.py": "cf693c896d7b9a5be7a277fde40b2335cabfa662aedb9a73b311053e7a472c1d"
+  },
+  "unchanged_raw_exports": "All six cases have byte-identical current/reference hashes and decoded records before/after (12 O3Ds); production/reference source hashes unchanged."
+}
