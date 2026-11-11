@@ -267,6 +267,9 @@ def _edit_materials(context, flatten):
         for obj in staged:
             for collection in list(obj.users_collection):
                 collection.objects.unlink(obj)
+        # Blender 5.2 keeps unlinked bases until view-layer synchronization;
+        # flush those before distinguishing real foreign users of private IDs.
+        context.view_layer.update()
         _remove_owned([*staged, *data_copies, *key_copies, *copies.values()])
         mmd_rig._restore_context(active, selected, mode)
         raise
