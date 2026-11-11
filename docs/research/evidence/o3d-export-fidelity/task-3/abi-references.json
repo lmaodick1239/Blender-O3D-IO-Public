@@ -1,0 +1,429 @@
+{
+  "source_sha256": "c7765877620816dd4de4cceb21dce1996c8789c89ee550c1fb58440ee689a33e",
+  "evidence_label": "observed static / derived mathematics",
+  "abi": [
+    {
+      "interface": "IDirect3DDevice9",
+      "source_url": "https://raw.githubusercontent.com/microsoft/win32metadata/main/generation/WinSDK/RecompiledIdlHeaders/shared/d3d9.h",
+      "source_sha256": "a48e8132befefce1d14a8d0ffc277e7149c3c4b45d5f7427e2ac07605d65889e",
+      "method_count": 119,
+      "basis": "Microsoft SDK primary header",
+      "selected_slots": [
+        {
+          "name": "SetTransform",
+          "zero_based_slot": 44,
+          "pe32_byte_offset": "0xb0"
+        },
+        {
+          "name": "SetMaterial",
+          "zero_based_slot": 49,
+          "pe32_byte_offset": "0xc4"
+        },
+        {
+          "name": "SetRenderState",
+          "zero_based_slot": 57,
+          "pe32_byte_offset": "0xe4"
+        },
+        {
+          "name": "SetTexture",
+          "zero_based_slot": 65,
+          "pe32_byte_offset": "0x104"
+        },
+        {
+          "name": "SetTextureStageState",
+          "zero_based_slot": 67,
+          "pe32_byte_offset": "0x10c"
+        },
+        {
+          "name": "SetSamplerState",
+          "zero_based_slot": 69,
+          "pe32_byte_offset": "0x114"
+        },
+        {
+          "name": "SetFVF",
+          "zero_based_slot": 89,
+          "pe32_byte_offset": "0x164"
+        }
+      ]
+    },
+    {
+      "interface": "ID3DXEffect",
+      "source_url": "https://raw.githubusercontent.com/wine-mirror/wine/master/include/d3dx9effect.h",
+      "source_sha256": "98550893021e969fcc946e14a046257fc308d71b89b79d4956bbfefaaa1d0da4",
+      "method_count": 79,
+      "basis": "Wine implementation-owned compatibility header; ABI comparison only, not authority for OMSI shader semantics",
+      "selected_slots": [
+        {
+          "name": "SetBool",
+          "zero_based_slot": 22,
+          "pe32_byte_offset": "0x58"
+        },
+        {
+          "name": "SetFloat",
+          "zero_based_slot": 30,
+          "pe32_byte_offset": "0x78"
+        },
+        {
+          "name": "SetVector",
+          "zero_based_slot": 34,
+          "pe32_byte_offset": "0x88"
+        },
+        {
+          "name": "SetTexture",
+          "zero_based_slot": 52,
+          "pe32_byte_offset": "0xd0"
+        },
+        {
+          "name": "CommitChanges",
+          "zero_based_slot": 65,
+          "pe32_byte_offset": "0x104"
+        }
+      ]
+    },
+    {
+      "interface": "ID3DXBaseMesh",
+      "source_url": "https://raw.githubusercontent.com/wine-mirror/wine/master/include/d3dx9mesh.h",
+      "source_sha256": "7fdda50af0e0cefe762c13cfe1dee2a54c711f5af9e0eb29e0ef62a7ffd29632",
+      "method_count": 24,
+      "basis": "Wine implementation-owned compatibility header; inherited COM ABI comparison only, object corroborated by native D3DXCreateMeshFVF source chain",
+      "selected_slots": [
+        {
+          "name": "DrawSubset",
+          "zero_based_slot": 3,
+          "pe32_byte_offset": "0xc"
+        }
+      ]
+    }
+  ],
+  "limitations": "Slots identify API semantics only after the object type and argument ABI are corroborated. No runtime vtable target addresses or effect shader code captured.",
+  "exports": [
+    {
+      "path": "material-construction.asm",
+      "start": "007c62c6",
+      "stop_exclusive": "007c6573",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7c62c6",
+        "--stop-address=0x7c6573",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "matl-match.asm",
+      "start": "007c3eb0",
+      "stop_exclusive": "007c3fa6",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7c3eb0",
+        "--stop-address=0x7c3fa6",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "matl-name-normalization.asm",
+      "start": "004213c4",
+      "stop_exclusive": "00421412",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x4213c4",
+        "--stop-address=0x421412",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "color-helper.asm",
+      "start": "007f3d5c",
+      "stop_exclusive": "007f3d7a",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7f3d5c",
+        "--stop-address=0x7f3d7a",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "material-colors.asm",
+      "start": "007fb22c",
+      "stop_exclusive": "007fb45e",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7fb22c",
+        "--stop-address=0x7fb45e",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "d3d-state-wrappers.asm",
+      "start": "00800a20",
+      "stop_exclusive": "00800caa",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x800a20",
+        "--stop-address=0x800caa",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "d3d-state-wrappers.asm",
+      "start": "00800d10",
+      "stop_exclusive": "00800e30",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x800d10",
+        "--stop-address=0x800e30",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "lighting-init.asm",
+      "start": "008257cc",
+      "stop_exclusive": "0082583c",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x8257cc",
+        "--stop-address=0x82583c",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "lighting-wrapper.asm",
+      "start": "007fb760",
+      "stop_exclusive": "007fb788",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7fb760",
+        "--stop-address=0x7fb788",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "cfg-material-helper.asm",
+      "start": "007fbee0",
+      "stop_exclusive": "007fc3e0",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7fbee0",
+        "--stop-address=0x7fc3e0",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "cfg-matl.asm",
+      "start": "005f45c4",
+      "stop_exclusive": "005f475b",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x5f45c4",
+        "--stop-address=0x5f475b",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "cfg-map-allcolor.asm",
+      "start": "005f55bf",
+      "stop_exclusive": "005f5f08",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x5f55bf",
+        "--stop-address=0x5f5f08",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "cfg-delegation.asm",
+      "start": "005f4b13",
+      "stop_exclusive": "005f4b53",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x5f4b13",
+        "--stop-address=0x5f4b53",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "map-variable-lookup.asm",
+      "start": "007f633c",
+      "stop_exclusive": "007f6410",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7f633c",
+        "--stop-address=0x7f6410",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "mesh-material-draw.asm",
+      "start": "007c7453",
+      "stop_exclusive": "007c7470",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7c7453",
+        "--stop-address=0x7c7470",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "mesh-material-draw.asm",
+      "start": "007c75b7",
+      "stop_exclusive": "007c763d",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7c75b7",
+        "--stop-address=0x7c763d",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "reader-material.asm",
+      "start": "0056d734",
+      "stop_exclusive": "0056db2d",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x56d734",
+        "--stop-address=0x56db2d",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ]
+    },
+    {
+      "path": "material-upload.asm",
+      "start": "007fd9b0",
+      "stop_exclusive": "008005fe",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7fd9b0",
+        "--stop-address=0x8005fe",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ],
+      "note": "linear bounded export; embedded tables/data must not be treated as executable instructions"
+    },
+    {
+      "path": "material-pipeline-entry.asm",
+      "start": "007fd9b0",
+      "stop_exclusive": "007fe000",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7fd9b0",
+        "--stop-address=0x7fe000",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ],
+      "note": "linear bounded export; embedded tables/data must not be treated as executable instructions"
+    },
+    {
+      "path": "material-dispatch.asm",
+      "start": "007fc878",
+      "stop_exclusive": "007fce20",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7fc878",
+        "--stop-address=0x7fce20",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ],
+      "note": "linear bounded export; embedded tables/data must not be treated as executable instructions"
+    },
+    {
+      "path": "texture-binding.asm",
+      "start": "007fc500",
+      "stop_exclusive": "007fc878",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=0x7fc500",
+        "--stop-address=0x7fc878",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ],
+      "note": "linear bounded export; embedded tables/data must not be treated as executable instructions"
+    },
+    {
+      "path": "lighting-init-callers.asm",
+      "start": "0082a580",
+      "stop_exclusive": "0082a58a",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=8562048",
+        "--stop-address=8562058",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ],
+      "note": "linear bounded export; embedded tables/data must not be treated as executable instructions"
+    },
+    {
+      "path": "lighting-init-callers.asm",
+      "start": "00831c94",
+      "stop_exclusive": "00832066",
+      "exit": 0,
+      "command": [
+        "objdump",
+        "-d",
+        "-Mintel",
+        "--start-address=8592532",
+        "--stop-address=8593510",
+        "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe"
+      ],
+      "note": "linear bounded export; embedded tables/data must not be treated as executable instructions"
+    }
+  ]
+}

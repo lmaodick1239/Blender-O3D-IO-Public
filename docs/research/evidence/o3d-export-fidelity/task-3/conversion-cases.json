@@ -1,0 +1,240 @@
+{
+  "source_sha256": "c7765877620816dd4de4cceb21dce1996c8789c89ee550c1fb58440ee689a33e",
+  "case_count": 7,
+  "cases": [
+    {
+      "id": "eleven-unequal-wire-floats",
+      "label": "observed static contract / derived mathematics",
+      "input_wire_values": [
+        0.17,
+        0.29,
+        0.43,
+        0.31,
+        0.11,
+        0.23,
+        0.37,
+        0.2,
+        0.3,
+        1.2,
+        32.0
+      ],
+      "wire_offsets": [
+        "0x0",
+        "0x4",
+        "0x8",
+        "0xc",
+        "0x10",
+        "0x14",
+        "0x18",
+        "0x20",
+        "0x24",
+        "0x28",
+        "0x30"
+      ],
+      "output_P_offsets": [
+        "0x6c",
+        "0x70",
+        "0x74",
+        "0x78",
+        "0x8c",
+        "0x90",
+        "0x94",
+        "0x9c",
+        "0xa0",
+        "0xa4",
+        "0xac"
+      ],
+      "output_values": [
+        0.17000000178813934,
+        0.28999999165534973,
+        0.4300000071525574,
+        0.3100000023841858,
+        0.10999999940395355,
+        0.23000000417232513,
+        0.3700000047683716,
+        0.20000000298023224,
+        0.30000001192092896,
+        1.2000000476837158,
+        32.0
+      ],
+      "ambient_rgba": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "byte_copy_equal": true,
+      "native_execution": false
+    },
+    {
+      "id": "allcolor-after-embedded",
+      "label": "observed static contract / derived mathematics",
+      "input_allcolor14": [
+        0.13,
+        0.27,
+        0.41,
+        0.53,
+        0.61,
+        0.71,
+        0.83,
+        0.19,
+        0.31,
+        0.47,
+        0.59,
+        0.73,
+        1.37,
+        51.0
+      ],
+      "output_P_offsets": [
+        "0x6c",
+        "0x70",
+        "0x74",
+        "0x78",
+        "0x7c",
+        "0x80",
+        "0x84",
+        "0x8c",
+        "0x90",
+        "0x94",
+        "0x9c",
+        "0xa0",
+        "0xa4",
+        "0xac"
+      ],
+      "output_values": [
+        0.12999999523162842,
+        0.27000001072883606,
+        0.4099999964237213,
+        0.5299999713897705,
+        0.6100000143051147,
+        0.7099999785423279,
+        0.8299999833106995,
+        0.1899999976158142,
+        0.3100000023841858,
+        0.4699999988079071,
+        0.5899999737739563,
+        0.7300000190734863,
+        1.3700000047683716,
+        51.0
+      ],
+      "precedence": "CFG direct field writes after embedded construction; does not rewrite file records",
+      "native_execution": false
+    },
+    {
+      "id": "filename-repeat-targeting",
+      "label": "observed static contract / derived mathematics",
+      "serialized_names": [
+        "tex\\A.dds",
+        "tex\\B.dds",
+        "tex\\A.dds"
+      ],
+      "cfg_ranks": [
+        0,
+        0,
+        1
+      ],
+      "resolved_absolute_slots": [
+        0,
+        1,
+        2
+      ],
+      "incorrect_absolute_slot_case": {
+        "cfg_target": [
+          "tex\\B.dds",
+          1
+        ],
+        "resolved_slot": -1
+      },
+      "slash_conversion_assumed": false,
+      "native_execution": false
+    },
+    {
+      "id": "unchanged-import-power-and-alpha",
+      "label": "authoring preservation / observed static destinations",
+      "input_power": [
+        0.0,
+        32.0,
+        1000.0
+      ],
+      "output_power": [
+        0.0,
+        32.0,
+        1000.0
+      ],
+      "input_alpha": 0.25,
+      "output_alpha": 0.25,
+      "claim": "numeric preservation, NOT rendered transparency",
+      "native_execution": false
+    },
+    {
+      "id": "constant-emission-strength",
+      "label": "authoring policy / derived mathematics",
+      "color": [
+        0.2,
+        0.3,
+        0.4
+      ],
+      "strength": 3.0,
+      "output_emissive": [
+        0.6,
+        0.9,
+        1.2
+      ],
+      "zero_strength_output": [
+        0,
+        0,
+        0
+      ],
+      "gamma_compensation": false,
+      "native_execution": false
+    },
+    {
+      "id": "edited-new-roughness",
+      "label": "authoring policy, NOT native law",
+      "formula": "1000*(1-r)",
+      "roughness": [
+        0,
+        0.5,
+        1
+      ],
+      "power": [
+        1000,
+        500,
+        0
+      ],
+      "native_execution": false
+    },
+    {
+      "id": "simple-fixed-texture-stage",
+      "label": "derived mathematics conditional on demonstrated fixed-function state, NOT final-framebuffer/runtime output",
+      "texture_rgb": [
+        0.25,
+        0.5,
+        0.75
+      ],
+      "lit_diffuse_rgb": [
+        0.2,
+        0.4,
+        0.8
+      ],
+      "stage_rgb": [
+        0.05,
+        0.2,
+        0.6
+      ],
+      "texture_alpha": 0.4,
+      "material_alpha": 0.3,
+      "simple_stage_alpha": 0.4,
+      "not_assumed_alpha_product": 0.12,
+      "exclusions": [
+        "effect shader",
+        "extra maps",
+        "alphascale",
+        "stale texture binding",
+        "later blending/clamping"
+      ],
+      "native_execution": false
+    }
+  ],
+  "assertion_result": "PASS: executed Python reconstruction/byte/math assertions, not native tests"
+}

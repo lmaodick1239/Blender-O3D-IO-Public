@@ -1,0 +1,111 @@
+{
+  "source": "/mnt/Random/users/user/Documents/Ghidra/OMSI/Omsi.exe",
+  "sha256": "c7765877620816dd4de4cceb21dce1996c8789c89ee550c1fb58440ee689a33e",
+  "image_base": "0x400000",
+  "targeted_thunks": {
+    "0x567e78": {
+      "file_offset": "0x167278",
+      "bytes": "ff259c488600",
+      "iat_address": "0x86489c",
+      "dll": "d3dx9.dll",
+      "name": "D3DXVec3TransformCoord"
+    },
+    "0x567e90": {
+      "file_offset": "0x167290",
+      "bytes": "ff2594488600",
+      "iat_address": "0x864894",
+      "dll": "d3dx9.dll",
+      "name": "D3DXMatrixMultiply"
+    },
+    "0x567e98": {
+      "file_offset": "0x167298",
+      "bytes": "ff2590488600",
+      "iat_address": "0x864890",
+      "dll": "d3dx9.dll",
+      "name": "D3DXMatrixInverse"
+    },
+    "0x567ea0": {
+      "file_offset": "0x1672a0",
+      "bytes": "ff258c488600",
+      "iat_address": "0x86488c",
+      "dll": "d3dx9.dll",
+      "name": "D3DXMatrixScaling"
+    },
+    "0x567ea8": {
+      "file_offset": "0x1672a8",
+      "bytes": "ff2588488600",
+      "iat_address": "0x864888",
+      "dll": "d3dx9.dll",
+      "name": "D3DXMatrixTranslation"
+    },
+    "0x567eb8": {
+      "file_offset": "0x1672b8",
+      "bytes": "ff2584488600",
+      "iat_address": "0x864884",
+      "dll": "d3dx9.dll",
+      "name": "D3DXMatrixRotationX"
+    },
+    "0x567ec0": {
+      "file_offset": "0x1672c0",
+      "bytes": "ff2580488600",
+      "iat_address": "0x864880",
+      "dll": "d3dx9.dll",
+      "name": "D3DXMatrixRotationY"
+    },
+    "0x567ec8": {
+      "file_offset": "0x1672c8",
+      "bytes": "ff257c488600",
+      "iat_address": "0x86487c",
+      "dll": "d3dx9.dll",
+      "name": "D3DXMatrixRotationZ"
+    },
+    "0x568010": {
+      "file_offset": "0x167410",
+      "bytes": "ff253c488600",
+      "iat_address": "0x86483c",
+      "dll": "d3dx9.dll",
+      "name": "D3DXCreateMeshFVF"
+    },
+    "0x568020": {
+      "file_offset": "0x167420",
+      "bytes": "ff2534488600",
+      "iat_address": "0x864834",
+      "dll": "d3dx9.dll",
+      "name": "D3DXComputeNormals"
+    }
+  },
+  "retained_primary_exports": [
+    {
+      "path": "docs/research/evidence/omsi-bones/func-0056c7b4.c",
+      "sha256": "18887b85e8962364614cdb37fb5f04125e91cf669b26b65064db8fac231296e7"
+    },
+    {
+      "path": "docs/research/evidence/omsi-bones/func-0056c7b4.asm",
+      "sha256": "320580f1ed4704c481f907a93c0b9905b3812e988ffb29a6053f4b6342263561"
+    },
+    {
+      "path": "docs/research/evidence/omsi-bones/func-007c5a4c.c",
+      "sha256": "c55fff7abd47de03003c62239320def3f3536a02b7b491a20acea3d6e78d59eb"
+    },
+    {
+      "path": "docs/research/evidence/omsi-bones/func-007c5a4c.asm",
+      "sha256": "d866665eb641093f549c86b90ed263d5f7cf82a54fa127201b19aa53b6edc103"
+    },
+    {
+      "path": "docs/research/evidence/omsi-bones/func-005fdf40.c",
+      "sha256": "c31489ad28fde6d06ff4a0f954aa2b8a337dfe338ca719d7fdde790ebfab950f"
+    },
+    {
+      "path": "docs/research/evidence/omsi-bones/func-005fdf40.asm",
+      "sha256": "d70a553324826602b931de8a4ce07c755db10f9bf1dfd085892fe84b7c5a95d7"
+    },
+    {
+      "path": "docs/research/evidence/omsi-bones/func-005fac6c.c",
+      "sha256": "61909e3e5e293d318c7129c70a66fbf32561e0f8a2a609d7b953a33195a99d15"
+    },
+    {
+      "path": "docs/research/evidence/omsi-bones/func-005fac6c.asm",
+      "sha256": "278ae8461dbfde62b89f36d2fdd10950769fabe591929912820cf5263b03a938"
+    }
+  ]
+}

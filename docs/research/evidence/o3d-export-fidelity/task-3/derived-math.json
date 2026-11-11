@@ -1,0 +1,458 @@
+{
+  "input": "docs/research/evidence/o3d-export-fidelity/task-2-baseline.json",
+  "cases": [
+    {
+      "case": "identity",
+      "class": "derived mathematics using retained Blender 5.0.1 observation inputs; not native execution",
+      "position_first_corner": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "normal_inverse_transpose": [
+        0.23050503317856902,
+        0.8820542675008893,
+        -0.41091081619107617
+      ],
+      "row_origin": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "origin_vs_actual_position_frame_max_error": 0.0,
+      "no_animation_cancellation_error": 0.0,
+      "rotated_origin_pivot_error": 0.0
+    },
+    {
+      "case": "negative_scale",
+      "class": "derived mathematics using retained Blender 5.0.1 observation inputs; not native execution",
+      "position_first_corner": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "normal_inverse_transpose": [
+        -0.23050503317856902,
+        0.8820542675008893,
+        -0.41091081619107617
+      ],
+      "row_origin": [
+        [
+          -1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "origin_vs_actual_position_frame_max_error": 0.0,
+      "no_animation_cancellation_error": 0.0,
+      "rotated_origin_pivot_error": 0.0
+    },
+    {
+      "case": "nonuniform_scale",
+      "class": "derived mathematics using retained Blender 5.0.1 observation inputs; not native execution",
+      "position_first_corner": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "normal_inverse_transpose": [
+        0.1326566305407296,
+        0.7251800068242046,
+        -0.6756598079477771
+      ],
+      "row_origin": [
+        [
+          2.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.399999976158142,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.699999988079071,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "origin_vs_actual_position_frame_max_error": 0.0,
+      "no_animation_cancellation_error": 0.0,
+      "rotated_origin_pivot_error": 0.0
+    },
+    {
+      "case": "translation",
+      "class": "derived mathematics using retained Blender 5.0.1 observation inputs; not native execution",
+      "position_first_corner": [
+        2.0,
+        4.0,
+        -3.0
+      ],
+      "normal_inverse_transpose": [
+        0.23050503317856902,
+        0.8820542675008893,
+        -0.41091081619107617
+      ],
+      "row_origin": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          2.0,
+          4.0,
+          -3.0,
+          1.0
+        ]
+      ],
+      "origin_vs_actual_position_frame_max_error": 0.0,
+      "no_animation_cancellation_error": 0.0,
+      "rotated_origin_pivot_error": 0.0
+    },
+    {
+      "case": "euler_rotation",
+      "class": "derived mathematics using retained Blender 5.0.1 observation inputs; not native execution",
+      "position_first_corner": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "normal_inverse_transpose": [
+        0.3386244616711547,
+        0.7502495224799745,
+        -0.5678548476296482
+      ],
+      "row_origin": [
+        [
+          0.8503667116165161,
+          0.2667314410209656,
+          0.4535755515098572,
+          0.0
+        ],
+        [
+          -0.08055932074785233,
+          0.9178313612937927,
+          -0.3887103796005249,
+          0.0
+        ],
+        [
+          -0.519987165927887,
+          0.2940066456794739,
+          0.8019809722900391,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "origin_vs_actual_position_frame_max_error": 0.0,
+      "no_animation_cancellation_error": 2.220446049250313e-16,
+      "rotated_origin_pivot_error": 0.0
+    },
+    {
+      "case": "quaternion_rotation",
+      "class": "derived mathematics using retained Blender 5.0.1 observation inputs; not native execution",
+      "position_first_corner": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "normal_inverse_transpose": [
+        0.3386244607143403,
+        0.7502495231260276,
+        -0.5678548473466531
+      ],
+      "row_origin": [
+        [
+          0.8503667116165161,
+          0.2667314410209656,
+          0.4535755515098572,
+          0.0
+        ],
+        [
+          -0.08055932819843292,
+          0.9178313612937927,
+          -0.3887103796005249,
+          0.0
+        ],
+        [
+          -0.519987165927887,
+          0.2940066456794739,
+          0.8019809722900391,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "origin_vs_actual_position_frame_max_error": 0.0,
+      "no_animation_cancellation_error": 1.1102230246251565e-16,
+      "rotated_origin_pivot_error": 0.0
+    },
+    {
+      "case": "parent_transform",
+      "class": "derived mathematics using retained Blender 5.0.1 observation inputs; not native execution",
+      "position_first_corner": [
+        2.419976234436035,
+        4.323240756988525,
+        -3.095579147338867
+      ],
+      "normal_inverse_transpose": [
+        0.3386244616711547,
+        0.7502495224799745,
+        -0.5678548476296482
+      ],
+      "row_origin": [
+        [
+          0.8503667116165161,
+          0.2667314410209656,
+          0.4535755515098572,
+          0.0
+        ],
+        [
+          -0.08055932074785233,
+          0.9178313612937927,
+          -0.3887103796005249,
+          0.0
+        ],
+        [
+          -0.519987165927887,
+          0.2940066456794739,
+          0.8019809722900391,
+          0.0
+        ],
+        [
+          2.419976234436035,
+          4.323240756988525,
+          -3.095579147338867,
+          1.0
+        ]
+      ],
+      "origin_vs_actual_position_frame_max_error": 0.0,
+      "no_animation_cancellation_error": 9.43689570931383e-16,
+      "rotated_origin_pivot_error": 8.881784197001252e-16
+    },
+    {
+      "case": "global_scale",
+      "class": "derived mathematics using retained Blender 5.0.1 observation inputs; not native execution",
+      "position_first_corner": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "normal_inverse_transpose": [
+        0.23050503317856902,
+        0.8820542675008893,
+        -0.41091081619107617
+      ],
+      "row_origin": [
+        [
+          2.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          2.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          2.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "origin_vs_actual_position_frame_max_error": 0.0,
+      "no_animation_cancellation_error": 0.0,
+      "rotated_origin_pivot_error": 0.0
+    }
+  ],
+  "noncommuting_global_extension": {
+    "class": "derived mathematics only",
+    "G": [
+      [
+        2.0,
+        0.3,
+        0.0,
+        0.7
+      ],
+      [
+        0.0,
+        3.0,
+        0.0,
+        -0.2
+      ],
+      [
+        0.0,
+        0.0,
+        0.5,
+        1.1
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "M": [
+      [
+        0.8503667116165161,
+        -0.519987165927887,
+        -0.08055932074785233,
+        2.419976234436035
+      ],
+      [
+        0.4535755515098572,
+        0.8019809722900391,
+        -0.3887103796005249,
+        -3.095579147338867
+      ],
+      [
+        0.2667314410209656,
+        0.2940066456794739,
+        0.9178313612937927,
+        4.323240756988525
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "actual_position_frame_row": [
+      [
+        1.780752855539322,
+        0.8001943230628967,
+        0.2267877757549286,
+        0.0
+      ],
+      [
+        0.11423076689243317,
+        2.753494083881378,
+        -0.19435518980026245,
+        0.0
+      ],
+      [
+        -0.9517723381519317,
+        0.8820199370384216,
+        0.40099048614501953,
+        0.0
+      ],
+      [
+        6.836924695968628,
+        12.769722270965577,
+        -0.4477895736694335,
+        1.0
+      ]
+    ],
+    "current_formula_row": [
+      [
+        1.8368060886859894,
+        0.1333657205104828,
+        1.3607266545295715,
+        0.0
+      ],
+      [
+        -0.27773175537586214,
+        0.45891568064689636,
+        -1.1661311388015747,
+        0.0
+      ],
+      [
+        -0.7993800401687622,
+        0.14700332283973694,
+        2.405942916870117,
+        0.0
+      ],
+      [
+        4.61127872467041,
+        3.261620378494263,
+        -9.4867374420166,
+        1.0
+      ]
+    ],
+    "max_error": 9.508101892471315
+  },
+  "native_runtime_executed": false
+}

@@ -1,0 +1,86 @@
+[
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x47466f",
+    "file_offset": "0x73a6f",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x4dd1db",
+    "file_offset": "0xdc5db",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x5cbe9c",
+    "file_offset": "0x1cb29c",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x5cbed1",
+    "file_offset": "0x1cb2d1",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x62e09f",
+    "file_offset": "0x22d49f",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x64c93f",
+    "file_offset": "0x24bd3f",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x6f2f5c",
+    "file_offset": "0x2f235c",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x6f3069",
+    "file_offset": "0x2f2469",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x79a540",
+    "file_offset": "0x399940",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "CULLMODE",
+    "value": 22,
+    "candidate_va": "0x7b3ae1",
+    "file_offset": "0x3b2ee1",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "NORMALIZENORMALS",
+    "value": 143,
+    "candidate_va": "0x78fcd9",
+    "file_offset": "0x38f0d9",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  },
+  {
+    "state": "NORMALIZENORMALS",
+    "value": 143,
+    "candidate_va": "0x78fda8",
+    "file_offset": "0x38f1a8",
+    "limitation": "exact immediate byte candidate; code and subsequent wrapper call require bounded disassembly"
+  }
+]

@@ -1,0 +1,2225 @@
+{
+  "status": "REPAIR_GATE_CHECKPOINT_VERIFIED; TASK3_AND_NATIVE_PARITY_PARTIAL",
+  "base_head": "cc98cc51ec4c14903d21badf394672d394e5751f",
+  "native_runtime_observations": false,
+  "fresh_export_commands_rerun": false,
+  "blender_probes_rerun": false,
+  "checks": {
+    "retained_hashes_and_bounds": true,
+    "source_excerpt_identity_when_available": true,
+    "local_originals_checked": 66,
+    "all_new_local_links_resolve_to_retained_or_tracked_targets": true,
+    "local_link_count": 131,
+    "json_and_python_syntax": true,
+    "blender_primary_definitions": 24,
+    "blender_pinned_source_urls": 17,
+    "blender_probe_blocks_parse": 3,
+    "fresh_consumer_functions": 11,
+    "fresh_consumer_fail_prefixes": 0,
+    "fresh_consumer_warning_occurrences": 313,
+    "no_function_not_repaired": "008257cc",
+    "historical_first_attempt_exits": [
+      1,
+      1
+    ],
+    "selected_geometry_acquisition_exits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "assembly_instruction_operand_anchor_count": 129,
+    "research_only_scope": true,
+    "exact_staged_path_set": true
+  },
+  "original_export_outcomes": {
+    "native-authorized-seed.log": {
+      "exported_addresses": [
+        "0056c7b4",
+        "0056af88",
+        "005efb98"
+      ],
+      "embedded_sha256": "c7765877620816dd4de4cceb21dce1996c8789c89ee550c1fb58440ee689a33e",
+      "read_only_program": "/1/Omsi.exe",
+      "jdk": 27,
+      "collected_job_exit": 0,
+      "exit_authority": "native-lead-exports.md (collected jobs); raw logs omit shell exit marker"
+    },
+    "native-authorized-consumers.log": {
+      "exported_addresses": [
+        "007c5a4c",
+        "007fd9b0",
+        "007fbee0",
+        "005fc664",
+        "005ef470",
+        "007c73d4",
+        "007c315c",
+        "00800d80",
+        "00800d10",
+        "007fc878",
+        "005fdf40"
+      ],
+      "embedded_sha256": "c7765877620816dd4de4cceb21dce1996c8789c89ee550c1fb58440ee689a33e",
+      "read_only_program": "/1/Omsi.exe",
+      "jdk": 27,
+      "collected_job_exit": 0,
+      "exit_authority": "native-lead-exports.md (collected jobs); raw logs omit shell exit marker"
+    }
+  },
+  "assembly_anchors": [
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d41a",
+      "line": 290,
+      "instruction": "0056d41a MOV dword ptr [EAX],EDX",
+      "expected_operands": [
+        "MOV",
+        "[EAX]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d422",
+      "line": 292,
+      "instruction": "0056d422 MOV dword ptr [EAX + 0x4],EDX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + 0x4]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d42b",
+      "line": 294,
+      "instruction": "0056d42b MOV dword ptr [EAX + 0x8],EDX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + 0x8]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d44d",
+      "line": 305,
+      "instruction": "0056d44d MOV dword ptr [EAX + 0xc],EDX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + 0xc]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d456",
+      "line": 307,
+      "instruction": "0056d456 MOV dword ptr [EAX + 0x10],EDX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + 0x10]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d45f",
+      "line": 309,
+      "instruction": "0056d45f MOV dword ptr [EAX + 0x14],EDX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + 0x14]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d47e",
+      "line": 320,
+      "instruction": "0056d47e MOV dword ptr [EAX + 0x18],EDX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + 0x18]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d484",
+      "line": 322,
+      "instruction": "0056d484 MOV dword ptr [EAX + 0x1c],EDX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + 0x1c]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056db82",
+      "line": 854,
+      "instruction": "0056db82 MOV dword ptr [EAX + EDX*0x4 + 0x20],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x4 + 0x20]"
+      ]
+    },
+    {
+      "path": "reader-constructor-bridge.asm",
+      "address": "007c70be",
+      "line": 6,
+      "instruction": "7c70be:\te8 f1 56 da ff       \tcall   0x56c7b4",
+      "expected_operands": [
+        "call",
+        "0x56c7b4"
+      ]
+    },
+    {
+      "path": "reader-constructor-bridge.asm",
+      "address": "007c7118",
+      "line": 30,
+      "instruction": "7c7118:\t8b 55 e0             \tmov    edx,DWORD PTR [ebp-0x20]",
+      "expected_operands": [
+        "mov",
+        "[ebp-0x20]"
+      ]
+    },
+    {
+      "path": "reader-constructor-bridge.asm",
+      "address": "007c711e",
+      "line": 32,
+      "instruction": "7c711e:\te8 29 e9 ff ff       \tcall   0x7c5a4c",
+      "expected_operands": [
+        "call",
+        "0x7c5a4c"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c5fdc",
+      "line": 450,
+      "instruction": "007c5fdc MOV dword ptr [ESI + 0xc],EDX",
+      "expected_operands": [
+        "MOV",
+        "[ESI + 0xc]"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c5fe2",
+      "line": 452,
+      "instruction": "007c5fe2 MOV dword ptr [ESI + 0x10],EDX",
+      "expected_operands": [
+        "MOV",
+        "[ESI + 0x10]"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c5fe8",
+      "line": 454,
+      "instruction": "007c5fe8 MOV dword ptr [ESI + 0x14],EDX",
+      "expected_operands": [
+        "MOV",
+        "[ESI + 0x14]"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c602a",
+      "line": 476,
+      "instruction": "007c602a MOV dword ptr [ESI + 0x18],EDX",
+      "expected_operands": [
+        "MOV",
+        "[ESI + 0x18]"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c5c93",
+      "line": 166,
+      "instruction": "007c5c93 PUSH 0x212",
+      "expected_operands": [
+        "PUSH 0x212"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c5ca2",
+      "line": 171,
+      "instruction": "007c5ca2 CALL 0x00568010",
+      "expected_operands": [
+        "CALL 0x00568010"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c6076",
+      "line": 503,
+      "instruction": "007c6076 MOV ECX,0x28",
+      "expected_operands": [
+        "MOV ECX,0x28"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c607b",
+      "line": 504,
+      "instruction": "007c607b CALL 0x004048b4",
+      "expected_operands": [
+        "CALL 0x004048b4"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c6139",
+      "line": 567,
+      "instruction": "007c6139 MOV EAX,dword ptr [EAX + EBX*0x4 + -0x4]",
+      "expected_operands": [
+        "[EAX + EBX*0x4 + -0x4]"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c615c",
+      "line": 578,
+      "instruction": "007c615c CMP EBX,0x4",
+      "expected_operands": [
+        "CMP EBX,0x4"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c6203",
+      "line": 637,
+      "instruction": "007c6203 MOV EAX,dword ptr [EAX + EBX*0x4 + -0x4]",
+      "expected_operands": [
+        "[EAX + EBX*0x4 + -0x4]"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c622a",
+      "line": 648,
+      "instruction": "007c622a CMP EBX,0x4",
+      "expected_operands": [
+        "CMP EBX,0x4"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c625b",
+      "line": 666,
+      "instruction": "007c625b CALL dword ptr [EAX + 0x60]",
+      "expected_operands": [
+        "CALL",
+        "[EAX + 0x60]"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c66a6",
+      "line": 1007,
+      "instruction": "007c66a6 LEA ESI,[EAX + 0x20]",
+      "expected_operands": [
+        "[EAX + 0x20]"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c66a9",
+      "line": 1008,
+      "instruction": "007c66a9 LEA EDI,[EDX + 0x60]",
+      "expected_operands": [
+        "[EDX + 0x60]"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c66b1",
+      "line": 1010,
+      "instruction": "007c66b1 MOVSD.REP ES:EDI,ESI",
+      "expected_operands": [
+        "MOVSD.REP"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c668f",
+      "line": 1001,
+      "instruction": "007c668f CALL 0x00568020",
+      "expected_operands": [
+        "CALL 0x00568020"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c6410",
+      "line": 805,
+      "instruction": "007c6410 PUSH 0x3f800000",
+      "expected_operands": [
+        "PUSH 0x3f800000"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c6415",
+      "line": 806,
+      "instruction": "007c6415 PUSH 0x3f800000",
+      "expected_operands": [
+        "PUSH 0x3f800000"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c641a",
+      "line": 807,
+      "instruction": "007c641a PUSH 0x3f800000",
+      "expected_operands": [
+        "PUSH 0x3f800000"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c641f",
+      "line": 808,
+      "instruction": "007c641f PUSH 0x3f800000",
+      "expected_operands": [
+        "PUSH 0x3f800000"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c6408",
+      "line": 800,
+      "instruction": "007c6408 LEA EDI,[EBX + ECX*0x4 + 0x6c]",
+      "expected_operands": [
+        "0x6c"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c6452",
+      "line": 821,
+      "instruction": "007c6452 LEA EDI,[EDX + EAX*0x4 + 0x7c]",
+      "expected_operands": [
+        "0x7c"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c649c",
+      "line": 849,
+      "instruction": "007c649c LEA EDI,[EBX + ECX*0x4 + 0x8c]",
+      "expected_operands": [
+        "0x8c"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c64e9",
+      "line": 877,
+      "instruction": "007c64e9 LEA EDI,[EBX + ECX*0x4 + 0x9c]",
+      "expected_operands": [
+        "0x9c"
+      ]
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "address": "007c6536",
+      "line": 905,
+      "instruction": "007c6536 MOV dword ptr [ECX + EDX*0x4 + 0xac],EAX",
+      "expected_operands": [
+        "0xac"
+      ]
+    },
+    {
+      "path": "func-007c73d4.asm",
+      "address": "007c7456",
+      "line": 41,
+      "instruction": "007c7456 MOV EDX,dword ptr [ESI + 0xec]",
+      "expected_operands": [
+        "0xec"
+      ]
+    },
+    {
+      "path": "func-007c73d4.asm",
+      "address": "007c746a",
+      "line": 47,
+      "instruction": "007c746a IMUL EAX,EAX,0x2f",
+      "expected_operands": [
+        "0x2f"
+      ]
+    },
+    {
+      "path": "func-007c73d4.asm",
+      "address": "007c756a",
+      "line": 122,
+      "instruction": "007c756a CALL 0x007fc878",
+      "expected_operands": [
+        "CALL 0x007fc878"
+      ]
+    },
+    {
+      "path": "func-007c73d4.asm",
+      "address": "007c75c7",
+      "line": 151,
+      "instruction": "007c75c7 CALL 0x007fd9b0",
+      "expected_operands": [
+        "CALL 0x007fd9b0"
+      ]
+    },
+    {
+      "path": "func-007c73d4.asm",
+      "address": "007c75e8",
+      "line": 161,
+      "instruction": "007c75e8 CALL dword ptr [EAX + 0x104]",
+      "expected_operands": [
+        "CALL",
+        "[EAX + 0x104]"
+      ]
+    },
+    {
+      "path": "func-007c73d4.asm",
+      "address": "007c759c",
+      "line": 137,
+      "instruction": "007c759c CALL dword ptr [EAX + 0xc]",
+      "expected_operands": [
+        "CALL",
+        "[EAX + 0xc]"
+      ]
+    },
+    {
+      "path": "func-007c73d4.asm",
+      "address": "007c7624",
+      "line": 179,
+      "instruction": "007c7624 CALL dword ptr [EAX + 0xc]",
+      "expected_operands": [
+        "CALL",
+        "[EAX + 0xc]"
+      ]
+    },
+    {
+      "path": "func-007c73d4.asm",
+      "address": "007c765e",
+      "line": 200,
+      "instruction": "007c765e CALL dword ptr [EAX + 0xc]",
+      "expected_operands": [
+        "CALL",
+        "[EAX + 0xc]"
+      ]
+    },
+    {
+      "path": "func-005fc664.asm",
+      "address": "005fc757",
+      "line": 78,
+      "instruction": "005fc757 CALL 0x00567e90",
+      "expected_operands": [
+        "CALL 0x00567e90"
+      ]
+    },
+    {
+      "path": "func-005fc664.asm",
+      "address": "005fcc92",
+      "line": 441,
+      "instruction": "005fcc92 CALL 0x00567e90",
+      "expected_operands": [
+        "CALL 0x00567e90"
+      ]
+    },
+    {
+      "path": "func-005fc664.asm",
+      "address": "005fcccc",
+      "line": 456,
+      "instruction": "005fcccc CALL 0x00567e90",
+      "expected_operands": [
+        "CALL 0x00567e90"
+      ]
+    },
+    {
+      "path": "func-005fc664.asm",
+      "address": "005fcdfb",
+      "line": 540,
+      "instruction": "005fcdfb CALL 0x00567e90",
+      "expected_operands": [
+        "CALL 0x00567e90"
+      ]
+    },
+    {
+      "path": "func-005fdf40.asm",
+      "address": "005fe4e3",
+      "line": 433,
+      "instruction": "005fe4e3 CALL 0x00568020",
+      "expected_operands": [
+        "CALL 0x00568020"
+      ]
+    },
+    {
+      "path": "func-005ef470.asm",
+      "address": "005ef494",
+      "line": 15,
+      "instruction": "005ef494 LEA ECX,[EBX + 0x60]",
+      "expected_operands": [
+        "LEA ECX,[EBX + 0x60]"
+      ]
+    },
+    {
+      "path": "func-005ef470.asm",
+      "address": "005ef499",
+      "line": 17,
+      "instruction": "005ef499 MOV EAX,dword ptr [EBX + 0x198]",
+      "expected_operands": [
+        "[EBX + 0x198]"
+      ]
+    },
+    {
+      "path": "func-005ef470.asm",
+      "address": "005ef49f",
+      "line": 18,
+      "instruction": "005ef49f CALL 0x005fedc8",
+      "expected_operands": [
+        "CALL 0x005fedc8"
+      ]
+    },
+    {
+      "path": "func-005ef470.asm",
+      "address": "005ef4be",
+      "line": 28,
+      "instruction": "005ef4be CALL 0x00567e98",
+      "expected_operands": [
+        "CALL 0x00567e98"
+      ]
+    },
+    {
+      "path": "func-005ef470.asm",
+      "address": "005ef4c8",
+      "line": 31,
+      "instruction": "005ef4c8 MOV EAX,dword ptr [EBX + 0x19c]",
+      "expected_operands": [
+        "[EBX + 0x19c]"
+      ]
+    },
+    {
+      "path": "func-005ef470.asm",
+      "address": "005ef4ce",
+      "line": 32,
+      "instruction": "005ef4ce CALL 0x005fedc8",
+      "expected_operands": [
+        "CALL 0x005fedc8"
+      ]
+    },
+    {
+      "path": "func-007c315c.asm",
+      "address": "007c316f",
+      "line": 9,
+      "instruction": "007c316f LEA EDI,[EAX + 0x20]",
+      "expected_operands": [
+        "LEA EDI,[EAX + 0x20]"
+      ]
+    },
+    {
+      "path": "world-instance-bridges.asm",
+      "address": "005fd641",
+      "line": 137,
+      "instruction": "5fd641:\te8 16 5b 1c 00       \tcall   0x7c315c",
+      "expected_operands": [
+        "call",
+        "0x7c315c"
+      ]
+    },
+    {
+      "path": "world-upload.asm",
+      "address": "007c3263",
+      "line": 79,
+      "instruction": "7c3263:\tff 90 b0 00 00 00    \tcall   DWORD PTR [eax+0xb0]",
+      "expected_operands": [
+        "call",
+        "[eax+0xb0]"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007fd9d0",
+      "line": 17,
+      "instruction": "007fd9d0 MOV ECX,0x2f",
+      "expected_operands": [
+        "MOV ECX,0x2f"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007fd9d5",
+      "line": 18,
+      "instruction": "007fd9d5 MOVSD.REP ES:EDI,ESI",
+      "expected_operands": [
+        "MOVSD.REP"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007fda22",
+      "line": 38,
+      "instruction": "007fda22 JZ 0x007fe292",
+      "expected_operands": [
+        "JZ 0x007fe292"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007fe2bd",
+      "line": 649,
+      "instruction": "007fe2bd LEA EAX,[EBP + 0xffffff68]",
+      "expected_operands": [
+        "LEA EAX,[EBP + 0xffffff68]"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007fe2ce",
+      "line": 655,
+      "instruction": "007fe2ce CALL dword ptr [EAX + 0xc4]",
+      "expected_operands": [
+        "CALL",
+        "[EAX + 0xc4]"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007feb7c",
+      "line": 1195,
+      "instruction": "007feb7c CALL 0x00800d10",
+      "expected_operands": [
+        "CALL 0x00800d10"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007ff195",
+      "line": 1596,
+      "instruction": "007ff195 CALL 0x00800d10",
+      "expected_operands": [
+        "CALL 0x00800d10"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007fe6d7",
+      "line": 889,
+      "instruction": "007fe6d7 CALL 0x00800d10",
+      "expected_operands": [
+        "CALL 0x00800d10"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007fe74b",
+      "line": 921,
+      "instruction": "007fe74b CALL 0x00800d10",
+      "expected_operands": [
+        "CALL 0x00800d10"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007feb2a",
+      "line": 1172,
+      "instruction": "007feb2a PUSH 0x2",
+      "expected_operands": [
+        "PUSH 0x2"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007feb38",
+      "line": 1177,
+      "instruction": "007feb38 MOV ECX,0x2",
+      "expected_operands": [
+        "MOV ECX,0x2"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007feb47",
+      "line": 1180,
+      "instruction": "007feb47 PUSH 0x4",
+      "expected_operands": [
+        "PUSH 0x4"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007feb55",
+      "line": 1185,
+      "instruction": "007feb55 MOV ECX,0x1",
+      "expected_operands": [
+        "MOV ECX,0x1"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007feb64",
+      "line": 1188,
+      "instruction": "007feb64 PUSH 0x0",
+      "expected_operands": [
+        "PUSH 0x0"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "007feb72",
+      "line": 1193,
+      "instruction": "007feb72 MOV ECX,0xb",
+      "expected_operands": [
+        "MOV ECX,0xb"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "00800049",
+      "line": 2545,
+      "instruction": "00800049 MOV EDX,0xab",
+      "expected_operands": [
+        "MOV EDX,0xab"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "0080005d",
+      "line": 2549,
+      "instruction": "0080005d MOV EDX,0xf",
+      "expected_operands": [
+        "MOV EDX,0xf"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "0080006c",
+      "line": 2552,
+      "instruction": "0080006c MOV ECX,0x80",
+      "expected_operands": [
+        "MOV ECX,0x80"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "00800080",
+      "line": 2556,
+      "instruction": "00800080 MOV ECX,0x5",
+      "expected_operands": [
+        "MOV ECX,0x5"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "00800094",
+      "line": 2560,
+      "instruction": "00800094 JMP 0x00800162",
+      "expected_operands": [
+        "JMP 0x00800162"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "00800116",
+      "line": 2587,
+      "instruction": "00800116 MOV ECX,0x1",
+      "expected_operands": [
+        "MOV ECX,0x1"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "0080011b",
+      "line": 2588,
+      "instruction": "0080011b MOV EDX,0x1b",
+      "expected_operands": [
+        "MOV EDX,0x1b"
+      ]
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "address": "00800142",
+      "line": 2597,
+      "instruction": "00800142 MOV EDX,0x1b",
+      "expected_operands": [
+        "MOV EDX,0x1b"
+      ]
+    },
+    {
+      "path": "func-00800d10.asm",
+      "address": "00800d73",
+      "line": 36,
+      "instruction": "00800d73 CALL dword ptr [EAX + 0x10c]",
+      "expected_operands": [
+        "CALL",
+        "[EAX + 0x10c]"
+      ]
+    },
+    {
+      "path": "func-00800d80.asm",
+      "address": "00800db6",
+      "line": 20,
+      "instruction": "00800db6 CALL dword ptr [EAX + 0xe4]",
+      "expected_operands": [
+        "CALL",
+        "[EAX + 0xe4]"
+      ]
+    },
+    {
+      "path": "lighting-init.asm",
+      "address": "008257db",
+      "line": 13,
+      "instruction": "8257db:\tba 89 00 00 00       \tmov    edx,0x89",
+      "expected_operands": [
+        "mov",
+        "edx,0x89"
+      ]
+    },
+    {
+      "path": "lighting-init.asm",
+      "address": "008257f1",
+      "line": 18,
+      "instruction": "8257f1:\tba 88 00 00 00       \tmov    edx,0x88",
+      "expected_operands": [
+        "mov",
+        "edx,0x88"
+      ]
+    },
+    {
+      "path": "lighting-init.asm",
+      "address": "00825807",
+      "line": 23,
+      "instruction": "825807:\tba 1d 00 00 00       \tmov    edx,0x1d",
+      "expected_operands": [
+        "mov",
+        "edx,0x1d"
+      ]
+    },
+    {
+      "path": "lighting-init.asm",
+      "address": "008257e0",
+      "line": 14,
+      "instruction": "8257e0:\te8 9b b5 fd ff       \tcall   0x800d80",
+      "expected_operands": [
+        "call",
+        "0x800d80"
+      ]
+    },
+    {
+      "path": "lighting-init.asm",
+      "address": "008257f6",
+      "line": 19,
+      "instruction": "8257f6:\te8 85 b5 fd ff       \tcall   0x800d80",
+      "expected_operands": [
+        "call",
+        "0x800d80"
+      ]
+    },
+    {
+      "path": "lighting-init.asm",
+      "address": "0082580c",
+      "line": 24,
+      "instruction": "82580c:\te8 6f b5 fd ff       \tcall   0x800d80",
+      "expected_operands": [
+        "call",
+        "0x800d80"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d7cb",
+      "line": 548,
+      "instruction": "0056d7cb MOV dword ptr [EAX + EDX*0x8],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d80d",
+      "line": 570,
+      "instruction": "0056d80d MOV dword ptr [EAX + EDX*0x8 + 0x4],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0x4]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d850",
+      "line": 592,
+      "instruction": "0056d850 MOV dword ptr [EAX + EDX*0x8 + 0x8],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0x8]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d893",
+      "line": 614,
+      "instruction": "0056d893 MOV dword ptr [EAX + EDX*0x8 + 0xc],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0xc]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d8d6",
+      "line": 636,
+      "instruction": "0056d8d6 MOV dword ptr [EAX + EDX*0x8 + 0x10],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0x10]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d919",
+      "line": 658,
+      "instruction": "0056d919 MOV dword ptr [EAX + EDX*0x8 + 0x14],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0x14]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d95c",
+      "line": 680,
+      "instruction": "0056d95c MOV dword ptr [EAX + EDX*0x8 + 0x18],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0x18]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d99f",
+      "line": 702,
+      "instruction": "0056d99f MOV dword ptr [EAX + EDX*0x8 + 0x20],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0x20]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056d9e2",
+      "line": 724,
+      "instruction": "0056d9e2 MOV dword ptr [EAX + EDX*0x8 + 0x24],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0x24]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056da25",
+      "line": 746,
+      "instruction": "0056da25 MOV dword ptr [EAX + EDX*0x8 + 0x28],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0x28]"
+      ]
+    },
+    {
+      "path": "reader-fields.asm",
+      "address": "0056da68",
+      "line": 768,
+      "instruction": "0056da68 MOV dword ptr [EAX + EDX*0x8 + 0x30],ECX",
+      "expected_operands": [
+        "MOV",
+        "[EAX + EDX*0x8",
+        "+ 0x30]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5982",
+      "line": 359,
+      "instruction": "005f5982 FSTP float ptr [EAX + 0x6c]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x6c]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f59ec",
+      "line": 383,
+      "instruction": "005f59ec FSTP float ptr [EAX + 0x70]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x70]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5a56",
+      "line": 407,
+      "instruction": "005f5a56 FSTP float ptr [EAX + 0x74]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x74]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5ac0",
+      "line": 431,
+      "instruction": "005f5ac0 FSTP float ptr [EAX + 0x78]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x78]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5b2a",
+      "line": 455,
+      "instruction": "005f5b2a FSTP float ptr [EAX + 0x7c]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x7c]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5b94",
+      "line": 479,
+      "instruction": "005f5b94 FSTP float ptr [EAX + 0x80]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x80]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5c01",
+      "line": 503,
+      "instruction": "005f5c01 FSTP float ptr [EAX + 0x84]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x84]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5c6e",
+      "line": 527,
+      "instruction": "005f5c6e FSTP float ptr [EAX + 0x8c]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x8c]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5cdb",
+      "line": 551,
+      "instruction": "005f5cdb FSTP float ptr [EAX + 0x90]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x90]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5d48",
+      "line": 575,
+      "instruction": "005f5d48 FSTP float ptr [EAX + 0x94]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x94]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5db5",
+      "line": 599,
+      "instruction": "005f5db5 FSTP float ptr [EAX + 0x9c]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0x9c]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5e22",
+      "line": 623,
+      "instruction": "005f5e22 FSTP float ptr [EAX + 0xa0]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0xa0]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5e8f",
+      "line": 647,
+      "instruction": "005f5e8f FSTP float ptr [EAX + 0xa4]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0xa4]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5efc",
+      "line": 671,
+      "instruction": "005f5efc FSTP float ptr [EAX + 0xac]",
+      "expected_operands": [
+        "FSTP float ptr",
+        "[EAX + 0xac]"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f4668",
+      "line": 56,
+      "instruction": "005f4668 CALL 0x007c3eb0",
+      "expected_operands": [
+        "CALL 0x007c3eb0"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f46bf",
+      "line": 77,
+      "instruction": "005f46bf IMUL EDX,EDX,0x2f",
+      "expected_operands": [
+        "IMUL EDX,EDX,0x2f"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f46cd",
+      "line": 81,
+      "instruction": "005f46cd XOR EAX,EAX",
+      "expected_operands": [
+        "XOR EAX,EAX"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5756",
+      "line": 235,
+      "instruction": "005f5756 MOV EDX,0x5f89e0",
+      "expected_operands": [
+        "MOV EDX,0x5f89e0"
+      ]
+    },
+    {
+      "path": "cfg-selected.asm",
+      "address": "005f5807",
+      "line": 275,
+      "instruction": "005f5807 MOV EDX,0x5f89e0",
+      "expected_operands": [
+        "MOV EDX,0x5f89e0"
+      ]
+    },
+    {
+      "path": "matl-match.asm",
+      "address": "007c3f4d",
+      "line": 61,
+      "instruction": "7c3f4d:\te8 ce 59 c4 ff       \tcall   0x409920",
+      "expected_operands": [
+        "call",
+        "0x409920"
+      ]
+    },
+    {
+      "path": "matl-match.asm",
+      "address": "007c3f54",
+      "line": 63,
+      "instruction": "7c3f54:\t8b 45 f0             \tmov    eax,DWORD PTR [ebp-0x10]",
+      "expected_operands": [
+        "mov",
+        "[ebp-0x10]"
+      ]
+    },
+    {
+      "path": "matl-match.asm",
+      "address": "007c3f5c",
+      "line": 66,
+      "instruction": "7c3f5c:\t83 45 f0 01          \tadd    DWORD PTR [ebp-0x10],0x1",
+      "expected_operands": [
+        "add",
+        "[ebp-0x10],0x1"
+      ]
+    },
+    {
+      "path": "matl-name-normalization.asm",
+      "address": "004213fc",
+      "line": 33,
+      "instruction": "4213fc:\t66 83 c8 20          \tor     ax,0x20",
+      "expected_operands": [
+        "or",
+        "ax,0x20"
+      ]
+    },
+    {
+      "path": "func-007fbee0.asm",
+      "address": "007fbf7d",
+      "line": 52,
+      "instruction": "007fbf7d MOV byte ptr [EBX + 0x5c],AL",
+      "expected_operands": [
+        "MOV byte ptr [EBX + 0x5c],AL"
+      ]
+    },
+    {
+      "path": "func-007fbee0.asm",
+      "address": "007fc04d",
+      "line": 108,
+      "instruction": "007fc04d CALL dword ptr [EDI + 0xc]",
+      "expected_operands": [
+        "CALL",
+        "+ 0xc]"
+      ]
+    },
+    {
+      "path": "func-007fbee0.asm",
+      "address": "007fc197",
+      "line": 204,
+      "instruction": "007fc197 CALL dword ptr [EDI + 0xc]",
+      "expected_operands": [
+        "CALL",
+        "+ 0xc]"
+      ]
+    },
+    {
+      "path": "func-007fbee0.asm",
+      "address": "007fc203",
+      "line": 237,
+      "instruction": "007fc203 CALL dword ptr [ESI + 0xc]",
+      "expected_operands": [
+        "CALL",
+        "+ 0xc]"
+      ]
+    }
+  ],
+  "new_local_links": [
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "history/geometry-first-attempt.log"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "history/materials-first-attempt.log"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "retention.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "native-lead-exports.md"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "native-authorized-seed.log#L49-L57"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "native-authorized-consumers.log#L47-L64"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "lighting-init.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fbee0.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "retention.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "reader-fields.c"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "reader-fields.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "reader-refs.txt"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "cfg-selected.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "cfg-refs.txt"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c5a4c.c"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c5a4c.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c5a4c-refs.txt"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c73d4.c"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c73d4.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c73d4-refs.txt"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-005fc664.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "animation-excerpts.c"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-005fc664-refs.txt"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fd9b0.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "material-upload-excerpts.c"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fd9b0-refs.txt"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fbee0.c"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fbee0.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fbee0-refs.txt"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-005ef470.c"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-005ef470.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c315c.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-005fdf40.c"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-005fdf40.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fc878.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "native-fields.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "abi-references.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "targeted-pe-identity.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "d3dx-import-thunks.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "blender-api-research.md"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "check-derived-math.py"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "derived-math.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "../task-2-baseline.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "conversion-cases.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "reader-constructor-bridge.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "reader-fields.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c5a4c.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c73d4.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-005fdf40.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c5a4c.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c73d4.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "abi-references.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "reader-fields.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "cfg-selected.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-005ef470.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-005fc664.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "world-instance-bridges.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c315c.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "world-upload.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "world-transform-enum.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fd9b0.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-00800d10.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fc878.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "blender-api-research.md"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "derived-math.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "blender-api-research.md"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "native-fields.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fd9b0.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "reader-fields.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007c5a4c.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "cfg-selected.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fd9b0.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "material-colors.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "color-helper.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "stage-defaults.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "texture-binding.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "lighting-init.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-00800d80.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "abi-references.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "../../../../../o3d_io/io_o3d_import.py#L540-L544"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "../../../../../o3d_io/io_o3d_import.py#L603-L655"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "cfg-selected.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "matl-match.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "matl-name-normalization.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "func-007fbee0.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "texture-binding.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "normalize-state.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "cull-state-b.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "cull-state-a.asm"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "state-setter-candidates.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "../checkpoint-probes.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "../task-2-baseline.json"
+    },
+    {
+      "from": "docs/research/evidence/o3d-export-fidelity/task-3/README.md",
+      "to": "verification.json"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/README.md"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "#task-3--repair-gate-integration-checkpoint"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/history/geometry-first-attempt.log"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/history/materials-first-attempt.log"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/native-lead-exports.md"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/native-authorized-seed.log#L49-L57"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/native-authorized-consumers.log#L47-L64"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/lighting-init.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/func-007fbee0.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/retention.json"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/blender-api-research.md"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/README.md"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/reader-fields.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/func-007c5a4c.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/func-007c73d4.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/blender-api-research.md"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/derived-math.json"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/func-005ef470.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/func-005fc664.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/world-upload.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/func-007fd9b0.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/func-00800d10.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/blender-api-research.md"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/reader-fields.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/func-007c5a4c.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/func-007fd9b0.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/stage-defaults.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/cfg-selected.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "../../o3d_io/io_o3d_import.py#L540-L544"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "../../o3d_io/io_o3d_import.py#L603-L655"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/matl-match.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/matl-name-normalization.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/cfg-selected.asm"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/checkpoint-probes.json"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-2-baseline.json"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/README.md#6-exact-remaining-load-bearing-gates-and-capture-recipes"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/verify-evidence.py"
+    },
+    {
+      "from": "docs/research/2026-11-10-o3d-export-fidelity.md",
+      "to": "evidence/o3d-export-fidelity/task-3/verification.json"
+    }
+  ],
+  "external_primary_urls_syntax_checked_not_refetched": [
+    "https://api.github.com/repos/blender/blender/git/ref/tags/v4.2.0",
+    "https://docs.blender.org/api/4.2/bpy.types.Depsgraph.html#dependency-graph-object-to-mesh",
+    "https://docs.blender.org/api/4.2/bpy.types.Mesh.html#bpy.types.Mesh.corner_normals",
+    "https://docs.blender.org/api/4.2/bpy.types.MeshLoopTriangle.html#bpy.types.MeshLoopTriangle.split_normals",
+    "https://docs.blender.org/api/4.2/bpy.types.MeshUVLoopLayer.html#bpy.types.MeshUVLoopLayer.active_render",
+    "https://docs.blender.org/api/4.2/bpy.types.Object.html#bpy.types.Object.to_mesh",
+    "https://docs.blender.org/manual/en/4.2/render/shader_nodes/vector/mapping.html#properties",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/intern/cycles/blender/mesh.cpp#L447-L484",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/intern/cycles/kernel/geom/object.h#L191-L211",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/intern/cycles/kernel/geom/triangle.h#L16-L32",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/intern/cycles/kernel/svm/mapping_util.h#L9-L24",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/intern/cycles/scene/shader_nodes.cpp#L3940-L3968",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/blenkernel/intern/mesh_normals.cc#L266-L310",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/blenkernel/intern/mesh_runtime.cc#L229-L247",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/gpu/shaders/common/gpu_shader_common_math_utils.glsl#L10-L12",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/gpu/shaders/common/gpu_shader_common_math_utils.glsl#L188-L209",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/gpu/shaders/material/gpu_shader_material_mapping.glsl#L15-L32",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/makesrna/intern/rna_mesh.cc#L2385-L2410",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/makesrna/intern/rna_mesh.cc#L684-L714",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/makesrna/intern/rna_mesh_api.cc#L85-L88",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/makesrna/intern/rna_object_api.cc#L1075-L1100",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/nodes/shader/nodes/node_shader_mapping.cc#L18-L81",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/nodes/shader/nodes/node_shader_tex_image.cc#L54-L58",
+    "https://github.com/blender/blender/blob/a51f293548adba0dda086f5771401e8d8ab66227/source/blender/python/mathutils/mathutils_Matrix.cc#L1690-L1810",
+    "https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dmaterial9",
+    "https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dtextureop",
+    "https://learn.microsoft.com/en-us/windows/win32/direct3d9/id3dxbasemesh--drawsubset",
+    "https://learn.microsoft.com/en-us/windows/win32/direct3d9/mathematics-of-lighting"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 33691,
+      "sha256": "5595f761cd143b8de07d34b9767d70c75a300cce310d8d41c01c751974970b86"
+    },
+    {
+      "path": "abi-references.json",
+      "bytes": 11854,
+      "sha256": "566a9418ca42abab8542eed3cbb8d7254bd1776f49e1561a3ecd8119a5de628b"
+    },
+    {
+      "path": "animation-excerpts.c",
+      "bytes": 10563,
+      "sha256": "32935dd30f8a989df643b2df3d54c378aed36b4331c0a847e1cbb03df85b0072"
+    },
+    {
+      "path": "blender-api-research.md",
+      "bytes": 27930,
+      "sha256": "4ff0cdf59179d5b054374bfbbfc10bd99d7c120582f5d223322ed4e17d90992e"
+    },
+    {
+      "path": "cfg-refs.txt",
+      "bytes": 2581,
+      "sha256": "60136088dc78dbef88e81578b983fd35edab922b6f8b4e76931966255c50e967"
+    },
+    {
+      "path": "cfg-selected.asm",
+      "bytes": 21849,
+      "sha256": "3869e072263ea82278d041d26ce7bb32a6f7d7a0a8cbe22b299436eba763903e"
+    },
+    {
+      "path": "check-derived-math.py",
+      "bytes": 4372,
+      "sha256": "aa967f8e5ae7d46a109b3a9509e52f9ff28b15741380b73e783fb26a74127156"
+    },
+    {
+      "path": "color-helper.asm",
+      "bytes": 820,
+      "sha256": "c2e0970265f88f676e8c93526153bfedaa208612daaa162da4562b9850810c3c"
+    },
+    {
+      "path": "conversion-cases.json",
+      "bytes": 5026,
+      "sha256": "c5fc55a8bf34ba47923d803f0baede4bdc65b109356ecae65c43f4ac89ab9a12"
+    },
+    {
+      "path": "cull-state-a.asm",
+      "bytes": 1882,
+      "sha256": "6af1ffed7a5d896600b407e4f4caa35d73ca0321e981adb14dbcdec753aca7e2"
+    },
+    {
+      "path": "cull-state-b.asm",
+      "bytes": 4732,
+      "sha256": "819d617d76bf25c2450fdf0298d217b71fe1d35bfa4bf5c69880936c74893873"
+    },
+    {
+      "path": "d3dx-import-thunks.asm",
+      "bytes": 7339,
+      "sha256": "b6ca9008a3b9e44512170fff15f0ce1b0ce6771b9009a82d35da820fa47701c7"
+    },
+    {
+      "path": "derived-math.json",
+      "bytes": 9437,
+      "sha256": "0459ff4054b4bfccc4dd69c5bc971e2d418e10181aa37992b26a2f032b26111c"
+    },
+    {
+      "path": "func-005ef470-refs.txt",
+      "bytes": 162,
+      "sha256": "1e9d4b3dd9c0b5b09a24ea966ab65c728e04fb591c41af409317a7e9569ef172"
+    },
+    {
+      "path": "func-005ef470.asm",
+      "bytes": 915,
+      "sha256": "baf3d2b0f0b7d495b4ea1fae0a0fa2048663bdfd72ef7dacc3f32987c065ba36"
+    },
+    {
+      "path": "func-005ef470.c",
+      "bytes": 832,
+      "sha256": "142cfc3cb980e643f7ac65e01041df64d6e74e74f38a67f8bec379dd57d7d902"
+    },
+    {
+      "path": "func-005fc664-refs.txt",
+      "bytes": 814,
+      "sha256": "943deac3ea110013aedd94141f8dd1b5e7fcd73a9f6c8dd6e5f4ec54f8b3c01c"
+    },
+    {
+      "path": "func-005fc664.asm",
+      "bytes": 31772,
+      "sha256": "c800dbc7c84ae9a2ec227c6d27bfa9ffceee463b7230ff383e4b95b9c94e0235"
+    },
+    {
+      "path": "func-005fdf40-refs.txt",
+      "bytes": 575,
+      "sha256": "f3fd1aa19cc6ac4d99ee3e70f54701075c2fc6a95031b4c4f80f2eef3371ed55"
+    },
+    {
+      "path": "func-005fdf40.asm",
+      "bytes": 13324,
+      "sha256": "d70a553324826602b931de8a4ce07c755db10f9bf1dfd085892fe84b7c5a95d7"
+    },
+    {
+      "path": "func-005fdf40.c",
+      "bytes": 10925,
+      "sha256": "c31489ad28fde6d06ff4a0f954aa2b8a337dfe338ca719d7fdde790ebfab950f"
+    },
+    {
+      "path": "func-007c315c-refs.txt",
+      "bytes": 564,
+      "sha256": "8c86e185c680ce1105a2e33e0b51109d00563ed48edeb2d3cc6a97b7daaece7a"
+    },
+    {
+      "path": "func-007c315c.asm",
+      "bytes": 327,
+      "sha256": "1b285a9d3a2a4e8c8e23e4ff370311d696578adbc7e55948e0593b8131cb46dc"
+    },
+    {
+      "path": "func-007c315c.c",
+      "bytes": 606,
+      "sha256": "5e2f1a9c66cd4b1593aaec3ef5a43489f8fc321f5711bbe1d51f8153fe9f7465"
+    },
+    {
+      "path": "func-007c5a4c-refs.txt",
+      "bytes": 880,
+      "sha256": "5c89dddb394fe49ff684d0ed0aa73bdc69b821442896932b799229814683ed42"
+    },
+    {
+      "path": "func-007c5a4c.asm",
+      "bytes": 41591,
+      "sha256": "d866665eb641093f549c86b90ed263d5f7cf82a54fa127201b19aa53b6edc103"
+    },
+    {
+      "path": "func-007c5a4c.c",
+      "bytes": 40447,
+      "sha256": "c55fff7abd47de03003c62239320def3f3536a02b7b491a20acea3d6e78d59eb"
+    },
+    {
+      "path": "func-007c73d4-refs.txt",
+      "bytes": 438,
+      "sha256": "ea00000c14a456ffed81efc421c45458d6d0e8d5ea823c408fc899658b483840"
+    },
+    {
+      "path": "func-007c73d4.asm",
+      "bytes": 6038,
+      "sha256": "1aaeac5c081673b741702a79a675eb15bd93c3d3de87fb926aba376ffdc718f6"
+    },
+    {
+      "path": "func-007c73d4.c",
+      "bytes": 4992,
+      "sha256": "0f061ef7f8418be55b05ad149b51ca057fbd940ab794be6592d79fa2492523be"
+    },
+    {
+      "path": "func-007fbee0-refs.txt",
+      "bytes": 470,
+      "sha256": "f536bbe5514900377ff7dd515088e7c968f9b4d43b4579f6376ce063363d9a49"
+    },
+    {
+      "path": "func-007fbee0.asm",
+      "bytes": 10665,
+      "sha256": "f348dddf9202cbc2b20a59fdc42d9efc31db54179fe67734961f8d0c220383b4"
+    },
+    {
+      "path": "func-007fbee0.c",
+      "bytes": 6359,
+      "sha256": "a91b933270627c691613c87f69d2a7a32ea3a16083cd5544ed44d83cdebbae7d"
+    },
+    {
+      "path": "func-007fc878-refs.txt",
+      "bytes": 372,
+      "sha256": "f5bd7285710f164b0177ff323b528a7e6a2cc28547c562eb9bc155434609317c"
+    },
+    {
+      "path": "func-007fc878.asm",
+      "bytes": 6468,
+      "sha256": "d3c35f82ab9f538ed61c54c03676b90e8b7ebec388872d5cd47d4572c38dd04e"
+    },
+    {
+      "path": "func-007fc878.c",
+      "bytes": 4007,
+      "sha256": "6a3d097b04ae1832449cc3137cb4f830f016cb8fab58eef78d3e100a6d0b67b8"
+    },
+    {
+      "path": "func-007fd9b0-refs.txt",
+      "bytes": 949,
+      "sha256": "094ae8f496b4446436ccb8791749592a382cc4233fd31ea0747b872fde20e0d1"
+    },
+    {
+      "path": "func-007fd9b0.asm",
+      "bytes": 78396,
+      "sha256": "1edb47e084de90a9433b76931c46ba7f3beb0bcea9ecfba9b6c87f44de3375b6"
+    },
+    {
+      "path": "func-00800d10-refs.txt",
+      "bytes": 6829,
+      "sha256": "73a28b432f0d588d839fad98005376e0145618bed59e306bd91b7e78e9786dbb"
+    },
+    {
+      "path": "func-00800d10.asm",
+      "bytes": 1005,
+      "sha256": "67a1562a23d21d7c29265f11247fd6f4f349b7ddadb2c8b2ff6e35906a82726c"
+    },
+    {
+      "path": "func-00800d10.c",
+      "bytes": 1133,
+      "sha256": "8899e6658989a6a92289ce86dcb85c15e3765f26fefd0955f1f0b1959e192c56"
+    },
+    {
+      "path": "func-00800d80-refs.txt",
+      "bytes": 3366,
+      "sha256": "1d6f48eb6a442b0355eaca9c39f1577e60b8820ff54535cad1a849191bc740b7"
+    },
+    {
+      "path": "func-00800d80.asm",
+      "bytes": 566,
+      "sha256": "cadf5d33ed0e2a938f1d3cbb08b03693921274b6b038edd92604fd306c5d1249"
+    },
+    {
+      "path": "func-00800d80.c",
+      "bytes": 469,
+      "sha256": "76300359fde032899bb3697b3320db61faa0341aa7080553a947c84316a33d2e"
+    },
+    {
+      "path": "history/geometry-first-attempt.log",
+      "bytes": 1010,
+      "sha256": "30640d02813708d76ba54aa483af81c9acc13d1dc6d52f8fba023623012bd320"
+    },
+    {
+      "path": "history/materials-first-attempt.log",
+      "bytes": 822,
+      "sha256": "169e7245b861586808945869e45f6a500bf2d90864817d1e1bdf26b38d085cd8"
+    },
+    {
+      "path": "lighting-init.asm",
+      "bytes": 1595,
+      "sha256": "c2befed38e78c9d99974f90ac515647163a6e2c8db155f4e754d439671d178b1"
+    },
+    {
+      "path": "material-colors.asm",
+      "bytes": 13033,
+      "sha256": "15ea99edbbfbcdcc515fd3281af4abf160510d245a9a396f4e40fc5594763e01"
+    },
+    {
+      "path": "material-upload-excerpts.c",
+      "bytes": 5121,
+      "sha256": "18dbc5b052ac7e23c9e40445569abae29b1a440fed32a4948bf516cb553554ec"
+    },
+    {
+      "path": "matl-match.asm",
+      "bytes": 4690,
+      "sha256": "fda94a7648ee3ba73649543cd1cb1677b8f61ae137c3b602662b32ed1defdd7e"
+    },
+    {
+      "path": "matl-name-normalization.asm",
+      "bytes": 1851,
+      "sha256": "1127ca3820e424055877a01b8f27cad714cf823876e158a5839926ce87bd3684"
+    },
+    {
+      "path": "native-authorized-consumers.log",
+      "bytes": 5978,
+      "sha256": "f3ba2b22d1ceedb1255e2a74efa7887cb3e461c8d8615795c1ff67bcffecba3f"
+    },
+    {
+      "path": "native-authorized-seed.log",
+      "bytes": 5436,
+      "sha256": "e92dbb36dbbd1c23987e81b6b04834eb91c51ad873c559a89ab898f2aa82a206"
+    },
+    {
+      "path": "native-fields.json",
+      "bytes": 21395,
+      "sha256": "d5045d86a99418850326e2fdb05197309f65aee8ced0aa94f06d154e66eb0f4e"
+    },
+    {
+      "path": "native-lead-exports.md",
+      "bytes": 4448,
+      "sha256": "81df487637d63d215de4821c14bff08315ae1b9bd4ca31e7adde0c058bc764eb"
+    },
+    {
+      "path": "normalize-state.asm",
+      "bytes": 6045,
+      "sha256": "5ec9f029df187985c633f2f896a72956a229a547a165074a0a5cb73158ad5176"
+    },
+    {
+      "path": "reader-constructor-bridge.asm",
+      "bytes": 1877,
+      "sha256": "00123e3c0d02c76b7d757c4d6213e8323cbb2e42930f8141ffa3a523e6bd283d"
+    },
+    {
+      "path": "reader-fields.asm",
+      "bytes": 26294,
+      "sha256": "560b285242c187644f9aa9f228279cccb2ea508c6503edbf1b4234d486493529"
+    },
+    {
+      "path": "reader-fields.c",
+      "bytes": 14812,
+      "sha256": "7dc036ce125a423a82536650a26fc8c8f4be969c57bda2f80c8d566329870d18"
+    },
+    {
+      "path": "reader-refs.txt",
+      "bytes": 901,
+      "sha256": "7e8318f9af85f04b44dca47f0d5bb595f91ba07ec2b84397c8639e125bb72d5e"
+    },
+    {
+      "path": "retention.json",
+      "bytes": 42922,
+      "sha256": "32b4c55d89c7862bd5b0068eb9912abc64b6ab97561db291e460df2311d4e342"
+    },
+    {
+      "path": "stage-defaults.asm",
+      "bytes": 2058,
+      "sha256": "442b93b1d752dff203d1956f7f54359b207ed90a9758542bbd45454801e28057"
+    },
+    {
+      "path": "state-setter-candidates.json",
+      "bytes": 2743,
+      "sha256": "55357f527b7c29af7877da628a82ca2eadb4f6b44676639b179782eab2542ad6"
+    },
+    {
+      "path": "targeted-pe-identity.json",
+      "bytes": 3392,
+      "sha256": "aa3136ff5255e215095195c881ebddbf79b0c4cd898433756cce6ae05f5ded42"
+    },
+    {
+      "path": "texture-binding.asm",
+      "bytes": 14394,
+      "sha256": "ddc45affad7a14d00e1e95d28babee5f45504267673555340fdf0837a1a445cc"
+    },
+    {
+      "path": "verify-evidence.py",
+      "bytes": 17737,
+      "sha256": "a27f0036f9da91317e810bf017f67cb6aa0d038074b86090c11327a55ccfe9f5"
+    },
+    {
+      "path": "world-instance-bridges.asm",
+      "bytes": 8048,
+      "sha256": "c535d599a66f0aabf078bc7f8c548c05836ef683947094f6b314b17036e03fd0"
+    },
+    {
+      "path": "world-transform-enum.asm",
+      "bytes": 1657,
+      "sha256": "412d08c8ff65fd631ab1386c3e313bdccf19c29e6487e5803d07837f2c79cc63"
+    },
+    {
+      "path": "world-upload.asm",
+      "bytes": 4370,
+      "sha256": "3b7e98658b74d53a61e05e4b4fc47c10045e8fecf39cf4fe49db97a3da006be3"
+    }
+  ],
+  "ledger_sha256": "20dd67756a09e27c34b0a26b799ba16faa3008290b07bbb0e5324be3a09dd949",
+  "open_gates": [
+    "effective final culling/normalization/shaders",
+    "effect material/Power arithmetic",
+    "texture/sampler/render-target/display transfer",
+    "alpha-mode1 history and stale texture binding",
+    "dynamic map/environment/default/variable branches",
+    "special/encrypted/singular origin/normal paths",
+    "derived-only noncommuting globalframe extension",
+    "Blender4.2/5.2 execution coverage",
+    "all native runtime/visual parity"
+  ]
+}
