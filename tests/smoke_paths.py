@@ -88,7 +88,7 @@ def assert_regional_codepage_paths(addon: ModuleType) -> None:
 
 
 def assert_case_insensitive_import_paths(addon: ModuleType) -> None:
-    """Resolve real on-disk casing for imported assets, including directory components."""
+    """Resolve imported assets to the correct files, including directory components."""
     paths = addon.o3d_io.omsi_paths
     textures = addon.o3d_io.blender_texture_io
     importer = addon.o3d_io.io_o3d_import
@@ -99,26 +99,36 @@ def assert_case_insensitive_import_paths(addon: ModuleType) -> None:
         model.mkdir()
         mesh = model / "Seat.O3D"
         mesh.write_bytes(b"")
-        assert paths.resolve_omsi_path(str(directory), r"model\SEAT.o3d") == str(mesh)
-        assert paths.resolve_omsi_path(str(directory / "MODEL"), "seat.o3d") == str(mesh)
+        other_case = model / "seat.o3d"
+        case_sensitive = not other_case.exists()
+
+        def is_expected_file(actual, expected):
+            # Existing paths may retain requested spelling on insensitive filesystems.
+            if case_sensitive:
+                return actual == str(expected)
+            return os.path.isfile(actual) and os.path.samefile(actual, expected)
+
+        assert is_expected_file(paths.resolve_omsi_path(str(directory), r"model\SEAT.o3d"), mesh)
+        assert is_expected_file(paths.resolve_omsi_path(str(directory / "MODEL"), "seat.o3d"), mesh)
         missing = str(model / "missing.o3d")
         assert paths.resolve_omsi_path(str(model), "missing.o3d") == missing
-        assert paths.resolve_omsi_path(str(model), "Seat.O3D") == str(mesh)
-        other_case = model / "seat.o3d"
-        if not other_case.exists():
+        assert is_expected_file(paths.resolve_omsi_path(str(model), "Seat.O3D"), mesh)
+        if case_sensitive:
             other_case.write_bytes(b"")
+            assert not mesh.samefile(other_case)
             assert paths.resolve_omsi_path(str(model), "seat.o3d") == str(other_case)
             other_case.unlink()
         regional = model / "KAPı.O3D"
         regional.write_bytes(b"")
         encoded = r"model\KAPı.o3d".encode("cp1254").decode("cp1252")
-        assert paths.resolve_omsi_path(str(directory), encoded) == str(regional)
+        assert is_expected_file(paths.resolve_omsi_path(str(directory), encoded), regional)
         cfg = directory / "Vehicle.SCO"
         cfg.write_text("[mesh]\nseat.o3d\n\n", encoding="cp1252")
         cfg_data, _ = parser.read_cfg(str(directory / "vehicle.sco"), "")
         mesh_paths = [entry["path"] for lod in cfg_data.values() for entry in lod["meshes"].values()]
-        assert mesh_paths == [str(mesh)], mesh_paths
-        assert importer.resolve_import_filepaths(str(cfg), str(directory), ["vehicle.sco"]) == [str(cfg)]
+        assert len(mesh_paths) == 1 and is_expected_file(mesh_paths[0], mesh), mesh_paths
+        selected_paths = importer.resolve_import_filepaths(str(cfg), str(directory), ["vehicle.sco"])
+        assert len(selected_paths) == 1 and is_expected_file(selected_paths[0], cfg), selected_paths
         assert importer.resolve_import_filepaths(str(cfg), str(directory), ["../outside.sco"]) == []
         assert importer.resolve_import_filepaths(str(mesh), str(model), [r"..\Vehicle.SCO"]) == []
         texture_dir = directory / "Texture" / "Details"
@@ -126,23 +136,23 @@ def assert_case_insensitive_import_paths(addon: ModuleType) -> None:
         texture = texture_dir / "Seat.BMP"
         texture.write_bytes(b"")
         declared = r"details\SEAT.bmp"
-        assert textures.find_image_path(str(cfg), declared) == str(texture)
-        assert textures.find_image_path(str(model / "test.o3d"), declared) == str(texture)
-        assert textures.find_image_path(str(directory / "vehicle.sco"), declared) == str(texture)
-        assert textures.find_image_path(str(cfg), str(directory / "texture" / "details" / "seat.bmp"), True) == str(texture)
+        assert is_expected_file(textures.find_image_path(str(cfg), declared), texture)
+        assert is_expected_file(textures.find_image_path(str(model / "test.o3d"), declared), texture)
+        assert is_expected_file(textures.find_image_path(str(directory / "vehicle.sco"), declared), texture)
+        assert is_expected_file(textures.find_image_path(str(cfg), str(directory / "texture" / "details" / "seat.bmp"), True), texture)
         sidecar = texture_dir / "Seat.BMP.CFG"
         sidecar.write_text("[terrainmapping]\n", encoding="utf-8")
-        assert textures.find_image_path(str(cfg), declared, find_cfg=True) == str(sidecar)
+        assert is_expected_file(textures.find_image_path(str(cfg), declared, find_cfg=True), sidecar)
         assert "[terrainmapping]" in parser.read_generic_cfg_file(str(sidecar).swapcase())
         dds = texture_dir / "Seat.DDS"
         dds.write_bytes(b"")
-        assert textures.find_image_path(str(cfg), declared) == str(dds)
+        assert is_expected_file(textures.find_image_path(str(cfg), declared), dds)
         assert textures.find_image_path(str(cfg), r"details\missing.bmp") is None
         shared = directory / "Shared"
         shared.mkdir()
         shared_texture = shared / "Panel.PNG"
         shared_texture.write_bytes(b"")
-        assert textures.find_image_path(str(model / "test.o3d"), r"shared\panel.png") == str(shared_texture)
+        assert is_expected_file(textures.find_image_path(str(model / "test.o3d"), r"shared\panel.png"), shared_texture)
         spline_dir = directory / "Splines"
         spline_dir.mkdir()
         spline = spline_dir / "Road.SLI"
@@ -170,10 +180,10 @@ def assert_case_insensitive_import_paths(addon: ModuleType) -> None:
         ]}
         obj, heights = addon.o3d_io.io_omsi_tile.import_terrain_mesh(str(map_path), global_cfg)
         assert len(heights) == 61 and heights[0] == [0.0] * 61
-        assert any(image.filepath == str(splat) for image in bpy.data.images)
+        assert any(is_expected_file(image.filepath, splat) for image in bpy.data.images)
         assert any(
             node.type == "TEX_IMAGE" and node.image
-            and node.image.filepath == str(directory / "Texture" / "Gravel.PNG")
+            and is_expected_file(node.image.filepath, directory / "Texture" / "Gravel.PNG")
             for node in obj.data.materials[0].node_tree.nodes
         )
 
