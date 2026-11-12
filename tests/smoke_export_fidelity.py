@@ -976,7 +976,7 @@ def _run_case(addon, reference, group, name, directory):
                 manifest['texture'] = {'file': image.name, 'sha256': hashlib.sha256(image.read_bytes()).hexdigest(),
                                        'rows_bottom_to_top': ['RBBB', 'GRBW', 'GGRA', 'YWGY']}
             initial_context = _context_snapshot()
-            # Complete and save every configured export before any fidelity assertion.
+            # Save every configured export; check current restoration before reference setup.
             for label in ('current', 'reference') if reference else ('current',):
                 path = directory / f'{label}.o3d'
                 entry = manifest['exporters'][label] = {'settings': {
@@ -990,27 +990,49 @@ def _run_case(addon, reference, group, name, directory):
                             'location', 'scale', 'rotation_mode', 'rotation_euler', 'rotation_quaternion',
                             'matrix_world', 'parent_matrix_world')}
                         stdout = io.StringIO()
-                        with contextlib.redirect_stdout(stdout):
-                            addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context,
-                                Matrix.Scale(settings['global_scale'], 4), True, 7, settings['export_custom_normals'], objects=[obj])
-                        entry['stdout'] = stdout.getvalue()
+                        try:
+                            with contextlib.redirect_stdout(stdout):
+                                addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context,
+                                    Matrix.Scale(settings['global_scale'], 4), True, 7, settings['export_custom_normals'], objects=[obj])
+                        finally:
+                            entry['stdout'] = stdout.getvalue()
+                            check('source mesh and modifier state unchanged', lambda: _assert_equal(_snapshot(obj), snapshot))
+                            check('selection mode and active object unchanged', lambda: _assert_equal(_context_snapshot(), initial_context))
                     else:
-                        # Reference lacks a global-scale option. Use a disposable object
-                        # with the equivalent uniform position scale; never mutate source.
-                        if settings['global_scale'] != 1:
-                            target = obj.copy()
-                            target.data = obj.data.copy()
-                            bpy.context.scene.collection.objects.link(target)
-                            target.scale *= settings['global_scale']
-                            target.location *= settings['global_scale']
-                            bpy.context.view_layer.update()
-                        reference_input = _snapshot(target)
-                        entry['input_transforms'] = {key: reference_input[key] for key in (
-                            'location', 'scale', 'rotation_mode', 'rotation_euler', 'rotation_quaternion',
-                            'matrix_world', 'parent_matrix_world')}
-                        entry['settings']['global_scale_emulation'] = settings['global_scale']
-                        reference(compatibility=False, transforms={'LOC', 'ROT', 'SCA'}, origin=True,
-                                  weights=False).export([target], path)
+                        reference_context = _context_snapshot()
+                        reference_copy = reference_mesh = None
+                        try:
+                            # Reference lacks global scale. Own this copy and its mesh,
+                            # including cleanup if reference setup/export raises.
+                            if settings['global_scale'] != 1:
+                                reference_copy = target = obj.copy()
+                                reference_mesh = target.data = obj.data.copy()
+                                bpy.context.scene.collection.objects.link(target)
+                                target.scale *= settings['global_scale']
+                                target.location *= settings['global_scale']
+                                bpy.context.view_layer.update()
+                            reference_input = _snapshot(target)
+                            entry['input_transforms'] = {key: reference_input[key] for key in (
+                                'location', 'scale', 'rotation_mode', 'rotation_euler', 'rotation_quaternion',
+                                'matrix_world', 'parent_matrix_world')}
+                            entry['settings']['global_scale_emulation'] = settings['global_scale']
+                            reference(compatibility=False, transforms={'LOC', 'ROT', 'SCA'}, origin=True,
+                                      weights=False).export([target], path)
+                        finally:
+                            if bpy.context.object and bpy.context.object.mode != 'OBJECT':
+                                bpy.ops.object.mode_set(mode='OBJECT')
+                            if reference_copy is not None:
+                                bpy.data.objects.remove(reference_copy, do_unlink=True)
+                            if reference_mesh is not None:
+                                bpy.data.meshes.remove(reference_mesh)
+                            bpy.ops.object.select_all(action='DESELECT')
+                            for selected_object in reference_context[1]:
+                                selected_object.select_set(True)
+                            bpy.context.view_layer.objects.active = reference_context[0]
+                            if reference_context[2] not in (None, 'OBJECT'):
+                                bpy.ops.object.mode_set(mode=reference_context[2])
+                            check('reference cleanup restores selection mode and active object',
+                                  lambda: _assert_equal(_context_snapshot(), reference_context))
                     entry.update(_record(path))
                 except Exception as error:
                     entry.update(error=f'{type(error).__name__}: {error}', traceback=traceback.format_exc())
@@ -1019,16 +1041,22 @@ def _run_case(addon, reference, group, name, directory):
                     _json(directory / 'manifest.json', manifest)
             current = manifest['exporters']['current'].get('records')
             ref = manifest['exporters'].get('reference', {}).get('records')
+            reference_surface_oracle = group == 'custom_normal' and name in (
+                'oblique_triangle', 'flat_wedge', 'smooth_wedge', 'uv_seam', 'degenerate_face')
             if current and ref:
                 manifest['comparison'] = {
+                    'oriented_surface_equality_oracle': reference_surface_oracle,
+                    'oriented_surface_equality_reason': (
+                        'Compatible untransformed triangle/wedge/seam fixture.' if reference_surface_oracle else
+                        'Mirrored nonuniform scale requires inverse-transpose normals; reference uses the position matrix.'
+                        if name in ('flat_transform', 'smooth_transform') else
+                        'Outside the compatible custom-normal fixture subset; reference deltas are observations only.'),
                     'oriented_surface_equal_5dp': _rounded(oriented_surface(current)) == _rounded(oriented_surface(ref)),
                     'materials_equal_5dp': _rounded(current['materials']) == _rounded(ref['materials']),
                     'matrix_equal_5dp': _rounded(current['matrix']) == _rounded(ref['matrix']),
                     'reference_limitations': 'No equality oracle for polygon tessellation, translation, parents, quaternion, nonuniform normals or skin widths.'}
             # Persist comparisons and raw data even if the first assertion fails.
             _json(directory / 'manifest.json', manifest)
-            check('source mesh and modifier state unchanged', lambda: _assert_equal(_snapshot(obj), snapshot))
-            check('selection mode and active object unchanged', lambda: _assert_equal(_context_snapshot(), initial_context))
             if group in ('custom_normal', 'transforms'):
                 check('prepared tuple and directly consumed GCM baked mesh',
                       lambda: _assert_prepared_space(addon, obj, settings, expected_snapshot))
@@ -1088,10 +1116,10 @@ def _run_case(addon, reference, group, name, directory):
                         check('all material UV splits retain source weights', lambda: _assert_material_weights(current, expected_snapshot))
                 if group == 'cfg_materials':
                     check('CFG material command/embedded separation', lambda: _cfg_check(addon, obj, directory, name, manifest))
-                # Already-triangulated fixtures have compatible construction.
-                # Polygon reference deltas remain observations above; source
-                # corners and Blender's own loop triangles are their invariants.
-                if ref and group == 'custom_normal' and all(len(face) == 3 for face in snapshot['faces']):
+                # Strict equality only for compatible construction and normals.
+                # Other raw reference deltas remain observations; independent
+                # current corner/tessellation/transform checks stay mandatory.
+                if ref and reference_surface_oracle:
                     check('oriented reference surface including winding', lambda: _assert_equal(
                         _rounded(oriented_surface(current)), _rounded(oriented_surface(ref))))
     except Exception as error:
