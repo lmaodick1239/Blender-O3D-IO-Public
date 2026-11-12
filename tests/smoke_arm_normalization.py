@@ -9,6 +9,7 @@ import hashlib
 import math
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 from types import SimpleNamespace
 
@@ -988,7 +989,9 @@ def assert_arm_normalization_bundle(addon):
         for left_sign in (-1, 1):
             with bundle_fixture(addon, left_sign=left_sign) as (rig, meshes, points, weights, source_points):
                 def state():
-                    return source_snapshot(), repr(tuple(mesh_state(obj) for obj in meshes))
+                    # Add rest data/pose_position; source_snapshot freezes ID props
+                    # and context without comparing live IDPropertyGroup proxies.
+                    return source_snapshot(), rig_state(rig)[:4], repr(tuple(mesh_state(obj) for obj in meshes))
 
                 for turn_180 in (False, True):
                     for scale in (1, 2):
@@ -1178,7 +1181,7 @@ def assert_arm_normalization_bundle(addon):
             for obj in (rig, *meshes):
                 obj.matrix_world = world
             bpy.context.view_layer.update()
-            before = source_snapshot(), repr(tuple(mesh_state(obj) for obj in meshes))
+            before = source_snapshot(), rig_state(rig)[:4], repr(tuple(mesh_state(obj) for obj in meshes))
             with tempfile.TemporaryDirectory(prefix='o3d-arm-world-') as directory:
                 path = Path(directory) / 'world.hum'
                 preview = human.export_human(str(path), bpy.context, rig, meshes, normalize_arms=True,
@@ -1186,7 +1189,7 @@ def assert_arm_normalization_bundle(addon):
                 assert not list(Path(directory).iterdir())
                 result = human.export_human(str(path), bpy.context, rig, meshes, normalize_arms=True,
                     scale=2, turn_180=True)
-                assert (source_snapshot(), repr(tuple(mesh_state(obj) for obj in meshes))) == before
+                assert (source_snapshot(), rig_state(rig)[:4], repr(tuple(mesh_state(obj) for obj in meshes))) == before
                 links, height = hum_records(path)
                 close(links, bundle_expected(points, source_points, normalized=True, turn_180=True, scale=2,
                                             world=world))
@@ -1206,12 +1209,265 @@ def assert_arm_normalization_bundle(addon):
                           (-2.5, 0, 0, 0, 0, 2.5, 0, 0, 0, 0, -2.5, 0, 0, .4, -.14, 1))
 
 
+def _assert_arm_normalization_persistence(addon):
+    # Only invoked in a factory-startup subprocess: never save/load the caller.
+    with tempfile.TemporaryDirectory(prefix='o3d-arm-panel-settings-') as directory:
+        path = str(Path(directory) / 'settings.blend')
+        with preserve_context(), arm_fixture(addon) as (rig, _), arm_fixture(addon) as (other, _):
+            first, second = rig.omsi_human_settings, other.omsi_human_settings
+            assert not first.normalize_arms and not second.normalize_arms
+            first.normalize_arms = True
+            first.walk_params = (1.3, 45, .9, 1.1, .2)
+            names = rig.name, other.name
+            bpy.ops.wm.save_as_mainfile(filepath=path)
+        # Reacquire all proxies only after loading the disposable saved fixture.
+        bpy.ops.wm.open_mainfile(filepath=path, use_scripts=False)
+        first, second = (bpy.data.objects[name].omsi_human_settings for name in names)
+        assert first.normalize_arms and not second.normalize_arms
+        close(first.walk_params, (1.3, 45, .9, 1.1, .2))
+        close(second.walk_params, (1.4, 80, 1, 1, 0))
+        first.status, second.status = 'First ready', 'Second ready'
+        second.normalize_arms = True
+        assert first.normalize_arms and first.status == 'First ready'
+        assert second.status == 'Settings changed; refresh/check again'
+        first.normalize_arms = False
+        assert not first.normalize_arms and second.normalize_arms
+        assert first.status == 'Settings changed; refresh/check again'
+    print('ARM_NORMALIZATION_PANEL_PERSISTENCE_OK', bpy.app.version_string)
+
+
+def assert_arm_normalization_panel(addon):
+    # Catches a shared/nonpersistent toggle, stale/missing Refresh plans, dropped
+    # operator arguments, transformed overrides, gait edits and missing UI guidance.
+    from smoke_human import RecordingHumanLayout, cancel_native, select_only
+    human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
+    panel = importlib.import_module(addon.__name__ + '.o3d_io.omsi_character_panel')
+    normalization = importlib.import_module(addon.__name__ + '.o3d_io.human_arm_normalization')
+    props = bpy.context.scene.omsi_character_data
+    pointers = props.source_mesh, props.source_armature
+    caller = (bpy.context.scene, bpy.data.filepath, bpy.context.scene.frame_current,
+              bpy.context.view_layer.objects.active, tuple(bpy.context.selected_objects), bpy.context.mode)
+    with preserve_context():
+        try:
+            with bundle_fixture(addon) as (rig, meshes, points, weights, source_points), arm_fixture(addon) as (other, _):
+                first, second = rig.omsi_human_settings, other.omsi_human_settings
+                assert not first.normalize_arms and not second.normalize_arms
+                close(first.walk_params, (1.4, 80, 1, 1, 0))
+                close(second.walk_params, (1.4, 80, 1, 1, 0))
+                first.walk_params = (1.3, 45, .9, 1.1, .2)
+                first.status, second.status = 'First ready', 'Second ready'
+                first.normalize_arms = True
+                assert first.normalize_arms and not second.normalize_arms
+                assert first.status == 'Settings changed; refresh/check again'
+                assert second.status == 'Second ready'
+                close(first.walk_params, (1.3, 45, .9, 1.1, .2))
+                first.normalize_arms = False
+                props.source_mesh, props.source_armature = meshes[0], rig
+                select_only(rig)
+                measure, export, planner = human.measure_human, human.export_human, normalization.build_arm_transforms
+                measurements, exports, plans = [], [], []
+
+                def observed_measure(*args, **kwargs):
+                    result = measure(*args, **kwargs)
+                    measurements.append((args, kwargs, result))
+                    return result
+
+                def observed_export(*args, **kwargs):
+                    record = {'args': args, 'kwargs': kwargs}
+                    exports.append(record)
+                    try:
+                        record['result'] = export(*args, **kwargs)
+                        return record['result']
+                    except (ValueError, TypeError, RuntimeError, OSError) as error:
+                        record['error'] = str(error)
+                        raise
+
+                def observed_plan(target):
+                    result = planner(target)
+                    plans.append((target, result))
+                    return result
+
+                def geometry():
+                    state = rig_state(rig)
+                    return state[:4], state[5:], repr(tuple(mesh_state(obj) for obj in meshes))
+
+                class Layout(RecordingHumanLayout):
+                    def __init__(self):
+                        super().__init__()
+                        self.properties = []
+
+                    def prop(self, data, name, **kwargs):
+                        super().prop(data, name, **kwargs)
+                        self.properties.append((name, kwargs))
+
+                human.measure_human, human.export_human = observed_measure, observed_export
+                normalization.build_arm_transforms = observed_plan
+                try:
+                    with tempfile.TemporaryDirectory(prefix='o3d-arm-panel-') as directory:
+                        root = Path(directory)
+                        for enabled in (False, True):
+                            first.normalize_arms = enabled
+                            before, disk_before = geometry(), bundle_bytes(root)
+                            count = len(plans)
+                            assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+                            args, kwargs, refreshed = measurements[-1]
+                            assert args[0] is rig and args[1] == meshes
+                            assert len(plans) == count + int(enabled)
+                            assert kwargs['arm_transforms'] is (plans[-1][1] if enabled else None)
+                            assert not first.errors and first.status == 'Measurements refreshed'
+                            expected = bundle_expected(points, source_points, normalized=enabled,
+                                                       turn_180=False, scale=1)
+                            close(refreshed['links'], expected)
+                            expected_mesh = (expected_skin(meshes[0], points, weights[0]) if enabled else
+                                             [vertex.co for vertex in meshes[0].data.vertices])
+                            height = max(p.z for p in expected_mesh) - min(p.z for p in expected_mesh)
+                            assert abs(first.measured_height - height) < 2e-5
+                            assert first.has_measurement
+                            if enabled:
+                                prior = plans[-1][1]
+                                assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+                                assert len(plans) == count + 2 and plans[-1][1] is not prior
+                                assert all(target is rig for target, _ in plans)
+                                assert measurements[-1][1]['arm_transforms'] is plans[-1][1]
+                            count = len(plans)
+                            assert bpy.ops.omsi.human_preflight() == {'FINISHED'}
+                            preview = exports[-1]
+                            assert preview['kwargs']['normalize_arms'] is enabled
+                            assert preview['kwargs']['preflight_only'] is True
+                            assert preview['args'][2] is rig and preview['args'][3] == meshes
+                            assert not Path(preview['args'][0]).parent.exists()
+                            assert bundle_bytes(root) == disk_before
+                            close(preview['result']['measurements']['links'], expected)
+                            assert abs(first.measured_height - height) < 2e-5
+                            assert not first.errors and first.status.startswith('Readiness passed;')
+                            path = root / ('on' if enabled else 'off') / 'character.hum'
+                            assert bpy.ops.omsi.export_human(filepath=str(path)) == {'FINISHED'}
+                            emitted = exports[-1]
+                            assert emitted['kwargs']['normalize_arms'] is enabled
+                            assert emitted['args'][2] is rig and emitted['args'][3] == meshes
+                            assert not emitted['kwargs'].get('preflight_only', False)
+                            assert first.status == 'Exported: ' + str(path) and not first.errors
+                            links, actual_height = hum_records(path)
+                            close(links, expected)
+                            assert abs(actual_height - height) < 2e-5
+                            for mesh_path in emitted['result']['mesh_paths']:
+                                assert Path(mesh_path).is_file()
+                            assert Path(emitted['result']['cfg_path']).is_file()
+                            lines = path.read_text(encoding='cp1252').splitlines()
+                            start = lines.index('[walk_param]') + 1
+                            close([float(v) for v in lines[start:start + 5]], (1.3, 45, .9, 1.1, .2))
+                            assert len(plans) == count, 'Refresh planner leaked into backend toggle calls'
+                            assert geometry() == before
+
+                        # Final-coordinate overrides survive scale/yaw/normalization.
+                        first.scale, first.turn_180 = 2, True
+                        first.use_hand_override = first.use_finger_override = True
+                        first.hand_override, first.finger_override = (.81, -.08, 1.92), (.94, -.09, 1.93)
+                        expected = bundle_expected(points, source_points, normalized=True, turn_180=True, scale=2)
+                        expected[16:19], expected[19:22] = tuple(first.hand_override), tuple(first.finger_override)
+                        before = geometry()
+                        assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+                        close(measurements[-1][2]['links'], expected)
+                        assert 'hand' in first.warnings and 'finger' in first.warnings
+                        assert bpy.ops.omsi.human_preflight() == {'FINISHED'}
+                        close(exports[-1]['result']['measurements']['links'], expected)
+                        path = root / 'overrides.hum'
+                        assert bpy.ops.omsi.export_human(filepath=str(path)) == {'FINISHED'}
+                        close(hum_records(path)[0], expected)
+                        close(first.hand_override, (.81, -.08, 1.92))
+                        close(first.finger_override, (.94, -.09, 1.93))
+                        assert 'normalized' in first.warnings
+                        assert geometry() == before
+
+                        # Actual invalid override results populate Refresh feedback;
+                        # real readiness/export refusal leaves destinations unchanged.
+                        first.hand_override = (-.81, -.08, 1.92)
+                        before, disk_before = geometry(), bundle_bytes(root)
+                        assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+                        assert first.status == 'Measurements need attention'
+                        assert 'hand' in first.errors and measurements[-1][2]['errors']
+                        cancel_native(lambda: bpy.ops.omsi.human_preflight())
+                        assert first.status == 'Human export needs attention' and 'hand' in first.errors
+                        assert 'hand' in exports[-1]['error']
+                        cancel_native(lambda: bpy.ops.omsi.export_human(filepath=str(root / 'invalid.hum'), overwrite=True))
+                        assert 'hand' in exports[-1]['error'] and 'hand' in first.errors
+                        assert geometry() == before and bundle_bytes(root) == disk_before
+                        first.use_hand_override = first.use_finger_override = False
+
+                        # Exact RNA and drawn guidance are part of the opt-in UI contract.
+                        prop = first.bl_rna.properties['normalize_arms']
+                        assert prop.name == 'Normalize Arm Rest Pose'
+                        assert prop.description == ('Export a temporary horizontal arm rest pose; '
+                                                    'keep the editable rig and meshes unchanged')
+                        first.show_walking = True
+                        help_text = ('Walking arm lowering applies after normalization; '
+                                     'remove earlier A-pose compensation.')
+                        for enabled in (True, False):
+                            first.normalize_arms = enabled
+                            before = geometry()
+                            counts = len(measurements), len(exports), len(plans)
+                            layout = Layout()
+                            panel.VIEW3D_PT_omsi_character_human.draw(SimpleNamespace(layout=layout), bpy.context)
+                            names = [name for name, _ in layout.properties]
+                            assert names[names.index('scale'):names.index('selection_only') + 1] == [
+                                'scale', 'turn_180', 'normalize_arms', 'selection_only']
+                            walking = [kwargs for name, kwargs in layout.properties if name == 'walk_params']
+                            assert [(kw['index'], kw['text']) for kw in walking] == [
+                                (0, 'Walk Parameter 1'), (1, 'Arm Lowering (degrees)'),
+                                (2, 'Walk Parameter 3'), (3, 'Walk Parameter 4'), (4, 'Walk Parameter 5')]
+                            labels = [text for kind, text, _ in layout.records if kind == 'label']
+                            assert (help_text in labels) is enabled
+                            close(first.walk_params, (1.3, 45, .9, 1.1, .2))
+                            assert counts == (len(measurements), len(exports), len(plans))
+                            assert geometry() == before
+                        # A real planner refusal must reach all three operator error paths.
+                        first.normalize_arms = first.confirm_stale = True
+                        select_only(rig)
+                        bpy.ops.object.mode_set(mode='EDIT')
+                        rig.data.edit_bones['Hand_L'].head.y += .3
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                        before, disk_before = geometry(), bundle_bytes(root)
+                        count = len(measurements)
+                        cancel_native(lambda: bpy.ops.omsi.refresh_human_measurements())
+                        assert len(measurements) == count, 'invalid plan reached measurement'
+                        assert first.status == 'Human export needs attention' and 'UA_L' in first.errors
+                        cancel_native(lambda: bpy.ops.omsi.human_preflight())
+                        assert 'UA_L' in exports[-1]['error'] and 'UA_L' in first.errors
+                        cancel_native(lambda: bpy.ops.omsi.export_human(filepath=str(root / 'invalid.hum'), overwrite=True))
+                        assert 'UA_L' in exports[-1]['error'] and 'UA_L' in first.errors
+                        assert geometry() == before and bundle_bytes(root) == disk_before
+                        first.normalize_arms = False
+                        assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+                        assert not first.errors and measurements[-1][1]['arm_transforms'] is None
+                        assert geometry() == before
+                        assert not second.normalize_arms and second.status == 'Second ready'
+                finally:
+                    human.measure_human, human.export_human = measure, export
+                    normalization.build_arm_transforms = planner
+        finally:
+            props.source_mesh, props.source_armature = pointers
+    # Native save/reload must not invalidate objects held by a root integration caller.
+    expression = (f'import sys; sys.path.insert(0, {str(HERE)!r}); '
+                  'import smoke_arm_normalization as t; a=t.load_addon(); a.register(); '
+                  't._assert_arm_normalization_persistence(a); a.unregister()')
+    result = subprocess.run([bpy.app.binary_path, '--background', '--factory-startup', '--disable-autoexec',
+                             '--python-exit-code', '1', '--python-expr', expression],
+                            capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'ARM_NORMALIZATION_PANEL_PERSISTENCE_OK' in result.stdout, result.stdout
+    assert caller == (bpy.context.scene, bpy.data.filepath, bpy.context.scene.frame_current,
+                      bpy.context.view_layer.objects.active, tuple(bpy.context.selected_objects), bpy.context.mode)
+    assert (props.source_mesh, props.source_armature) == pointers
+    print('ARM_NORMALIZATION_PANEL_PERSISTENCE_OK', 'isolated subprocess')
+
+
 def run():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--check', choices=('plan', 'mesh', 'normals', 'bundle', 'all'), default='all')
+    parser.add_argument('--check', choices=('plan', 'mesh', 'normals', 'bundle', 'panel', 'all'), default='all')
     args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
     checks = {'plan': assert_arm_transform_plan, 'mesh': assert_arm_mesh_deformation,
-              'normals': assert_arm_normalization_normals, 'bundle': assert_arm_normalization_bundle}
+              'normals': assert_arm_normalization_normals, 'bundle': assert_arm_normalization_bundle,
+              'panel': assert_arm_normalization_panel}
     addon = load_addon()
     try:
         addon.register()

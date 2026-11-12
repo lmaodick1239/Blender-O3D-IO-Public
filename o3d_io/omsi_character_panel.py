@@ -8,6 +8,7 @@ from bpy.props import (BoolProperty, EnumProperty, FloatProperty, FloatVectorPro
 from bpy_extras.io_utils import ExportHelper
 
 from . import human_texture_export, mmd_materials, mmd_rig, mesh_lod, omsi_human
+from . import human_arm_normalization as normalization
 from .omsi_paths import safe_export_path, unique_export_path
 
 
@@ -460,6 +461,9 @@ class OMSIHumanSettings(bpy.types.PropertyGroup):
     turn_180: BoolProperty(name='Turn 180°', default=False,
         description='Turn exported geometry and measured landmarks around the vertical axis; overrides remain final file coordinates',
         update=_human_changed)
+    normalize_arms: BoolProperty(name='Normalize Arm Rest Pose', default=False,
+        description='Export a temporary horizontal arm rest pose; keep the editable rig and meshes unchanged',
+        update=_human_changed)
     selection_only: BoolProperty(name='Selection Only', default=True, update=_human_changed)
     max_texture_size: EnumProperty(name='Max Texture Size', default='0', items=(
         ('0', 'Keep Original', 'Copy at the original resolution'),
@@ -575,9 +579,10 @@ class RefreshHumanMeasurements(bpy.types.Operator):
         context.window.cursor_set('WAIT')
         try:
             target, settings, meshes, values, overrides = _human_inputs(context)
+            transforms = normalization.build_arm_transforms(target) if settings.normalize_arms else None
             result = omsi_human.measure_human(target, meshes, overrides=overrides,
                 scale=settings.scale, context=context, confirm_stale=settings.confirm_stale,
-                turn_180=settings.turn_180)
+                turn_180=settings.turn_180, arm_transforms=transforms)
             result['warnings'].extend(_human_scope_warnings(context))
             _cache_human(settings, result, 'Measurements need attention' if result['errors'] else 'Measurements refreshed')
             self.report({'WARNING'} if result['errors'] else {'INFO'}, settings.status)
@@ -616,7 +621,7 @@ class HumanPreflight(bpy.types.Operator):
                 result = omsi_human.export_human(os.path.join(root, stem + '.hum'),
                     context, target, meshes, settings=values, overrides=overrides,
                     scale=settings.scale, confirm_stale=settings.confirm_stale, turn_180=settings.turn_180,
-                    o3d_version=int(settings.o3d_version),
+                    normalize_arms=settings.normalize_arms, o3d_version=int(settings.o3d_version),
                     export_custom_normals=settings.export_custom_normals, preflight_only=True,
                     max_texture_size=int(settings.max_texture_size), texture_format=settings.texture_format,
                     dds_converter=settings.dds_converter)
@@ -685,6 +690,7 @@ class ExportHuman(bpy.types.Operator, ExportHelper):
             result = omsi_human.export_human(self.filepath, context, target, meshes,
                 settings=values, overrides=overrides, scale=settings.scale, turn_180=settings.turn_180,
                 overwrite=self.overwrite, confirm_stale=settings.confirm_stale,
+                normalize_arms=settings.normalize_arms,
                 o3d_version=int(settings.o3d_version), export_custom_normals=settings.export_custom_normals,
                 max_texture_size=int(settings.max_texture_size), texture_format=settings.texture_format,
                 dds_converter=settings.dds_converter)
@@ -742,7 +748,8 @@ class VIEW3D_PT_omsi_character_human(bpy.types.Panel):
         layout.prop(settings, 'show_walking', icon='TRIA_DOWN' if settings.show_walking else 'TRIA_RIGHT', emboss=False)
         if settings.show_walking:
             for index in range(5):
-                layout.prop(settings, 'walk_params', index=index, text=f'Walk Parameter {index + 1}')
+                layout.prop(settings, 'walk_params', index=index,
+                    text='Arm Lowering (degrees)' if index == 1 else f'Walk Parameter {index + 1}')
         layout.prop(settings, 'show_landmarks', icon='TRIA_DOWN' if settings.show_landmarks else 'TRIA_RIGHT', emboss=False)
         if settings.show_landmarks:
             layout.label(text='Final scaled file coordinates; paired X must be positive')
@@ -753,8 +760,10 @@ class VIEW3D_PT_omsi_character_human(bpy.types.Panel):
             layout.prop(settings, 'confirm_stale')
             for message in settings.measured_landmarks.splitlines():
                 layout.label(text=message)
-        for name in ('scale', 'turn_180', 'selection_only', 'export_custom_normals', 'o3d_version'):
+        for name in ('scale', 'turn_180', 'normalize_arms', 'selection_only', 'export_custom_normals', 'o3d_version'):
             layout.prop(settings, name)
+            if name == 'normalize_arms' and settings.normalize_arms:
+                layout.label(text='Walking arm lowering applies after normalization; remove earlier A-pose compensation.')
         try:
             meshes = omsi_human.human_meshes(context, target, selection_only=settings.selection_only)
         except ValueError as error:
