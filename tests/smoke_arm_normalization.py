@@ -1823,7 +1823,7 @@ def render_runtime_comparison(data, output_dir, label):
             material.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = color
             material.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = .7
             materials.append(material)
-        mesh_objects = []
+        mesh_objects, captions = [], []
         for slot, variant in enumerate(variants):
             records = data[variant]
             mesh = bpy.data.meshes.new(label + ' ' + variant)
@@ -1850,6 +1850,7 @@ def render_runtime_comparison(data, output_dir, label):
             scene.collection.objects.link(caption)
             caption.location = (obj.location.x, -.05, -.1)
             caption.rotation_euler = (math.pi / 2, 0, math.pi if view_sign < 0 else 0)
+            captions.append(caption)
         for state, phase in (('standing', 0), ('walking', .25), ('seated', 0)):
             matrices_by_variant = {}
             for (obj, records, weights), variant in zip(mesh_objects, variants):
@@ -1861,6 +1862,28 @@ def render_runtime_comparison(data, output_dir, label):
                     point = weighted_point(Vector(source[:3]), binding, matrices)
                     vertex.co = (point.x, point.z, point.y)
                 obj.data.update()
+            if label == 'synthetic':
+                # Fit all three arms-only comparisons at one scale in camera
+                # space; reserve a separate caption band below the geometry.
+                view = camera.rotation_euler.to_quaternion()
+                bounds = []
+                for obj, _, _ in mesh_objects:
+                    points = [view.inverted() @ vertex.co for vertex in obj.data.vertices]
+                    bounds.append(tuple((min(p[i] for p in points), max(p[i] for p in points))
+                                        for i in (0, 1)))
+                width = max(b[0][1] - b[0][0] for b in bounds)
+                height = max(b[1][1] - b[1][0] for b in bounds)
+                panel = max(width + .12, (height + .20) * 400 / 600)
+                camera.location = view @ Vector((0, 0, 8))
+                camera_data.ortho_scale = panel * len(variants)
+                for slot, ((obj, _, _), caption, bound) in enumerate(zip(mesh_objects, captions, bounds)):
+                    x = (slot - (len(variants) - 1) / 2) * panel
+                    obj.location = view @ Vector((x - sum(bound[0]) / 2, .06 - sum(bound[1]) / 2, 0))
+                    caption.location = view @ Vector((x, -height / 2 - .04, 0))
+                    caption.rotation_euler = camera.rotation_euler
+                    caption.data.size = panel * .045
+                    caption.data.body = variants[slot] + (' / beta45' if slot == 0 else ' / beta80') + '\n' + (
+                        'seated: fixed67' if state == 'seated' else 'walking: phase .25' if state == 'walking' else state)
             scene.render.filepath = str((output / (label + '-' + state + '.png')).resolve())
             bpy.ops.render.render(write_still=True, scene=scene.name)
             evidence['states'].append({'state': state, 'phase': phase, 'image': Path(scene.render.filepath).name,

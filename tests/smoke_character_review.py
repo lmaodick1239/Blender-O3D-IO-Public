@@ -279,11 +279,23 @@ def assert_export_safe_paths_and_shared_lods(addon):
     """Distinct nested files carry distinct coordinates; one Object may serve two LODs."""
     _export_pair(addon, ('high/first.o3d', 'low/second.o3d'))
     _export_pair(addon, ('nested/first.o3d', 'NESTED/second.o3d'))
-    # Only compare like representations: the second lexical key equals the
-    # first resolved key, but their declarations and actual files are distinct.
-    _export_pair(addon, ('alias.o3d', 'TARGET.O3D'), setup=lambda root: (
-        _symlink_outputs(root, 'target.o3d', ('alias.o3d',)),
-        _symlink_outputs(root, 'other.o3d', ('TARGET.O3D',))))
+    # Probe the same temporary filesystem used by _export_pair, not the OS.
+    with tempfile.TemporaryDirectory() as tmp:
+        probe = Path(tmp) / 'case-probe'
+        probe.write_bytes(b'case probe')
+        case_sensitive = not probe.with_name('CASE-PROBE').exists()
+        print('EXPORT_TEMP_FS_CASE_SENSITIVE', case_sensitive, str(probe.parent), flush=True)
+    if case_sensitive:
+        # The second lexical key equals the first resolved key, but the
+        # declarations and actual symlink targets are distinct.
+        _export_pair(addon, ('alias.o3d', 'TARGET.O3D'), setup=lambda root: (
+            _symlink_outputs(root, 'target.o3d', ('alias.o3d',)),
+            _symlink_outputs(root, 'other.o3d', ('TARGET.O3D',))))
+    else:
+        # Both declarations resolve to one sentinel; refusal must preserve it
+        # and the alias without leaving any partial export output.
+        _export_pair(addon, ('alias.o3d', 'TARGET.O3D'), rejected=True, fragment='collid',
+                     setup=lambda root: _symlink_outputs(root, 'target.o3d', ('alias.o3d',)))
     high, low = _collection('LOD_0.456'), _collection('LOD_0.123')
     shared = _triangle('Review shared geometry', high)
     low.objects.link(shared)
