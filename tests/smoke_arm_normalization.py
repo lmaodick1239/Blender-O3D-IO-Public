@@ -760,12 +760,18 @@ def assert_local_authored_snapshot(addon):
 
 
 @contextmanager
-def bundle_fixture(addon, *, left_sign=-1):
+def bundle_fixture(addon, *, left_sign=-1, binding_form='active', extra=False, custom=False):
     # Real separate object/mesh ownership: lower LODs also have distinct points.
     human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
     rigmod = importlib.import_module(addon.__name__ + '.o3d_io.mmd_rig')
     with arm_fixture(addon, left_sign=left_sign, upper=35, forearm=10,
                      y_offsets=(.015, -.012)) as (rig, points):
+        if extra:
+            bpy.context.view_layer.objects.active = rig
+            bpy.ops.object.mode_set(mode='EDIT')
+            bone = rig.data.edit_bones.new('Extra')
+            bone.head, bone.tail = (0, 0, 1), (0, 0, 1.1)
+            bpy.ops.object.mode_set(mode='OBJECT')
         source_points = {'首': Vector((0, .02, 1.55))}
         for side, sign in (('L', left_sign), ('R', -left_sign)):
             source_points['中指１.' + side] = points['Hand_' + side] + Vector((
@@ -805,6 +811,9 @@ def bundle_fixture(addon, *, left_sign=-1):
                     vertices.append(points['Hand_L'] + Vector(offset))
                     entries.append({'Hand_L': .4})
                 faces.append((start, start + 1, start + 2))
+                if extra:
+                    entries[:3] = [{'Extra': .5}] * 3
+                    entries[21]['Extra'] = .3
                 data = bpy.data.meshes.new('Bundle arm LOD ' + str(lod))
                 data.from_pydata(vertices, [], faces)
                 data.update()
@@ -818,14 +827,23 @@ def bundle_fixture(addon, *, left_sign=-1):
                 uv = data.uv_layers.new(name='Bundle UV')
                 for i, item in enumerate(uv.uv):
                     item.vector = ((i % 5) / 7, (i % 7) / 9)
-                for name in ('Main', 'OA_L', 'UA_L', 'Hand_L', 'OA_R', 'UA_R', 'Hand_R', 'helper'):
+                for name in ('Main', 'OA_L', 'UA_L', 'Hand_L', 'OA_R', 'UA_R', 'Hand_R', 'helper') + (('Extra',) if extra else ()):
                     group = obj.vertex_groups.new(name=name)
                     for index, binding in enumerate(entries):
                         if name in binding:
                             group.add([index], binding[name], 'REPLACE')
-                modifier = obj.modifiers.new('Bundle source pose', 'ARMATURE')
-                modifier.object = rig
-                modifier.show_render = False
+                if custom:
+                    for polygon in data.polygons:
+                        polygon.use_smooth = True
+                    data.normals_split_custom_set([Vector((.2 + i % 3 * .1, .5, .7)).normalized()
+                                                  for i in range(len(data.loops))])
+                if binding_form == 'parent':
+                    obj.parent = rig
+                else:
+                    modifier = obj.modifiers.new('Bundle source pose', 'ARMATURE')
+                    modifier.object = rig
+                    modifier.show_viewport = binding_form == 'active'
+                    modifier.show_render = False
                 obj.shape_key_add(name='Basis')
                 key = obj.shape_key_add(name='Inactive authored shape')
                 key.data[0].co.y += .04
@@ -981,7 +999,183 @@ _OFF_BASELINE_501 = {
 }
 
 
+# Captured at e5874d7 before the admission fix, from real custom-normal 3LOD
+# payloads. Columns are active/no-extra, active/extra, legacy-unbound/no-extra,
+# legacy-unbound/extra; disabled and parent-only historically admit helpers.
+_BINDING_OFF_BASELINES = {
+    ((5, 0, 1), 'linux'): (
+        '5316436215cdd7eb642dbb00a9c38df89f0685aeeeb5cdc28b43271e89f05b4a',
+        '89e1e4c49bd962db5c15cbbdcf9f6874ae62ff741aeeadf749825d502b99bbf6',
+        '278a0b51c5fcc1d8ca84ee5ab430270902e62b1bd3465433699d961e58a688ab',
+        'f04ac7a41c11f5fada7e5edb4fc6921cd94360efba878c44f03f322b3627aa13'),
+    ((4, 2, 9), 'win32'): (
+        '66c909e4c99abf8d1f7ff31a26c9008a4bfd572150142188de9aacb4745a87d5',
+        '455cc6245eb6551ca96c8dc90da16a2520f6a6044d94b75482d56aa51c148256',
+        '1175c0faaf0da158e8564456b3583b08d3c2494865efb716e5b11a4e3c2e9581',
+        '3b7e12f3d6b2b5b12540403df4f1e738e3e8fb90bc84e0f25325b06cb0d414ee'),
+}
+
+
+def assert_arm_binding_admission(addon):
+    # Removing either explicit admission handoff must expose helper bones in real
+    # preflight/final geometry or bytes, including parent-only/disabled bindings.
+    from smoke_human import disk_snapshot, refuses as human_refuses, select_only, source_snapshot
+    from o3d_export_support import read_export
+    human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
+    exporter = addon.o3d_io.io_o3d_export
+    cfg_parser = addon.o3d_io.o3d_cfg_parser
+    admission_errors = []
+    with preserve_context():
+        for binding_form in ('active', 'disabled', 'parent'):
+            for extra in (False, True):
+                with bundle_fixture(addon, binding_form=binding_form, extra=extra, custom=True) as fixture:
+                    rig, meshes, points, weights, source_points = fixture
+                    select_only(rig)
+                    bpy.ops.object.mode_set(mode='POSE')
+                    def state():
+                        return (source_snapshot(), rig_state(rig)[:4],
+                                repr([(mesh_state(obj), obj.parent, obj.parent_type, obj.parent_bone,
+                                       tuple(tuple(row) for row in obj.matrix_parent_inverse)) for obj in meshes]))
+                    before = state()
+                    with tempfile.TemporaryDirectory(prefix='o3d-arm-admission-') as directory:
+                        root = Path(directory)
+                        # Default/False must retain the historical helper behavior,
+                        # not merely agree with each other after a global change.
+                        for name, kwargs in (('default', {}), ('false', {'normalize_arms': False})):
+                            human.export_human(str(root / name / 'character.hum'), bpy.context, rig, meshes, **kwargs)
+                            assert state() == before
+                        off = bundle_bytes(root / 'default')
+                        assert off == bundle_bytes(root / 'false')
+                        baseline = _BINDING_OFF_BASELINES.get((bpy.app.version, sys.platform))
+                        if baseline is not None:
+                            digest = hashlib.sha256(b''.join(name.encode() + b'\0' + data
+                                                   for name, data in sorted(off.items()))).hexdigest()
+                            assert digest == baseline[(0 if binding_form == 'active' else 2) + int(extra)]
+                        for lod in range(3):
+                            names = {name for name, _ in read_export(off[f'model/arm_lod_{lod}.o3d'])['bones']}
+                            assert ('helper' in names) == (binding_form != 'active')
+
+                        # Observe the real preparation/CFG render; keep evaluation,
+                        # codec, filesystem publication and cleanup fully real.
+                        prepared, cfgs = [], []
+                        prepare, render = exporter.prepare_o3d_geometry, cfg_parser._write_cfg_stream
+                        def observe_geometry(*args, **kwargs):
+                            geometry = prepare(*args, **kwargs)
+                            prepared.append(geometry)
+                            return geometry
+                        def observe_cfg(stream, *args, **kwargs):
+                            result = render(stream, *args, **kwargs)
+                            cfgs.append(stream.getvalue())
+                            return result
+                        exporter.prepare_o3d_geometry = observe_geometry
+                        cfg_parser._write_cfg_stream = observe_cfg
+                        destination = root / 'on' / 'character.hum'
+                        try:
+                            preview = human.export_human(str(destination), bpy.context, rig, meshes,
+                                normalize_arms=True, preflight_only=True)
+                            assert not destination.parent.exists() and state() == before
+                            published = human.export_human(str(destination), bpy.context, rig, meshes,
+                                normalize_arms=True)
+                        finally:
+                            exporter.prepare_o3d_geometry, cfg_parser._write_cfg_stream = prepare, render
+                        assert state() == before
+                        assert len(prepared) == 9 and prepared[:3] == prepared[3:6] == prepared[6:]
+                        cfg = Path(published['cfg_path']).read_text(encoding='cp1252')
+                        assert cfgs == [cfg] * 3, 'preflight and published slots differ'
+                        links, height = hum_records(destination)
+                        close(links, bundle_expected(points, source_points, normalized=True, turn_180=False, scale=1))
+                        close(preview['measurements']['links'], links)
+                        assert abs(preview['measurements']['height'] - height) < 2e-5
+                        assert preview['warnings'] == published['warnings']
+                        slots = {'Main': -11, 'OA_L': -6, 'OA_R': -7, 'UA_L': -8,
+                                 'UA_R': -9, 'Hand_L': -13, 'Hand_R': -14}
+                        for obj, bindings, geometry, path in zip(meshes, weights, prepared[:3], published['mesh_paths']):
+                            records = read_export(Path(path).read_bytes())
+                            expected_bones = {name for entries in bindings for name, value in entries.items()
+                                              if name != 'helper' and value > 0}
+                            for stage, bones in (('prepared', geometry['bones']), ('emitted', records['bones'])):
+                                if {name for name, _ in bones} != expected_bones:
+                                    admission_errors.append((binding_form, extra, obj.name, stage, [name for name, _ in bones]))
+                            assert records['vertices'] == [tuple(float(v) for v in np.asarray(vertex, dtype=np.float32))
+                                                           for vertex in geometry['verts']]
+                            assert records['bones'] == geometry['bones'], 'preflight and emitted memberships differ'
+                            block = cfg.split('[mesh]\n' + Path(path).name + '\n', 1)[1].split('[mesh]', 1)[0]
+                            for name in expected_bones:
+                                if name in slots:
+                                    assert f'[setbone]\n{name}\n{slots[name]}\n' in block
+                            assert '[setbone]\nExtra\n' not in block and '[setbone]\nhelper\n' not in block
+                            memberships = [{} for _ in records['vertices']]
+                            for name, entries in records['bones']:
+                                for index, weight in entries:
+                                    memberships[index][name] = weight
+                            expected = expected_skin(obj, points, bindings)
+                            for source, indices in geometry['source_to_export'].items():
+                                raw = {name: float(np.float32(weight)) for name, weight in bindings[source].items()
+                                       if name != 'helper' and weight > 0}
+                                for index in indices:
+                                    if memberships[index] != raw:
+                                        admission_errors.append((binding_form, extra, obj.name, 'membership', source, memberships[index]))
+                                    p = expected[source]
+                                    close(records['vertices'][index][:3], (p.x, p.z, p.y))
+                            # Analytic inverse transpose of the admitted weighted
+                            # Y rotations; no production planner/Jacobian oracle.
+                            for loop, stored_normal in zip(obj.data.loops, obj.data.corner_normals):
+                                entries = [(name, weight) for name, weight in bindings[loop.vertex_index].items()
+                                           if name != 'helper' and weight > 0]
+                                mass = sum(weight for _, weight in entries)
+                                c = s = 0.
+                                for name, weight in entries:
+                                    angle = (35 if name.startswith('OA_') else 10) if name in slots and name != 'Main' else 0
+                                    angle *= -1 if name.endswith('_R') else 1
+                                    c += weight / mass * math.cos(math.radians(angle))
+                                    s += weight / mass * math.sin(math.radians(angle))
+                                normal = stored_normal.vector
+                                determinant = c * c + s * s
+                                n = Vector(((c * normal.x + s * normal.z) / determinant,
+                                            normal.y, (-s * normal.x + c * normal.z) / determinant)).normalized()
+                                wanted = Vector((n.x, n.z, n.y))
+                                uv = obj.data.uv_layers.active.uv[loop.index].vector
+                                matches = [index for index in geometry['source_to_export'][loop.vertex_index]
+                                           if abs(records['vertices'][index][6] - uv.x) < 1e-6
+                                           and abs(records['vertices'][index][7] - (1 - uv.y)) < 1e-6]
+                                assert matches and all((Vector(records['vertices'][i][3:6]) - wanted).length < 2e-6
+                                                       for i in matches)
+                        # Refusals in each accepted binding preserve context/rest,
+                        # explicit sentinels, and an absent destination root.
+                        sentinel = root / 'sentinels'
+                        for name in ('character.hum', 'model/character.cfg',
+                                     *('model/' + obj['export_path'] for obj in meshes)):
+                            path = sentinel / name
+                            path.parent.mkdir(parents=True, exist_ok=True)
+                            path.write_bytes(b'ADMISSION SENTINEL ' + name.encode())
+                        disk = disk_snapshot(sentinel)
+                        human_refuses(lambda: human.export_human(str(sentinel / 'character.hum'), bpy.context,
+                            rig, meshes, normalize_arms=True), 'overwrite')
+                        assert disk_snapshot(sentinel) == disk and state() == before
+                        keys = meshes[-1].data.shape_keys.key_blocks
+                        original = [key.data[0].co.copy() for key in keys]
+                        try:
+                            for key in keys:
+                                key.data[0].co.x = float('nan')
+                            bpy.context.view_layer.update()
+                            invalid = state()
+                            for preview_only in (True, False):
+                                for target in (sentinel, root / 'absent'):
+                                    human_refuses(lambda: human.export_human(str(target / 'character.hum'), bpy.context,
+                                        rig, meshes, normalize_arms=True, preflight_only=preview_only, overwrite=True), 'nonfinite')
+                                    assert state() == invalid and disk_snapshot(sentinel) == disk
+                                    assert not (root / 'absent').exists()
+                        finally:
+                            for key, point in zip(keys, original):
+                                key.data[0].co = point
+                            bpy.context.view_layer.update()
+                        assert state() == before
+                    print('ARM_BINDING_ADMISSION_CASE', binding_form, 'extra', extra, '3LOD/preflight/bytes/normals/source/refusals')
+    assert not admission_errors, ('rig admission differs in prepared/emitted bones or raw memberships', admission_errors)
+
+
 def assert_arm_normalization_bundle(addon):
+    assert_arm_binding_admission(addon)
     # Catches disconnected keywords, per-LOD plans, stale metadata trusted after
     # virtual edits, double-transformed overrides, wrong bounds/slots and writes
     # before complete normalized codec validation.
@@ -1034,9 +1228,9 @@ def assert_arm_normalization_bundle(addon):
                     plans.append(plan)
                     return plan
 
-                def deform_once(armature, plan):
+                def deform_once(armature, plan, **kwargs):
                     assert plan is plans[0]
-                    callback = factory(armature, plan)
+                    callback = factory(armature, plan, **kwargs)
                     callbacks.append(callback)
                     def observed(obj, mesh):
                         uses.append(obj.original)

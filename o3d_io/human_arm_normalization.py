@@ -72,14 +72,16 @@ def transform_landmark(transforms, bone_name, point_world) -> Vector:
     return transforms.get(bone_name, Matrix.Identity(4)) @ Vector(point_world)
 
 
-def make_rest_deformer(armature, transforms):
+def make_rest_deformer(armature, transforms, *, allowed_names=None):
     """Deform temporary rest meshes; source data and full identity plans stay exact.
 
+    allowed_names shares captured admission; None captures the rig's current bones.
     The supported custom-normal setter may quantize decoded temporary storage.
     Preserve computed authored local directions in the callback-only export
     snapshot so identity loops and emitted directions avoid that lossy round trip.
     """
-    allowed_names = set(armature.data.bones.keys())
+    if allowed_names is None:
+        allowed_names = set(armature.data.bones.keys())
     identity = Matrix.Identity(4)
 
     def deform(obj, mesh):

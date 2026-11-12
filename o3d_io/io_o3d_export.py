@@ -580,9 +580,10 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
 
 def do_export(filepath, context, global_matrix, use_selection, o3d_version, export_custom_normals=True,
               *, objects=None, human_bindings=False, human_bone_slots=None,
-              texture_names=None, mesh_paths=None, rest_deformer=None):
+              texture_names=None, mesh_paths=None, rest_deformer=None, allowed_names=None):
     """
-    Exports the selected CFG/SCO/O3D file
+    Exports the selected CFG/SCO/O3D file.
+    allowed_names overrides bone admission for this batch; None retains per-object discovery.
     :param o3d_version: O3D version to export the file as
     :param use_selection: export only the selected objects
     :param global_matrix: transformation matrix to apply before export
@@ -640,13 +641,13 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
         for index, (ob, path) in enumerate(outputs):
             log("Exporting " + ob.name + "...")
             bpy.context.window_manager.progress_update(index)
-            allowed_names = _armature_bone_names(ob)
+            mesh_allowed_names = _armature_bone_names(ob) if allowed_names is None else allowed_names
             with prepared_export_mesh(ob, context, global_matrix, rest_deformer=rest_deformer) as (evaluated, mesh, matrix):
                 export_metadata[id(ob)] = export_mesh(
                     path, context, evaluated, mesh, matrix, evaluated.material_slots,
                     o3d_version, export_custom_normals,
                     allow_smoothskin=not single_o3d,
-                    allowed_names=allowed_names,
+                    allowed_names=mesh_allowed_names,
                     texture_filepath=filepath if not single_o3d else path,
                     texture_names=texture_names,
                 )

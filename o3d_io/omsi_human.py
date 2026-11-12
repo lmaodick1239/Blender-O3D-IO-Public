@@ -539,7 +539,10 @@ def _export_human_bundle(filepath, context, armature, meshes, textures, *, setti
                          preflight_only, turn_180, normalize_arms):
     from . import io_o3d_export, o3d_cfg_parser, o3dconvert
     arm_transforms = build_arm_transforms(armature) if normalize_arms else None
-    rest_deformer = (make_rest_deformer(armature, arm_transforms)
+    # One closed rig admission for deformation, codec preflight and publication,
+    # including accepted parent-only and fully disabled-modifier bindings.
+    allowed_names = set(armature.data.bones.keys()) if normalize_arms else None
+    rest_deformer = (make_rest_deformer(armature, arm_transforms, allowed_names=allowed_names)
                      if arm_transforms is not None else None)
     measurements = _measure_human(armature, meshes, overrides=overrides, scale=scale,
                                   context=context, confirm_stale=confirm_stale, turn_180=turn_180,
@@ -571,13 +574,14 @@ def _export_human_bundle(filepath, context, armature, meshes, textures, *, setti
     for obj, path in zip(meshes, mesh_paths):
         _validate_transform(obj)
         _human_cfg_props(obj.data)
-        # Capture the same allowlist as do_export before rest evaluation hides modifiers.
-        allowed_names = io_o3d_export._armature_bone_names(obj)
+        # Legacy discovery happens before rest evaluation hides modifiers.
+        mesh_allowed_names = (io_o3d_export._armature_bone_names(obj)
+                              if allowed_names is None else allowed_names)
         with prepared_export_mesh(obj, context, global_matrix,
                                   rest_deformer=rest_deformer) as (evaluated, mesh, matrix):
             _cfg_value(matrix, 'Serialized O3D transform')
             geometry = io_o3d_export.prepare_o3d_geometry(
-                evaluated, mesh, export_custom_normals, allowed_names=allowed_names)
+                evaluated, mesh, export_custom_normals, allowed_names=mesh_allowed_names)
             long_indices = io_o3d_export.validate_o3d_geometry(geometry, o3d_version, character_runtime=True)
             if not all(isfinite(value) for vertex in geometry['verts'] for value in vertex):
                 raise ValueError(f'{obj.name}: nonfinite serialized human geometry')
@@ -637,7 +641,7 @@ def _export_human_bundle(filepath, context, armature, meshes, textures, *, setti
     io_o3d_export.do_export(cfg_path, context, global_matrix, False, o3d_version,
                            export_custom_normals, objects=meshes, human_bindings=True,
                            human_bone_slots=bone_slots, texture_names=texture_names, mesh_paths=mesh_names,
-                           rest_deformer=rest_deformer)
+                           rest_deformer=rest_deformer, allowed_names=allowed_names)
     with open(hum_path, 'wb') as stream:
         stream.write(payload)
     return {'hum_path': hum_path, 'cfg_path': cfg_path, 'mesh_paths': mesh_paths,
