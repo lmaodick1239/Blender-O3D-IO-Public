@@ -73,7 +73,12 @@ def transform_landmark(transforms, bone_name, point_world) -> Vector:
 
 
 def make_rest_deformer(armature, transforms):
-    """Deform evaluated temporary rest meshes; never change source data or weights."""
+    """Deform temporary rest meshes; source data and full identity plans stay exact.
+
+    The supported custom-normal setter may quantize decoded temporary storage.
+    Preserve computed authored local directions in the callback-only export
+    snapshot so identity loops and emitted directions avoid that lossy round trip.
+    """
     allowed_names = set(armature.data.bones.keys())
     identity = Matrix.Identity(4)
 
@@ -121,5 +126,9 @@ def make_rest_deformer(armature, transforms):
                         if loop.vertex_index in normal_matrices else source_normals[loop.index])
                        for loop in mesh.loops]
             mesh.normals_split_custom_set(normals)
+            mesh['_o3d_local_authored_normals'] = {
+                'vertices': [loop.vertex_index for loop in mesh.loops],
+                'normals': [tuple(normal) for normal in normals],
+            }
 
     return deform

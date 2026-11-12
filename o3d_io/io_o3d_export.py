@@ -163,11 +163,30 @@ def collect_o3d_bones(blender_obj, source_vertex_count, source_to_export, mesh=N
             for group in groups if influences[group.index]]
 
 
-def _export_corner_data(mesh):
-    """Capture evaluated corner identity before baking positions changes normals/tessellation."""
+def _export_corner_data(mesh, authored_snapshot=None):
+    """Capture corners before baking; optionally use validated authored local normals.
+
+    The callback-only snapshot maps ``vertices`` (loop-order vertex indices) to
+    ``normals`` (finite 3-vectors). It bypasses native custom-normal quantization;
+    generated normals and the sole export-space conversion remain independent.
+    """
     mesh.calc_loop_triangles()
     normals = [tuple(normal.vector) for normal in mesh.corner_normals]
     generated = normals
+    if authored_snapshot is not None:
+        try:
+            vertices = tuple(authored_snapshot['vertices'])
+            authored = [tuple(normal) for normal in authored_snapshot['normals']]
+            valid = (mesh.has_custom_normals
+                     and vertices == tuple(loop.vertex_index for loop in mesh.loops)
+                     and len(authored) == len(mesh.loops)
+                     and all(len(normal) == 3 and all(isfinite(value) for value in normal)
+                             for normal in authored))
+        except (KeyError, TypeError, AttributeError):
+            valid = False
+        if not valid:
+            raise ValueError('Invalid callback authored normal snapshot')
+        normals = authored
     if mesh.has_custom_normals:
         plain = mesh.copy()
         try:
@@ -408,7 +427,13 @@ def validate_o3d_geometry(geometry, o3d_version=7, character_runtime=False):
 
 @contextmanager
 def prepared_export_mesh(obj, context=None, global_matrix=None, *, rest_deformer=None):
-    """Yield evaluated rest mesh baked to export space, with preserved corner tessellation."""
+    """Yield an export-space mesh/frame tuple with preserved corner tessellation.
+
+    A callback may set temporary mesh ``_o3d_local_authored_normals`` to the
+    loop-associated local snapshot documented by ``_export_corner_data`` and
+    return None. Only a fresh callback payload is authoritative: copied source
+    metadata is ignored without a callback and cleared before invoking one.
+    """
     context = context or bpy.context
     states = [(modifier, modifier.show_viewport, modifier.show_render)
               for modifier in obj.modifiers if modifier.type == "ARMATURE"]
@@ -418,13 +443,17 @@ def prepared_export_mesh(obj, context=None, global_matrix=None, *, rest_deformer
             modifier.show_viewport = modifier.show_render = False
         evaluated = obj.evaluated_get(context.evaluated_depsgraph_get())
         mesh = evaluated.to_mesh(preserve_all_data_layers=True, depsgraph=context.evaluated_depsgraph_get())
+        authored_snapshot = None
         if rest_deformer is not None:
+            if '_o3d_local_authored_normals' in mesh:
+                del mesh['_o3d_local_authored_normals']
             rest_deformer(evaluated, mesh)
+            authored_snapshot = mesh.get('_o3d_local_authored_normals')
         axis = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
         export_matrix = global_matrix if global_matrix is not None else Matrix.Identity(4)
         frame_matrix = export_matrix @ axis @ obj.matrix_world @ axis
         frame_matrix.transpose()
-        corners = _export_corner_data(mesh)
+        corners = _export_corner_data(mesh, authored_snapshot)
         # Compose directions in float64: finite sequential position baking can
         # survive G*M overflowing Blender's float32 matrix (e.g. huge UI scale).
         linear = (np.asarray(export_matrix, dtype=np.float64)[:3, :3]

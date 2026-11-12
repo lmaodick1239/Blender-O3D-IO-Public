@@ -12,6 +12,7 @@ import tempfile
 from types import SimpleNamespace
 
 import bpy
+import numpy as np
 from mathutils import Matrix, Vector
 
 HERE = Path(__file__).resolve().parent
@@ -447,6 +448,9 @@ def assert_weight_boundaries(normalization, exporter, rig, obj, points):
         def __getattr__(self, name):
             return getattr(self.mesh, name)
 
+        def __setitem__(self, key, value):
+            self.mesh[key] = value
+
     def deform(evaluated, mesh):
         original = [v.co.copy() for v in mesh.vertices]
         callback(evaluated, Mesh(mesh))
@@ -493,6 +497,7 @@ def assert_arm_mesh_deformation(addon):
             local = mesh_state(obj, mesh)
             identity(evaluated, mesh)
             assert mesh_state(obj, mesh) == local
+            assert '_o3d_local_authored_normals' not in mesh
 
         with exporter.prepared_export_mesh(obj, rest_deformer=unchanged):
             pass
@@ -528,17 +533,40 @@ def assert_arm_mesh_deformation(addon):
             assert default.read_bytes() != normalized.read_bytes()
 
 
+def export_normal_oracle(normals, world, global_matrix):
+    # Match the established float64 export frame, without native normal storage.
+    axis = np.array(((1., 0., 0.), (0., 0., 1.), (0., 1., 0.)))
+    linear = np.asarray(global_matrix, dtype=np.float64)[:3, :3] @ axis @ np.asarray(world)[:3, :3]
+    inverse_transpose = np.linalg.inv(linear).T
+    directions = [inverse_transpose @ normal for normal in normals]
+    return [tuple(direction / np.linalg.norm(direction)) for direction in directions]
+
+
 def assert_arm_normalization_normals(addon):
     # Catches forward-vector normal transforms, vertex-vs-loop mixups, stale
     # generated normals, identity churn and undefined blended Jacobians.
+    # Authored export/cached directions are exact; Blender's decoded temporary
+    # short2 storage is tested separately and is never the export oracle.
     normalization = importlib.import_module(addon.__name__ + '.o3d_io.human_arm_normalization')
     exporter = importlib.import_module(addon.__name__ + '.o3d_io.io_o3d_export')
+    from o3d_export_support import read_export
+    global_matrix = Matrix.Scale(1.8, 4) @ Matrix.Rotation(.37, 4, 'Z')
     with preserve_context():
         for custom in (True, False):
             with skin_fixture(addon, custom=custom) as (rig, obj, points, weights):
                 before = source_state(rig, obj)
                 expected_world = expected_skin(obj, points, weights)
                 callback = normalization.make_rest_deformer(rig, normalization.build_arm_transforms(rig))
+                with exporter.prepared_export_mesh(obj, global_matrix=global_matrix) as (evaluated, mesh, baseline_matrix):
+                    baseline_normals = [tuple(n) for n in mesh['_o3d_export_corners']['normals']]
+                    baseline_geometry = exporter.prepare_o3d_geometry(evaluated, mesh)
+                    with tempfile.TemporaryDirectory(prefix='o3d-arm-baseline-normals-') as directory:
+                        destination = Path(directory) / 'baseline.o3d'
+                        exporter.export_mesh(str(destination), bpy.context, evaluated, mesh,
+                                             baseline_matrix,
+                                             evaluated.material_slots, 7, True)
+                        baseline_records = read_export(destination.read_bytes())
+                computed_local = []
                 # Observe local identity/zero-mass data before export baking.
                 def deform(evaluated, mesh):
                     local = mesh_state(obj, mesh)
@@ -547,7 +575,11 @@ def assert_arm_normalization_normals(addon):
                         def __getattr__(self, name):
                             return getattr(mesh, name)
 
+                        def __setitem__(self, key, value):
+                            mesh[key] = value
+
                         def normals_split_custom_set(self, normals):
+                            computed_local[:] = [tuple(n) for n in normals]
                             # Original directions must reach the supported setter
                             # exactly, before Blender quantizes its short2 data.
                             for loop in mesh.loops:
@@ -567,8 +599,16 @@ def assert_arm_normalization_normals(addon):
                                 assert (Vector(after['normals'][loop.index])
                                         - Vector(local['normals'][loop.index])).length < 3e-4
 
-                with exporter.prepared_export_mesh(obj, rest_deformer=deform) as (_, mesh, _):
+                with exporter.prepared_export_mesh(obj, global_matrix=global_matrix,
+                                                   rest_deformer=deform) as (evaluated, mesh, matrix):
                     corners = mesh['_o3d_export_corners']
+                    if custom:
+                        expected_export = export_normal_oracle(computed_local, obj.matrix_world, global_matrix)
+                        for loop in mesh.loops:
+                            actual = tuple(corners['normals'][loop.index])
+                            if loop.vertex_index >= 24:
+                                assert actual == baseline_normals[loop.index], ('identity export drift', loop.index)
+                        assert [tuple(n) for n in corners['normals']] == expected_export, 'authored export drift'
                     for loop in obj.data.loops:
                         index = loop.vertex_index
                         if custom:
@@ -589,8 +629,10 @@ def assert_arm_normalization_normals(addon):
                             determinant = c * c + s * s
                             n = Vector(((c * normal.x + s * normal.z) / determinant,
                                         normal.y, (-s * normal.x + c * normal.z) / determinant)).normalized()
-                            expected = Vector((n.x, n.z, n.y))
-                            assert (Vector(corners['normals'][loop.index]) - expected).length < 3e-4
+                            expected = (global_matrix.to_3x3() @ Vector((n.x, n.z, n.y))).normalized()
+                            # Independent analytic transport: no allowance for a
+                            # second native custom-normal encoding round trip.
+                            assert (Vector(corners['normals'][loop.index]) - expected).length < 2e-6
                     # Fresh geometric oracle uses independently expected points.
                     plain = bpy.data.meshes.new('Arm generated normal oracle')
                     try:
@@ -604,12 +646,35 @@ def assert_arm_normalization_normals(addon):
                         plain.update()
                         for index, normal in enumerate(plain.corner_normals):
                             direction = (inverse.to_3x3().transposed() @ normal.vector).normalized()
-                            expected = Vector((direction.x, direction.z, direction.y))
+                            expected = (global_matrix.to_3x3()
+                                        @ Vector((direction.x, direction.z, direction.y))).normalized()
                             assert (Vector(corners['generated_normals'][index]) - expected).length < 3e-4
                             if not custom:
                                 close(corners['normals'][index], corners['generated_normals'][index])
                     finally:
                         bpy.data.meshes.remove(plain)
+                    if custom:
+                        geometry = exporter.prepare_o3d_geometry(evaluated, mesh)
+                        with tempfile.TemporaryDirectory(prefix='o3d-arm-exact-normals-') as directory:
+                            destination = Path(directory) / 'exact.o3d'
+                            exporter.export_mesh(str(destination), bpy.context, evaluated, mesh, matrix,
+                                                 evaluated.material_slots, 7, True)
+                            records = read_export(destination.read_bytes())
+                        # O3D stores float32: require exact float32 rounding of
+                        # the authoritative snapshot, with no short2 detour.
+                        emitted = [tuple(v[3:6]) for v in records['vertices']]
+                        expected_emitted = [None] * len(geometry['verts'])
+                        for triangle, indices in zip(corners['triangles'], geometry['tris']):
+                            loops = triangle[:3][::-1] if corners['reverse_winding'] else triangle[:3]
+                            for loop, index in zip(loops, indices[:3]):
+                                expected_emitted[index] = tuple(float(v) for v in
+                                                               np.asarray(expected_export[loop], dtype=np.float32))
+                        assert emitted == expected_emitted, 'serialized authored normals drifted'
+                        for source in range(24, 33):
+                            baseline = {tuple(baseline_records['vertices'][i][3:6])
+                                        for i in baseline_geometry['source_to_export'][source]}
+                            actual = {emitted[i] for i in geometry['source_to_export'][source]}
+                            assert actual == baseline, ('identity serialized normal drift', source)
                 assert source_state(rig, obj) == before
                 if custom:
                     for bad in (0., 1e-9, float('nan'), float('inf')):
@@ -623,6 +688,71 @@ def assert_arm_normalization_normals(addon):
                         except ValueError as error:
                             assert 'Jacobian' in str(error), str(error)
                         assert source_state(rig, obj) == before
+        assert_local_authored_snapshot(addon)
+
+
+def assert_local_authored_snapshot(addon):
+    # Catches stale source metadata being trusted, lost loop association, silent
+    # truncation and malformed/nonfinite callback payloads reaching serialization.
+    exporter = importlib.import_module(addon.__name__ + '.o3d_io.io_o3d_export')
+    key = '_o3d_local_authored_normals'
+    with preserve_context(), skin_fixture(addon, custom=True) as (rig, obj, _, _):
+        vertices = [loop.vertex_index for loop in obj.data.loops]
+        normals = [(0.123456789123, .8, .3)] * len(vertices)
+        payload = {'vertices': vertices, 'normals': normals}
+        with tempfile.TemporaryDirectory(prefix='o3d-arm-snapshot-') as directory:
+            baseline = Path(directory) / 'baseline.o3d'
+            exporter.do_export(str(baseline), bpy.context, Matrix.Identity(4), False, 7, objects=[obj])
+            expected = baseline.read_bytes()
+            # Even malformed source-copied metadata must be invisible without a
+            # fresh callback payload. Source IDs themselves are never modified.
+            for stale in (payload, {'normals': [1., 2., 3.]}):
+                obj.data[key] = stale
+                stored = obj.data[key].to_dict()
+                try:
+                    def noop(evaluated, mesh):
+                        assert key not in mesh, 'copied snapshot reached callback'
+
+                    for label, kwargs in (('absent', {}), ('none', {'rest_deformer': None}),
+                                          ('noop', {'rest_deformer': noop})):
+                        path = Path(directory) / (label + '.o3d')
+                        before = source_state(rig, obj)
+                        exporter.do_export(str(path), bpy.context, Matrix.Identity(4), False, 7,
+                                           objects=[obj], **kwargs)
+                        assert path.read_bytes() == expected, ('stale snapshot consumed', label)
+                        assert obj.data[key].to_dict() == stored
+                        assert source_state(rig, obj) == before
+                finally:
+                    del obj.data[key]
+
+        def snapshot(evaluated, mesh):
+            mesh[key] = payload
+
+        before = source_state(rig, obj)
+        with exporter.prepared_export_mesh(obj, rest_deformer=snapshot) as (_, mesh, _):
+            expected_normals = export_normal_oracle(normals, obj.matrix_world, Matrix.Identity(4))
+            assert [tuple(n) for n in mesh['_o3d_export_corners']['normals']] == expected_normals
+        assert source_state(rig, obj) == before
+        wrong_vertices = vertices.copy()
+        wrong_vertices[0] = vertices[1]
+        malformed = [[], {}, {'vertices': wrong_vertices, 'normals': normals},
+                     {'vertices': vertices[:-1], 'normals': normals},
+                     {'vertices': vertices, 'normals': normals[:-1]},
+                     {'vertices': vertices, 'normals': [(1., 2.)] * len(vertices)},
+                     {'vertices': vertices, 'normals': 'bad'}]
+        for bad in (float('nan'), float('inf')):
+            malformed.append({'vertices': vertices, 'normals': [(bad, .2, .3)] * len(vertices)})
+        for invalid in malformed:
+            def snapshot(evaluated, mesh):
+                mesh[key] = invalid
+
+            before = source_state(rig, obj)
+            try:
+                with exporter.prepared_export_mesh(obj, rest_deformer=snapshot):
+                    raise AssertionError('malformed authored normal snapshot was accepted')
+            except ValueError as error:
+                assert 'authored normal snapshot' in str(error), str(error)
+            assert source_state(rig, obj) == before
 
 
 def run():
