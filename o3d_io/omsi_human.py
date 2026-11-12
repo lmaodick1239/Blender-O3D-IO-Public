@@ -18,6 +18,7 @@ from io import BytesIO, StringIO
 
 from mathutils import Matrix, Vector
 
+from .human_arm_normalization import build_arm_transforms, make_rest_deformer, transform_landmark
 from .io_o3d_export import prepared_export_mesh
 from .mmd_rig import CANONICAL_NAMES, CANONICAL_SLOTS, _source_segment, read_source_rig
 
@@ -154,14 +155,24 @@ def _primary_meshes(armature, objects, context, warnings):
 
 
 def measure_human(armature, meshes, *, overrides=None, scale=1.0, context=None,
-                  confirm_stale=False, turn_180=False) -> dict:
+                  confirm_stale=False, turn_180=False, arm_transforms=None) -> dict:
     """Return errors/warnings, 22 links or None, height, and final XYZ landmarks.
 
     Bounds use primary bound meshes evaluated in rest space. Metadata is only
     consumed if current or explicitly confirmed; overrides always take priority.
     turn_180 rotates measured XYZ around Z; overrides remain final file vectors.
+    A supplied arm plan normalizes world points before scale/yaw and uses the
+    same temporary rest deformation for bounds. No plan is built here.
     Errors block serialization, not generic conversion/export.
     """
+    return _measure_human(armature, meshes, overrides=overrides, scale=scale, context=context,
+                          confirm_stale=confirm_stale, turn_180=turn_180,
+                          arm_transforms=arm_transforms, rest_deformer=None)
+
+
+def _measure_human(armature, meshes, *, overrides, scale, context, confirm_stale,
+                   turn_180, arm_transforms, rest_deformer):
+    # Bundle callers supply their one deformer for bounds, codec and publication.
     import bpy
     context = context or bpy.context
     result = {'errors': [], 'warnings': [], 'links': None, 'height': None, 'landmarks': {}}
@@ -179,13 +190,20 @@ def measure_human(armature, meshes, *, overrides=None, scale=1.0, context=None,
             raise ValueError('Missing canonical rest bones: ' + ', '.join(sorted(missing)))
         if not hasattr(overrides, 'items') or set(overrides) - set((*_ORDER, 'height')):
             raise ValueError('Unknown human landmark override')
+        if arm_transforms is not None:
+            if rest_deformer is None:
+                rest_deformer = make_rest_deformer(armature, arm_transforms)
+            for name in ('elbow', 'hand', 'finger'):
+                if name in overrides:
+                    warnings.append(f'{name}: override is in final file coordinates and must match normalized geometry')
         primary = _primary_meshes(armature, meshes, context, warnings)
         if not primary:
             raise ValueError('Human height requires nonempty primary character meshes, not physics/LODs')
         low = high = None
         for obj in primary:
             _validate_transform(obj)
-            with prepared_export_mesh(obj, context, Matrix.Scale(scale, 4)) as (_, mesh, _):
+            with prepared_export_mesh(obj, context, Matrix.Scale(scale, 4),
+                                      rest_deformer=rest_deformer) as (_, mesh, _):
                 for vertex in mesh.vertices:
                     if not all(isfinite(value) for value in vertex.co):
                         raise ValueError(f'{obj.name}: nonfinite human geometry')
@@ -202,12 +220,15 @@ def measure_human(armature, meshes, *, overrides=None, scale=1.0, context=None,
         if abs(low) > tolerance:
             warnings.append(f'Feet are not near the ground plane (minimum Z={_number(low)}); no translation applied')
 
-        def final(point):
-            point = (armature.matrix_world @ _vector(point)) * scale
+        def final(point, bone_name=None):
+            point = armature.matrix_world @ _vector(point)
+            if arm_transforms is not None and bone_name is not None:
+                point = transform_landmark(arm_transforms, bone_name, point)
+            point *= scale
             return Vector((-point.x, -point.y, point.z)) if turn_180 else point
 
         def head(name):
-            return final(armature.data.bones[name].head_local)
+            return final(armature.data.bones[name].head_local, name)
 
         raw = {name: (head(stem + '_L'), head(stem + '_R')) for name, stem in _PAIRS.items()}
         # Geometry, not object rotation alone, must demonstrate a human frame.
@@ -234,7 +255,7 @@ def measure_human(armature, meshes, *, overrides=None, scale=1.0, context=None,
             if not stale or confirm_stale:
                 points = metadata.get('points', {})
         if 'finger' not in overrides and 'finger_L' in points and 'finger_R' in points:
-            raw['finger'] = (final(points['finger_L']), final(points['finger_R']))
+            raw['finger'] = (final(points['finger_L'], 'Hand_L'), final(points['finger_R'], 'Hand_R'))
         for name in _ORDER:
             if name in overrides:
                 point = _vector(overrides[name], center=name in ('waist', 'neck'))
@@ -484,13 +505,14 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
                  scale=1.0, overwrite=False, confirm_stale=False, o3d_version=7,
                  export_custom_normals=True, preflight_only=False, turn_180=False,
                  max_texture_size=0, compress_textures=False, dds_converter='',
-                 texture_format=None) -> dict:
+                 texture_format=None, normalize_arms=False) -> dict:
     """Preflight a HUM/model/textures bundle and publish HUM last.
 
     All validation/overwrite refusal happens before destination files are opened.
     Later OS write failures may leave partial model files: this is not a
     multi-file transaction. Source IDs, selection, pose and flags stay untouched.
     Landmark overrides are already final scaled file vectors, not scaled twice.
+    normalize_arms shares a temporary horizontal rest pose across all LODs.
     Active/participating mesh or armature Edit mode is refused without flushing
     source edits: measurement and the shared exporter must see the same state.
     preflight_only runs the identical validation/serialization preparation, without
@@ -508,15 +530,20 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
         return _export_human_bundle(filepath, context, armature, meshes, textures,
             settings=settings, overrides=overrides, scale=scale, overwrite=overwrite,
             confirm_stale=confirm_stale, o3d_version=o3d_version,
-            export_custom_normals=export_custom_normals, preflight_only=preflight_only, turn_180=turn_180)
+            export_custom_normals=export_custom_normals, preflight_only=preflight_only,
+            turn_180=turn_180, normalize_arms=normalize_arms)
 
 
 def _export_human_bundle(filepath, context, armature, meshes, textures, *, settings, overrides,
                          scale, overwrite, confirm_stale, o3d_version, export_custom_normals,
-                         preflight_only, turn_180):
+                         preflight_only, turn_180, normalize_arms):
     from . import io_o3d_export, o3d_cfg_parser, o3dconvert
-    measurements = measure_human(armature, meshes, overrides=overrides, scale=scale,
-                                 context=context, confirm_stale=confirm_stale, turn_180=turn_180)
+    arm_transforms = build_arm_transforms(armature) if normalize_arms else None
+    rest_deformer = (make_rest_deformer(armature, arm_transforms)
+                     if arm_transforms is not None else None)
+    measurements = _measure_human(armature, meshes, overrides=overrides, scale=scale,
+                                  context=context, confirm_stale=confirm_stale, turn_180=turn_180,
+                                  arm_transforms=arm_transforms, rest_deformer=rest_deformer)
     paths, cfg_name, mesh_names = _human_output_paths(filepath, meshes, overwrite, textures)
     payload = serialize_hum(cfg_name, measurements, settings)
     hum_path, cfg_path = paths[:2]
@@ -529,11 +556,14 @@ def _export_human_bundle(filepath, context, armature, meshes, textures, *, setti
         # O3D vertices are XZY: Y is the vertical axis after preparation.
         global_matrix @= Matrix.Diagonal((-1, 1, -1, 1))
     bone_slots = dict(CANONICAL_SLOTS)
-    if turn_180:
+    if turn_180 or arm_transforms is not None:
         # Procedural human slots pivot at fixed signed-X sides, independent of names.
         for name in bone_slots:
             if name.endswith(('_L', '_R')):
-                x = -(armature.matrix_world @ armature.data.bones[name].head_local).x
+                point = armature.matrix_world @ armature.data.bones[name].head_local
+                if arm_transforms is not None:
+                    point = transform_landmark(arm_transforms, name, point)
+                x = -point.x if turn_180 else point.x
                 if abs(x) <= 1e-8:
                     raise ValueError(f'{name}: cannot bind a paired human limb on X=0')
                 bone_slots[name] = CANONICAL_SLOTS[name[:-1] + ('L' if x < 0 else 'R')]
@@ -543,7 +573,8 @@ def _export_human_bundle(filepath, context, armature, meshes, textures, *, setti
         _human_cfg_props(obj.data)
         # Capture the same allowlist as do_export before rest evaluation hides modifiers.
         allowed_names = io_o3d_export._armature_bone_names(obj)
-        with prepared_export_mesh(obj, context, global_matrix) as (evaluated, mesh, matrix):
+        with prepared_export_mesh(obj, context, global_matrix,
+                                  rest_deformer=rest_deformer) as (evaluated, mesh, matrix):
             _cfg_value(matrix, 'Serialized O3D transform')
             geometry = io_o3d_export.prepare_o3d_geometry(
                 evaluated, mesh, export_custom_normals, allowed_names=allowed_names)
@@ -605,7 +636,8 @@ def _export_human_bundle(filepath, context, armature, meshes, textures, *, setti
     os.makedirs(os.path.dirname(cfg_path), exist_ok=True)
     io_o3d_export.do_export(cfg_path, context, global_matrix, False, o3d_version,
                            export_custom_normals, objects=meshes, human_bindings=True,
-                           human_bone_slots=bone_slots, texture_names=texture_names, mesh_paths=mesh_names)
+                           human_bone_slots=bone_slots, texture_names=texture_names, mesh_paths=mesh_names,
+                           rest_deformer=rest_deformer)
     with open(hum_path, 'wb') as stream:
         stream.write(payload)
     return {'hum_path': hum_path, 'cfg_path': cfg_path, 'mesh_paths': mesh_paths,

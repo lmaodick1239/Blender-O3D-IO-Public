@@ -5,6 +5,7 @@ Public synthetic checks preserve caller state and never load private scenes.
 import argparse
 from contextlib import contextmanager
 import importlib
+import hashlib
 import math
 from pathlib import Path
 import sys
@@ -237,8 +238,8 @@ def expected_point(point, name, points):
     if name not in ('OA_L', 'UA_L', 'Hand_L', 'OA_R', 'UA_R', 'Hand_R'):
         return point.copy()
     side = name[-1]
-    sign = -1 if side == 'L' else 1
     shoulder = points['OA_' + side]
+    sign = -1 if shoulder.x < 0 else 1
     raised = shoulder + Vector((sign * .30, 0, 0))
     upper = shoulder + yaw(point - shoulder, -sign * 35)
     return upper if name.startswith('OA_') else raised + yaw(upper - raised, sign * 25)
@@ -755,12 +756,462 @@ def assert_local_authored_snapshot(addon):
             assert source_state(rig, obj) == before
 
 
+@contextmanager
+def bundle_fixture(addon, *, left_sign=-1):
+    # Real separate object/mesh ownership: lower LODs also have distinct points.
+    human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
+    rigmod = importlib.import_module(addon.__name__ + '.o3d_io.mmd_rig')
+    with arm_fixture(addon, left_sign=left_sign, upper=35, forearm=10,
+                     y_offsets=(.015, -.012)) as (rig, points):
+        source_points = {'首': Vector((0, .02, 1.55))}
+        for side, sign in (('L', left_sign), ('R', -left_sign)):
+            source_points['中指１.' + side] = points['Hand_' + side] + Vector((
+                sign * .1 * math.cos(math.radians(10)), .025, -.1 * math.sin(math.radians(10))))
+        source = rigmod._create_armature('Bundle source landmarks', {
+            name: (point, point + Vector((0, 0, .03))) for name, point in source_points.items()
+        }, bpy.context.scene.collection)
+        human.capture_landmarks(source, rig)
+        meshes, weights = [], []
+        material = bpy.data.materials.new('Bundle arm material')
+        try:
+            for lod in range(3):
+                vertices = [(0, 0, 0), (.1, 0, 1.8), (-.1, 0, 1.8)]
+                faces = [(0, 1, 2)]
+                entries = [{'Main': 1.}] * 3
+                for side in ('L', 'R'):
+                    for stem in ('OA', 'UA', 'Hand'):
+                        name = stem + '_' + side
+                        pivot = points[('UA' if stem == 'OA' else 'Hand') + '_' + side]
+                        start = len(vertices)
+                        for offset in ((0, 0, 0), (.01, .02 + lod * .003, .01), (0, .01, .03)):
+                            vertices.append(pivot + Vector(offset))
+                            entries.append({name: .7})
+                        faces.append((start, start + 1, start + 2))
+                start = len(vertices)
+                # Blends exercise the same surface path as the standalone skin test.
+                for offset, binding in zip(((0, 0, 0), (.02, .01, 0), (0, .02, .01)),
+                                          ({'Main': .2, 'OA_L': .6, 'helper': .9},
+                                           {'OA_L': .2, 'UA_L': .3}, {'Hand_L': .8})):
+                    vertices.append(points['UA_L'] + Vector(offset))
+                    entries.append(binding)
+                faces.append((start, start + 1, start + 2))
+                start = len(vertices)
+                # This hand-owned tip changes the measured maximum Z. Lower LODs
+                # are deliberately taller and must not contribute to HUM bounds.
+                for offset in ((0, 0, 1 + lod), (.02, 0, 1 + lod), (0, .02, 1 + lod)):
+                    vertices.append(points['Hand_L'] + Vector(offset))
+                    entries.append({'Hand_L': .4})
+                faces.append((start, start + 1, start + 2))
+                data = bpy.data.meshes.new('Bundle arm LOD ' + str(lod))
+                data.from_pydata(vertices, [], faces)
+                data.update()
+                obj = bpy.data.objects.new('Bundle arm LOD ' + str(lod), data)
+                bpy.context.scene.collection.objects.link(obj)
+                meshes.append(obj)
+                weights.append(entries)
+                obj['export_path'] = 'arm_lod_' + str(lod) + '.o3d'
+                obj['omsi_lod_level'] = lod
+                data.materials.append(material)
+                uv = data.uv_layers.new(name='Bundle UV')
+                for i, item in enumerate(uv.uv):
+                    item.vector = ((i % 5) / 7, (i % 7) / 9)
+                for name in ('Main', 'OA_L', 'UA_L', 'Hand_L', 'OA_R', 'UA_R', 'Hand_R', 'helper'):
+                    group = obj.vertex_groups.new(name=name)
+                    for index, binding in enumerate(entries):
+                        if name in binding:
+                            group.add([index], binding[name], 'REPLACE')
+                modifier = obj.modifiers.new('Bundle source pose', 'ARMATURE')
+                modifier.object = rig
+                modifier.show_render = False
+                obj.shape_key_add(name='Basis')
+                key = obj.shape_key_add(name='Inactive authored shape')
+                key.data[0].co.y += .04
+                key.value = 0
+            rig.pose.bones['OA_L'].rotation_mode = 'XYZ'
+            rig.pose.bones['OA_L'].rotation_euler.y = .4
+            bpy.context.view_layer.update()
+            assert len({obj.data.as_pointer() for obj in meshes}) == 3
+            yield rig, meshes, points, weights, source_points
+        finally:
+            for obj in meshes:
+                data = obj.data
+                bpy.data.objects.remove(obj, do_unlink=True)
+                bpy.data.meshes.remove(data)
+            data = source.data
+            bpy.data.objects.remove(source, do_unlink=True)
+            bpy.data.armatures.remove(data)
+            bpy.data.materials.remove(material)
+
+
+def hum_records(path):
+    lines = path.read_text(encoding='cp1252').splitlines()
+    start = lines.index('[links]') + 1
+    return ([float(value) for value in lines[start:start + 22]],
+            float(lines[lines.index('[humangeom]') + 2]))
+
+
+def bundle_bytes(root):
+    return {path.relative_to(root).as_posix(): path.read_bytes()
+            for path in root.rglob('*') if path.is_file()}
+
+
+def bundle_expected(points, source_points, *, normalized, turn_180, scale, world=None):
+    # Independent scalar/fixture oracle; never call the planner or deformer.
+    result = []
+    for stem in ('OS', 'US', 'Main', 'OA', 'UA', 'neck', 'Hand', 'finger'):
+        if stem in ('Main', 'neck'):
+            point = points['Main'] if stem == 'Main' else source_points['首']
+        else:
+            names = (('中指１.L', '中指１.R') if stem == 'finger' else
+                     (stem + '_L', stem + '_R'))
+            pair = []
+            for side, name in zip(('L', 'R'), names):
+                point = source_points[name] if stem == 'finger' else points[name]
+                if normalized:
+                    point = expected_point(point, 'Hand_' + side if stem == 'finger' else name, points)
+                pair.append(point)
+            point = Vector(((abs(pair[0].x) + abs(pair[1].x)) / 2,
+                            (pair[0].y + pair[1].y) / 2, (pair[0].z + pair[1].z) / 2))
+        x, y, z = (world @ point if world is not None else point) * scale
+        if turn_180:
+            x, y = -x, -y
+        result.extend((y, z) if stem in ('Main', 'neck') else (abs(x), y, z))
+    return result
+
+
+def assert_bundle_records(addon, result, meshes, points, weights, source_points,
+                          *, normalized, turn_180, scale):
+    from o3d_export_support import read_export
+    cfg = Path(result['cfg_path']).read_text(encoding='cp1252')
+    expected_links = bundle_expected(points, source_points, normalized=normalized,
+                                     turn_180=turn_180, scale=scale)
+    links, height = hum_records(Path(result['hum_path']))
+    close(links, expected_links)
+    lines = Path(result['hum_path']).read_text(encoding='cp1252').splitlines()
+    walk = lines.index('[walk_param]') + 1
+    close([float(value) for value in lines[walk:walk + 5]], (1.4, 80, 1, 1, 0))
+    # Neck/legs unchanged; elbows, wrists AND captured fingers share shoulder Z.
+    if normalized:
+        close((links[13], links[18], links[21]), (1.4 * scale,) * 3)
+    assert cfg.count('[mesh]') == 3
+    assert cfg.count('[smoothskin]') == 3
+    expected_height = None
+    for obj, bindings, path in zip(meshes, weights, result['mesh_paths']):
+        expected_world = (expected_skin(obj, points, bindings) if normalized else
+                          [obj.matrix_world @ vertex.co for vertex in obj.data.vertices])
+        if expected_height is None:
+            expected_height = (max(p.z for p in expected_world) - min(p.z for p in expected_world)) * scale
+        expected = [Vector(((-p.x if turn_180 else p.x) * scale, p.z * scale,
+                            (-p.y if turn_180 else p.y) * scale)) for p in expected_world]
+        records = read_export(Path(path).read_bytes())
+        # Both parser paths read actual files, including weights and origin frame.
+        parsed = addon.o3d_io.o3dconvert.import_o3d(Path(path).read_bytes())
+        actual = [Vector(vertex[0]) for vertex in parsed[1]]
+        assert all(any((vertex - point).length < 2e-5 for vertex in actual) for point in expected)
+        assert all(any((vertex - point).length < 2e-5 for point in expected) for vertex in actual)
+        sign = -1 if turn_180 else 1
+        close([value for row in parsed[5] for value in row],
+              (sign * scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, sign * scale, 0, 0, 0, 0, 1))
+        block = cfg.split('[mesh]\n' + Path(path).name + '\n', 1)[1].split('[mesh]', 1)[0]
+        for name, emitted_weights in records['bones']:
+            if name == 'Main':
+                assert '[setbone]\nMain\n-11\n' in block
+                continue
+            # Fixed signed-X runtime slots; spelling need not indicate the side.
+            x = points[name].x * sign
+            side = ('L' if x < 0 else 'R') if normalized or turn_180 else name[-1]
+            slots = {'OA_L': -6, 'OA_R': -7, 'UA_L': -8, 'UA_R': -9,
+                     'Hand_L': -13, 'Hand_R': -14}
+            assert f'[setbone]\n{name}\n{slots[name[:-1] + side]}\n' in block, block
+            assert emitted_weights, name
+        assert 'helper' not in {name for name, _ in records['bones']}
+        # Match independent source corners to actual serialized indices, rather
+        # than assuming normalization preserves normal/UV split vertex counts.
+        emitted_weights = [{} for _ in records['vertices']]
+        for name, entries in records['bones']:
+            for index, weight in entries:
+                emitted_weights[index][name] = weight
+        samples = []
+        for loop in obj.data.loops:
+            point = expected[loop.vertex_index]
+            u, v = obj.data.uv_layers.active.uv[loop.index].vector
+            binding = {name: value for name, value in bindings[loop.vertex_index].items() if name != 'helper'}
+            samples.append((point, (u, 1 - v), binding))
+        def matches(index, sample):
+            vertex = records['vertices'][index]
+            point, uv, binding = sample
+            actual_binding = emitted_weights[index]
+            return ((Vector(vertex[:3]) - point).length < 2e-5
+                    and all(abs(a - b) < 1e-6 for a, b in zip(vertex[6:], uv))
+                    and actual_binding.keys() == binding.keys()
+                    and all(abs(actual_binding[name] - value) < 1e-6 for name, value in binding.items()))
+        assert all(any(matches(index, sample) for sample in samples) for index in range(len(records['vertices'])))
+        assert all(any(matches(index, sample) for index in range(len(records['vertices']))) for sample in samples)
+    assert abs(height - expected_height) < 2e-5, (height, expected_height)
+    return links, height
+
+
+# Captured on native Blender 5.0.1 at clean 669e70e, BEFORE adding the keyword.
+# Other Blender versions still require exact default-vs-explicit-off bytes below;
+# floating-point generated normals can differ between Blender builds.
+_OFF_BASELINE_501 = {
+    (False, 1): ('91bfa1731a7c91716ae1103b2cd7c9497d7e64d9ed905e4822b740f146797bad',
+                 '62d7bafacbb4a2154bde14ad1dbf7df0d4b0199211ac3814065d49730c6fca07',
+                 '578887e40111c4d8f60fd76de9658b895a3bbfaa44328d84ac002f2e9333b65b',
+                 '80c2659a98a91da7e5c4eb88452b547ef7d7bae4f9a5bd04bc67e4195f6e16fe',
+                 '263397cd910c543ef4ebb7e1c82deaf9188dee863b46978a11d80a9674cf0fc0'),
+    (False, 2): ('a4a4370c6e6f9d516f4de883da26a7c53b821f8f0efa464517c69d5382b3edfd',
+                 '62d7bafacbb4a2154bde14ad1dbf7df0d4b0199211ac3814065d49730c6fca07',
+                 '8c76b57b21d3a562896648aa8e06b3b2888c046562b0bde4ea2e99472dcc25bb',
+                 '87eff8a933ec281474bd84ad51fe85753c3f18536162f5c1a5ad777972f7b906',
+                 '86b04d75b08b9508eb7b1cc4ce0fb62cd37707521353cd25540a0006dc7c9966'),
+    (True, 1): ('5b98d3c4b6d08bb2076ba68f254b26934330e1e6212d985c5cdb050e5c84eb35',
+                'dc7824612d8e9fd702238c6e22d9d5bcb8579fce43472b508e19105a2aa7b92c',
+                '7dd58e47b3a9b9d427c542590e4928d2c112fbbbeb95c42da0958882f0b79498',
+                'b2e9c8b1fd12b649e2637e5e7dd6c34ee197702ef67fc3623d46c505b764839c',
+                '016fe32702912bf0ab10de3636f6a9c1196b38bc1c3b6b740036de32ef05d3aa'),
+    (True, 2): ('6b5f5ca920703327c0632ba3d3eb46f05bdd3e2d1c76e1ff3452dc83bb20bcb2',
+                'dc7824612d8e9fd702238c6e22d9d5bcb8579fce43472b508e19105a2aa7b92c',
+                '6ca87061b56bf6847c2e7096acd670f2b9ad58ce42a014820a6697e69f0c5a74',
+                '1bbb4d4fd0f1e860825be167f7fd18d0740e37beb15c6e6503e35485ad7e8d49',
+                '4649f47a3db56a7ff13144f68a5f773cf7e385a01ebeb23d0a4af205d0b689e0'),
+}
+
+
+def assert_arm_normalization_bundle(addon):
+    # Catches disconnected keywords, per-LOD plans, stale metadata trusted after
+    # virtual edits, double-transformed overrides, wrong bounds/slots and writes
+    # before complete normalized codec validation.
+    from smoke_human import disk_snapshot, refuses as human_refuses, select_only, source_snapshot
+    human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
+    with preserve_context():
+        for left_sign in (-1, 1):
+            with bundle_fixture(addon, left_sign=left_sign) as (rig, meshes, points, weights, source_points):
+                def state():
+                    return source_snapshot(), repr(tuple(mesh_state(obj) for obj in meshes))
+
+                for turn_180 in (False, True):
+                    for scale in (1, 2):
+                        with tempfile.TemporaryDirectory(prefix='o3d-arm-bundle-') as directory:
+                            root = Path(directory)
+                            baseline_root = root / 'baseline'
+                            human.export_human(str(baseline_root / 'character.hum'), bpy.context,
+                                               rig, meshes, turn_180=turn_180, scale=scale)
+                            baseline_bytes = bundle_bytes(baseline_root)
+                            if left_sign == -1 and bpy.app.version == (5, 0, 1) and sys.platform == 'linux':
+                                names = ['character.hum', 'model/character.cfg',
+                                         *('model/arm_lod_' + str(i) + '.o3d' for i in range(3))]
+                                actual = tuple(hashlib.sha256(baseline_bytes[name]).hexdigest() for name in names)
+                                assert actual == _OFF_BASELINE_501[turn_180, scale], 'legacy baseline bytes changed'
+                            for normalized in (True, False):
+                                destination = root / ('on' if normalized else 'off') / 'character.hum'
+                                before = state()
+                                preview = human.export_human(str(destination), bpy.context, rig, meshes,
+                                    normalize_arms=normalized, turn_180=turn_180, scale=scale, preflight_only=True)
+                                assert not destination.parent.exists(), 'preflight created destination files'
+                                assert state() == before
+                                result = human.export_human(str(destination), bpy.context, rig, meshes,
+                                    normalize_arms=normalized, turn_180=turn_180, scale=scale)
+                                assert state() == before
+                                links, height = assert_bundle_records(addon, result, meshes, points, weights,
+                                    source_points, normalized=normalized, turn_180=turn_180, scale=scale)
+                                close(preview['measurements']['links'], links)
+                                assert abs(preview['measurements']['height'] - height) < 2e-5
+                                assert preview['warnings'] == result['warnings']
+                                if not normalized:
+                                    assert bundle_bytes(destination.parent) == baseline_bytes, 'off bytes changed'
+
+                # One planner and one callback instance for the complete bundle.
+                planner, factory = human.build_arm_transforms, human.make_rest_deformer
+                plans, callbacks, uses = [], [], []
+                def plan_once(armature):
+                    plan = planner(armature)
+                    plans.append(plan)
+                    return plan
+
+                def deform_once(armature, plan):
+                    assert plan is plans[0]
+                    callback = factory(armature, plan)
+                    callbacks.append(callback)
+                    def observed(obj, mesh):
+                        uses.append(obj.original)
+                        callback(obj, mesh)
+                    return observed
+
+                human.build_arm_transforms, human.make_rest_deformer = plan_once, deform_once
+                try:
+                    with tempfile.TemporaryDirectory(prefix='o3d-arm-shared-') as directory:
+                        before = state()
+                        human.export_human(str(Path(directory) / 'shared.hum'), bpy.context,
+                                           rig, meshes, normalize_arms=True)
+                        assert state() == before
+                    assert len(plans) == len(callbacks) == 1, (len(plans), len(callbacks))
+                    assert uses.count(meshes[0]) == 3 and all(uses.count(obj) == 2 for obj in meshes[1:]), uses
+                finally:
+                    human.build_arm_transforms, human.make_rest_deformer = planner, factory
+
+                # Public measurement consumes a supplied plan with normalized bounds.
+                transforms = planner(rig)
+                before = state()
+                measured = human.measure_human(rig, meshes, arm_transforms=transforms, scale=2, turn_180=True)
+                assert state() == before and not measured['errors'], measured
+                close(measured['links'], bundle_expected(points, source_points, normalized=True,
+                                                        turn_180=True, scale=2))
+                expected_height = max(p.z for p in expected_skin(meshes[0], points, weights[0])) * 2
+                assert abs(measured['height'] - expected_height) < 2e-5
+                overrides = {'elbow': (.61, -.07, 1.91), 'hand': (.81, -.08, 1.92),
+                             'finger': (.94, -.09, 1.93), 'neck': (-.03, 1.61)}
+                with tempfile.TemporaryDirectory(prefix='o3d-arm-overrides-') as directory:
+                    path = Path(directory) / 'overrides.hum'
+                    before = state()
+                    preview = human.export_human(str(path), bpy.context, rig, meshes, normalize_arms=True,
+                        overrides=overrides, scale=2, turn_180=True, preflight_only=True,
+                        settings={'walk_params': (1.3, 45, .9, 1.1, 0)})
+                    assert not list(Path(directory).iterdir())
+                    result = human.export_human(str(path), bpy.context, rig, meshes, normalize_arms=True,
+                        overrides=overrides, scale=2, turn_180=True,
+                        settings={'walk_params': (1.3, 45, .9, 1.1, 0)})
+                    assert state() == before
+                    links, _ = hum_records(path)
+                    for start, name in ((11, 'elbow'), (16, 'hand'), (19, 'finger')):
+                        close(links[start:start + 3], overrides[name])
+                        assert any(name in warning and 'normalized' in warning.lower()
+                                   for warning in result['warnings']), result['warnings']
+                    close(links[14:16], overrides['neck'])
+                    close(links, preview['measurements']['links'])
+                    lines = path.read_text(encoding='cp1252').splitlines()
+                    start = lines.index('[walk_param]') + 1
+                    close([float(value) for value in lines[start:start + 5]], (1.3, 45, .9, 1.1, 0))
+
+                # Pending edits remain pending and every refusal preserves sentinels.
+                with tempfile.TemporaryDirectory(prefix='o3d-arm-refusal-') as directory:
+                    root = Path(directory)
+                    paths = ['character.hum', 'model/character.cfg',
+                             *('model/' + obj['export_path'] for obj in meshes)]
+                    for name in paths:
+                        path = root / name
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(b'ARM NORMALIZATION SENTINEL ' + name.encode())
+                    def refusal(word, **kwargs):
+                        for preview in (True, False):
+                            before, disk_before = state(), disk_snapshot(root)
+                            human_refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context,
+                                rig, meshes, normalize_arms=True, overwrite=True,
+                                preflight_only=preview, **kwargs), word)
+                            assert state() == before and disk_snapshot(root) == disk_before
+
+                    before, disk_before = state(), disk_snapshot(root)
+                    human_refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context,
+                        rig, meshes, normalize_arms=True), 'overwrite')
+                    assert state() == before and disk_snapshot(root) == disk_before
+                    for editing in (rig, meshes[1]):
+                        select_only(editing)
+                        bpy.ops.object.mode_set(mode='EDIT')
+                        if editing == rig:
+                            pending = rig.data.edit_bones['Main']
+                            old = pending.head.copy()
+                            pending.head.z += .1
+                            expected_pending = tuple(pending.head)
+                        else:
+                            import bmesh
+                            edit = bmesh.from_edit_mesh(editing.data)
+                            edit.verts.ensure_lookup_table()
+                            pending = edit.verts[1]
+                            old = pending.co.copy()
+                            pending.co.z += .4
+                            expected_pending = tuple(pending.co)
+                        refusal('Object Mode')
+                        assert editing.mode == 'EDIT'
+                        assert tuple(pending.head if editing == rig else pending.co) == expected_pending
+                        if editing == rig:
+                            pending.head = old
+                        else:
+                            pending.co = old
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                    # Finger freshness must be checked against ORIGINAL rest data,
+                    # even though normalized virtual elbow/hand coordinates differ.
+                    select_only(rig)
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    rig.data.edit_bones['Main'].head.z += .03
+                    bpy.ops.object.mode_set(mode='OBJECT')
+                    refusal('stale')
+                    accepted = human.measure_human(rig, meshes, arm_transforms=planner(rig), confirm_stale=True)
+                    assert not accepted['errors'] and any('stale' in w for w in accepted['warnings']), accepted
+                    close(accepted['landmarks']['finger'], (.85, .028, 1.4))
+                    with tempfile.TemporaryDirectory(prefix='o3d-arm-stale-') as accepted_directory:
+                        path = Path(accepted_directory) / 'confirmed.hum'
+                        before = state()
+                        preview = human.export_human(str(path), bpy.context, rig, meshes, normalize_arms=True,
+                            confirm_stale=True, preflight_only=True)
+                        assert not list(Path(accepted_directory).iterdir())
+                        result = human.export_human(str(path), bpy.context, rig, meshes, normalize_arms=True,
+                            confirm_stale=True)
+                        assert state() == before
+                        close(hum_records(path)[0], preview['measurements']['links'])
+                        assert preview['warnings'] == result['warnings']
+                    # Both metadata consumers overridden: stale data is unneeded.
+                    fixed = human.measure_human(rig, meshes, arm_transforms=planner(rig), overrides=overrides)
+                    assert not fixed['errors'] and not any('stale' in w for w in fixed['warnings']), fixed
+                    # Bad late-LOD geometry must be rejected by the codec preflight,
+                    # before the earlier LOD or HUM destination is truncated.
+                    keys = meshes[-1].data.shape_keys.key_blocks
+                    old = [key.data[0].co.copy() for key in keys]
+                    for key in keys:
+                        key.data[0].co.x = float('nan')
+                    bpy.context.view_layer.update()
+                    refusal('nonfinite', confirm_stale=True)
+                    for key, point in zip(keys, old):
+                        key.data[0].co = point
+                    bpy.context.view_layer.update()
+                    # Invalid coronal normalization has identical no-write refusal.
+                    select_only(rig)
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    rig.data.edit_bones['Hand_L'].head.y += .3
+                    bpy.ops.object.mode_set(mode='OBJECT')
+                    refusal('UA_L', confirm_stale=True)
+
+        # Rig/object world transforms precede scale/yaw. Derive local expectations
+        # before changing the frame, without using normalization matrices.
+        with bundle_fixture(addon) as (rig, meshes, points, weights, source_points):
+            local_expected = [expected_skin(obj, points, bindings) for obj, bindings in zip(meshes, weights)]
+            world = Matrix.Translation((0, .07, .2)) @ Matrix.Scale(1.25, 4)
+            for obj in (rig, *meshes):
+                obj.matrix_world = world
+            bpy.context.view_layer.update()
+            before = source_snapshot(), repr(tuple(mesh_state(obj) for obj in meshes))
+            with tempfile.TemporaryDirectory(prefix='o3d-arm-world-') as directory:
+                path = Path(directory) / 'world.hum'
+                preview = human.export_human(str(path), bpy.context, rig, meshes, normalize_arms=True,
+                    scale=2, turn_180=True, preflight_only=True)
+                assert not list(Path(directory).iterdir())
+                result = human.export_human(str(path), bpy.context, rig, meshes, normalize_arms=True,
+                    scale=2, turn_180=True)
+                assert (source_snapshot(), repr(tuple(mesh_state(obj) for obj in meshes))) == before
+                links, height = hum_records(path)
+                close(links, bundle_expected(points, source_points, normalized=True, turn_180=True, scale=2,
+                                            world=world))
+                close(links[14:16], (-.19, 4.275))  # Original neck; no arm correction.
+                close(links, preview['measurements']['links'])
+                expected_height = (max(p.z for p in local_expected[0]) - min(p.z for p in local_expected[0])) * 2.5
+                assert abs(height - expected_height) < 2e-5
+                assert abs(preview['measurements']['height'] - height) < 2e-5
+                for path, local in zip(result['mesh_paths'], local_expected):
+                    parsed = addon.o3d_io.o3dconvert.import_o3d(Path(path).read_bytes())
+                    expected = [world @ point * 2 for point in local]
+                    expected = [Vector((-p.x, p.z, -p.y)) for p in expected]
+                    actual = [Vector(vertex[0]) for vertex in parsed[1]]
+                    assert all(any((v - p).length < 2e-5 for v in actual) for p in expected)
+                    assert all(any((v - p).length < 2e-5 for p in expected) for v in actual)
+                    close([value for row in parsed[5] for value in row],
+                          (-2.5, 0, 0, 0, 0, 2.5, 0, 0, 0, 0, -2.5, 0, 0, .4, -.14, 1))
+
+
 def run():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--check', choices=('plan', 'mesh', 'normals', 'all'), default='all')
+    parser.add_argument('--check', choices=('plan', 'mesh', 'normals', 'bundle', 'all'), default='all')
     args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
     checks = {'plan': assert_arm_transform_plan, 'mesh': assert_arm_mesh_deformation,
-              'normals': assert_arm_normalization_normals}
+              'normals': assert_arm_normalization_normals, 'bundle': assert_arm_normalization_bundle}
     addon = load_addon()
     try:
         addon.register()
