@@ -217,7 +217,7 @@ def _export_pair(addon, paths, *, rejected=False, fragment=None, setup=None):
                         assert fragment.lower() in str(error).lower(), str(error)
                     if fragment == 'collid':
                         assert first.name in str(error) and second.name in str(error), str(error)
-                        assert str(root) in str(error), str(error)
+                        assert repr(str(root))[1:-1] in str(error), str(error)
                 else:
                     raise AssertionError('distinct objects with colliding output paths were accepted')
                 assert set(root.rglob('*')) == before_paths, 'path rejection left partial output files'
