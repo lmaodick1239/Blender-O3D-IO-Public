@@ -24,6 +24,12 @@ The final-source matrix began before the harness commit was recorded; its explic
 
 A fresh independent reviewer inspected the complete frozen incremental harness diff, binding requirements, live final source, worker RED/GREEN and mutation controls, all nine final pre-merge run logs, focused reference checks on 4.2/5.2 and the full 42-file source inventory. **Spec compliance PASS; task quality PASS; no Critical, P1, P2 or P3 code findings.** The review applies to automated follow-up commit `1bacc2a`; it preserves the existing native/reference limits and does not claim runtime rendering or an already executed merge. The earlier drift-interrupted review was not used as an approval.
 
+## Completed local integration
+
+The original checkout's local `blender-5.2-support` was fast-forwarded from `23c7ef6396b451fb77f6f7841b17d24e5cc45d37` to `f313eddbf7679f2a7c16b6785869cee5ca93e064` using `git merge --ff-only fix/o3d-export-fidelity`. No remote pull/push occurred.
+
+Tests then ran from that **merged original checkout**, rather than the feature worktree: pure30, retained-evidence validation/corruption regression and integrated121root+82fidelity+31synthetic-human checks on each exact4.2.23/5.0.1/5.2.4 build all exit0, strict caller restoration passes and all42 inventoried source/config/test hashes remain unchanged. [Postmerge receipts](<completion-verification.json>) retain exact commands, log hashes and the tested commit. The final receipt-only commit documents these observed outcomes; it changes no tested product/harness bytes. The feature worktree and branch remain as local evidence storage.
+
 ## Evidence boundaries retained
 
 The unmodified reference's VECTOR Mapping export reads an unavailable `Location` socket. Its full comparison command must continue to record the actual nonzero exit; the exception is not hidden or called a successful comparison. All independent current-export checks remain mandatory.
