@@ -7,7 +7,7 @@ from bpy.props import (BoolProperty, EnumProperty, FloatProperty, FloatVectorPro
                        IntProperty, PointerProperty, StringProperty)
 from bpy_extras.io_utils import ExportHelper
 
-from . import mmd_materials, mmd_rig, mesh_lod, omsi_human
+from . import human_texture_export, mmd_materials, mmd_rig, mesh_lod, omsi_human
 from .omsi_paths import safe_export_path, unique_export_path
 
 
@@ -457,7 +457,22 @@ class OMSIHumanSettings(bpy.types.PropertyGroup):
         description='Explicitly accept captured neck/finger points after rest edits; overrides are safer',
         update=_human_changed)
     scale: FloatProperty(name='Export Scale', default=1, update=_human_changed)
+    turn_180: BoolProperty(name='Turn 180°', default=False,
+        description='Turn exported geometry and measured landmarks around the vertical axis; overrides remain final file coordinates',
+        update=_human_changed)
     selection_only: BoolProperty(name='Selection Only', default=True, update=_human_changed)
+    max_texture_size: EnumProperty(name='Max Texture Size', default='0', items=(
+        ('0', 'Keep Original', 'Copy at the original resolution'),
+        *((str(size), f'{size} px', 'Limit the longest edge; preserve aspect ratio and never upscale')
+          for size in (8192, 4096, 2048, 1024, 512, 256, 128, 64))), update=_human_changed)
+    texture_format: EnumProperty(name='Texture Format', default='SOURCE', items=(
+        ('SOURCE', 'Keep Source Format', 'Preserve each supported source format, including when resizing'),
+        ('PNG', 'PNG (.png)', 'Export lossless PNG textures with alpha'),
+        ('TGA', 'Targa (.tga)', 'Export Targa textures with alpha using Blender'),
+        ('DDS', 'DDS (.dds)', 'Use optional texconv or ImageMagick for DXT5; original/PNG fallback if unavailable')),
+        update=_human_changed)
+    dds_converter: StringProperty(name='DDS Converter', subtype='FILE_PATH',
+        description='Optional texconv or magick executable; leave empty to search PATH', update=_human_changed)
     export_custom_normals: BoolProperty(name='Custom Normals', default=True, update=_human_changed)
     o3d_version: EnumProperty(name='O3D Version', default='7', items=(
         ('7', '7 (OMSI 2)', ''), ('3', '3', ''), ('1', '1 (Legacy)', '')), update=_human_changed)
@@ -561,7 +576,8 @@ class RefreshHumanMeasurements(bpy.types.Operator):
         try:
             target, settings, meshes, values, overrides = _human_inputs(context)
             result = omsi_human.measure_human(target, meshes, overrides=overrides,
-                scale=settings.scale, context=context, confirm_stale=settings.confirm_stale)
+                scale=settings.scale, context=context, confirm_stale=settings.confirm_stale,
+                turn_180=settings.turn_180)
             result['warnings'].extend(_human_scope_warnings(context))
             _cache_human(settings, result, 'Measurements need attention' if result['errors'] else 'Measurements refreshed')
             self.report({'WARNING'} if result['errors'] else {'INFO'}, settings.status)
@@ -586,17 +602,24 @@ class HumanPreflight(bpy.types.Operator):
             # No destination has been chosen yet. Reuse the complete reviewed
             # preparation against a disposable root, without creating model files.
             with tempfile.TemporaryDirectory(prefix='omsi-human-readiness-') as root:
-                reserved = {os.path.relpath(safe_export_path(root,
-                                obj.get('export_path', obj.name + '.o3d')), root).split(os.sep)[0].casefold()
-                            for obj in meshes}
+                reserved = set()
+                for obj in meshes:
+                    relative = os.path.relpath(safe_export_path(root,
+                        obj.get('export_path', obj.name + '.o3d')), root).replace(os.sep, '/').split('/')
+                    if relative[0].casefold() == 'model':
+                        relative.pop(0)
+                    if relative:
+                        reserved.add(relative[0].casefold())
                 stem = '__readiness__'
-                while stem + '.hum' in reserved or stem + '.cfg' in reserved:
+                while stem + '.cfg' in reserved:
                     stem += '_'
                 result = omsi_human.export_human(os.path.join(root, stem + '.hum'),
                     context, target, meshes, settings=values, overrides=overrides,
-                    scale=settings.scale, confirm_stale=settings.confirm_stale,
+                    scale=settings.scale, confirm_stale=settings.confirm_stale, turn_180=settings.turn_180,
                     o3d_version=int(settings.o3d_version),
-                    export_custom_normals=settings.export_custom_normals, preflight_only=True)
+                    export_custom_normals=settings.export_custom_normals, preflight_only=True,
+                    max_texture_size=int(settings.max_texture_size), texture_format=settings.texture_format,
+                    dds_converter=settings.dds_converter)
             result['measurements']['warnings'].extend(_human_scope_warnings(context))
             _cache_human(settings, result['measurements'],
                 'Readiness passed; chosen destination is revalidated on export')
@@ -610,14 +633,31 @@ class HumanPreflight(bpy.types.Operator):
             context.window.cursor_set('DEFAULT')
 
 
+def _draw_human_textures(layout, settings, meshes):
+    layout.label(text='Models + CFG: model/')
+    layout.label(text='Copied textures: textures/')
+    width, height = human_texture_export.largest_texture_size(meshes)
+    if width and height:
+        layout.label(text=f'Largest texture: {width} × {height} px')
+        layout.label(text=f'Max source edge: {max(width, height)} px')
+    else:
+        layout.label(text='Largest source texture: none loaded')
+    layout.prop(settings, 'max_texture_size')
+    layout.prop(settings, 'texture_format')
+    if settings.texture_format == 'DDS':
+        layout.prop(settings, 'dds_converter')
+        if human_texture_export.find_dds_converter(settings.dds_converter) is None:
+            layout.label(text='DDS encoder unavailable; original/PNG fallback', icon='INFO')
+
+
 class ExportHuman(bpy.types.Operator, ExportHelper):
-    """Write the sibling HUM/CFG/O3D set using the shared human backend"""
+    """Write the HUM and model/textures bundle using the shared human backend"""
     bl_idname = 'omsi.export_human'
     bl_label = 'Export Human'
     filename_ext = '.hum'
     filter_glob: StringProperty(default='*.hum', options={'HIDDEN'})
     overwrite: BoolProperty(name='Overwrite Entire Generated File Set', default=False, options={'SKIP_SAVE'},
-        description='Consent to replace any existing HUM, sibling CFG and referenced O3D files')
+        description='Consent to replace any existing generated HUM, model CFG/O3Ds and copied textures')
 
     def invoke(self, context, event):
         self.overwrite = False
@@ -630,17 +670,24 @@ class ExportHuman(bpy.types.Operator, ExportHelper):
 
     def draw(self, context):
         self.layout.prop(self, 'overwrite')
-        self.layout.label(text='Consent covers HUM + sibling CFG + all O3D files')
-        self.layout.label(text='Export settings belong to the target in Character Tools')
+        self.layout.label(text='Consent covers HUM + CFG + O3Ds + copied textures')
+        try:
+            target, settings, meshes, _, _ = _human_inputs(context)
+            self.layout.label(text='Target: ' + target.name)
+            _draw_human_textures(self.layout, settings, meshes)
+        except ValueError as error:
+            self.layout.label(text=str(error), icon='ERROR')
 
     def execute(self, context):
         context.window.cursor_set('WAIT')
         try:
             target, settings, meshes, values, overrides = _human_inputs(context)
             result = omsi_human.export_human(self.filepath, context, target, meshes,
-                settings=values, overrides=overrides, scale=settings.scale,
+                settings=values, overrides=overrides, scale=settings.scale, turn_180=settings.turn_180,
                 overwrite=self.overwrite, confirm_stale=settings.confirm_stale,
-                o3d_version=int(settings.o3d_version), export_custom_normals=settings.export_custom_normals)
+                o3d_version=int(settings.o3d_version), export_custom_normals=settings.export_custom_normals,
+                max_texture_size=int(settings.max_texture_size), texture_format=settings.texture_format,
+                dds_converter=settings.dds_converter)
             settings.errors = ''
             settings.warnings = '\n'.join(result['warnings'] + _human_scope_warnings(context))
             settings.status = 'Exported: ' + result['hum_path']
@@ -706,8 +753,14 @@ class VIEW3D_PT_omsi_character_human(bpy.types.Panel):
             layout.prop(settings, 'confirm_stale')
             for message in settings.measured_landmarks.splitlines():
                 layout.label(text=message)
-        for name in ('scale', 'selection_only', 'export_custom_normals', 'o3d_version'):
+        for name in ('scale', 'turn_180', 'selection_only', 'export_custom_normals', 'o3d_version'):
             layout.prop(settings, name)
+        try:
+            meshes = omsi_human.human_meshes(context, target, selection_only=settings.selection_only)
+        except ValueError as error:
+            meshes = []
+            layout.label(text=str(error), icon='ERROR')
+        _draw_human_textures(layout, settings, meshes)
         layout.operator('omsi.human_preflight')
         layout.operator('omsi.export_human')
 

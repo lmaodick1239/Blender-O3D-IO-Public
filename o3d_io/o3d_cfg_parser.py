@@ -24,7 +24,9 @@ def material_texture_key(name):
     return str(name).translate(str.maketrans('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'))
 
 
-def texture_name(filepath, image):
+def texture_name(filepath, image, texture_names=None):
+    if texture_names is not None and image in texture_names:
+        return texture_names[image]
     raw = str(image.filepath or "").replace("\\", "/")
     if not raw:
         return ""
@@ -554,11 +556,9 @@ def find_unbound_setbone_names(obj):
     return unbound
 
 
-def write_cfg_mesh(f, filepath, context, obj, smoothskin=None, human_bindings=None):
-    if "export_path" in obj:
-        export_path = obj["export_path"]
-    else:
-        export_path = obj.name + ".o3d"
+def write_cfg_mesh(f, filepath, context, obj, smoothskin=None, human_bindings=None,
+                   texture_names=None, mesh_paths=None):
+    export_path = (mesh_paths or {}).get(id(obj), obj.get("export_path", obj.name + ".o3d"))
 
     f.write("---------------------------------------------------------------\n"
             "\t\t{0}\n\n".format(export_path[:-4].upper()))
@@ -578,12 +578,14 @@ def write_cfg_mesh(f, filepath, context, obj, smoothskin=None, human_bindings=No
     write_additional_cfg_props(obj.data, f, skip_commands=skip)
     if human_bindings is not None:
         from .mmd_rig import CANONICAL_SLOTS
+        slots = human_bindings if isinstance(human_bindings, dict) else CANONICAL_SLOTS
         for name in human_bindings:
             if name in CANONICAL_SLOTS:
-                f.write(f"[setbone]\n{name}\n{CANONICAL_SLOTS[name]}\n\n")
+                f.write(f"[setbone]\n{name}\n{slots[name]}\n\n")
     if smoothskin:
         f.write("[smoothskin]\n\n")
-    write_cfg_materials(f, obj, filepath, human_bindings=human_bindings is not None)
+    write_cfg_materials(f, obj, filepath, human_bindings=human_bindings is not None,
+                        texture_names=texture_names)
 
 
 def col_float_to_int(col):
@@ -669,7 +671,7 @@ def write_cfg_light(f, filepath, context, obj):
     write_additional_cfg_props(obj.data, f)
 
 
-def write_cfg_materials(f, obj, filepath=None, *, human_bindings=False):
+def write_cfg_materials(f, obj, filepath=None, *, human_bindings=False, texture_names=None):
     filepath = filepath or ""
     texture_counts = {}
     for slot in obj.material_slots:
@@ -679,7 +681,7 @@ def write_cfg_materials(f, obj, filepath=None, *, human_bindings=False):
             continue
         mat = o3d_node_shader_utils.PrincipledBSDFWrapper(mat_blender, is_readonly=True)
         textured = mat.base_color_texture is not None and mat.base_color_texture.image is not None
-        name = texture_name(filepath, mat.base_color_texture.image) if textured else ''
+        name = texture_name(filepath, mat.base_color_texture.image, texture_names) if textured else ''
         key = material_texture_key(name)
         # Native [matl] ranks matching textures; binary triangle slots stay absolute.
         repeat = texture_counts.get(key, 0)
@@ -706,8 +708,10 @@ def write_cfg_materials(f, obj, filepath=None, *, human_bindings=False):
                 if blender_compat.get_material_alpha_mode(mat_blender) == "CLIP":
                     alpha_mode = 1
 
-                if mat.alpha_texture.image.filepath != mat.base_color_texture.image.filepath:
-                    transmap = True
+                if texture_names is not None:
+                    transmap = texture_name(filepath, mat.alpha_texture.image, texture_names) != name
+                else:
+                    transmap = mat.alpha_texture.image.filepath != mat.base_color_texture.image.filepath
 
             if mat.roughness <= 0.1:
                 envmap = True
@@ -716,28 +720,29 @@ def write_cfg_materials(f, obj, filepath=None, *, human_bindings=False):
 
             bump_map = blender_compat.find_bump_map(mat)
             if bump_map is not None:
-                bumpmap = texture_name(filepath, bump_map[0])
+                bumpmap = texture_name(filepath, bump_map[0], texture_names)
                 bumpmap_strength = bump_map[1]
 
             if mat.emission_color_texture is not None and mat.emission_color_texture.image is not None:
-                emission_tex = texture_name(filepath, mat.emission_color_texture.image)
+                emission_tex = texture_name(filepath, mat.emission_color_texture.image, texture_names)
 
             if alpha_mode > 0:
                 f.write("[matl_alpha]\n{0}\n\n".format(alpha_mode))
 
             if transmap:
-                f.write("[matl_transmap]\n{0}\n\n".format(texture_name(filepath, mat.alpha_texture.image)))
+                f.write("[matl_transmap]\n{0}\n\n".format(texture_name(filepath, mat.alpha_texture.image, texture_names)))
 
             if envmap and specular > 0.01:
                 envmap_tex = "envmap.bmp"
                 if "envmap_tex" in mat_blender:
                     envmap_tex = mat_blender["envmap_tex"]
 
+                envmap_tex = (texture_names or {}).get((mat_blender, 'envmap_tex'), envmap_tex)
                 f.write("[matl_envmap]\n{0}\n{1}\n\n".format(envmap_tex, specular))
 
                 if not transmap and mat.specular_texture is not None and mat.specular_texture.image is not None:
                     f.write(
-                        "[matl_envmap_mask]\n{0}\n\n".format(texture_name(filepath, mat.specular_texture.image)))
+                        "[matl_envmap_mask]\n{0}\n\n".format(texture_name(filepath, mat.specular_texture.image, texture_names)))
 
             if bumpmap is not None:
                 f.write("[matl_bumpmap]\n{0}\n{1}\n\n".format(bumpmap, round(bumpmap_strength, 6)))
@@ -753,10 +758,11 @@ def write_cfg_materials(f, obj, filepath=None, *, human_bindings=False):
                                        if human_bindings else ("[smoothskin]",))
 
 
-def write_cfg_object(context, f, filepath, obj, smoothskin=None, human_bindings=None):
+def write_cfg_object(context, f, filepath, obj, smoothskin=None, human_bindings=None,
+                     texture_names=None, mesh_paths=None):
     o_type = obj.type
     if o_type == "MESH":
-        write_cfg_mesh(f, filepath, context, obj, smoothskin, human_bindings)
+        write_cfg_mesh(f, filepath, context, obj, smoothskin, human_bindings, texture_names, mesh_paths)
     elif o_type == "LIGHT":
         write_cfg_light(f, filepath, context, obj)
     elif o_type == "LAMP":
@@ -768,7 +774,8 @@ def write_cfg_object(context, f, filepath, obj, smoothskin=None, human_bindings=
 
 
 def _write_cfg_stream(f, filepath, context, selection_only, *, smoothskin_by_object=None,
-                      objects_override=None, human_bindings_by_object=None):
+                      objects_override=None, human_bindings_by_object=None,
+                      texture_names=None, mesh_paths=None):
     """Shared renderer: human mode has local defaults and no persistent ID writes."""
     human_mode = human_bindings_by_object is not None
     scene = bpy.data.scenes[context.scene.name]
@@ -830,7 +837,8 @@ def _write_cfg_stream(f, filepath, context, selection_only, *, smoothskin_by_obj
     def write_object(obj):
         write_cfg_object(context, f, filepath, obj,
                          (smoothskin_by_object or {}).get(id(obj), {}).get("smoothskin"),
-                         human_bindings_by_object.get(id(obj), ()) if human_mode else None)
+                         human_bindings_by_object.get(id(obj), ()) if human_mode else None,
+                         texture_names, mesh_paths)
 
     lod_objects = set().union(*buckets.values()) if buckets else set()
     for obj in eligible:
@@ -849,14 +857,17 @@ def _write_cfg_stream(f, filepath, context, selection_only, *, smoothskin_by_obj
 
 
 def write_cfg(filepath, objs, context, selection_only, *, smoothskin_by_object=None,
-              objects_override=None, human_bindings_by_object=None):
+              objects_override=None, human_bindings_by_object=None,
+              texture_names=None, mesh_paths=None):
     """Write CFG; deprecated objs stays ignored unless objects_override is supplied.
 
-    Human bindings are {id(original_object): serialized_bone_names}. Human mode
-    uses CP1252 and local defaults; generic caller behavior/encoding is unchanged.
+    Human bindings are {id(original_object): {serialized_bone_name: runtime_slot}}
+    or bone-name sequences for canonical slots. Human mode uses CP1252 and local
+    defaults; generic caller behavior/encoding is unchanged.
     """
     kwargs = dict(smoothskin_by_object=smoothskin_by_object, objects_override=objects_override,
-                  human_bindings_by_object=human_bindings_by_object)
+                  human_bindings_by_object=human_bindings_by_object,
+                  texture_names=texture_names, mesh_paths=mesh_paths)
     if human_bindings_by_object is not None:
         from io import StringIO
         stream = StringIO()

@@ -1358,10 +1358,12 @@ def _cfg_shared_entries(addon, directory, manifest):
     rig, obj, source = smoke_human.fixture(addon)
     human.capture_landmarks(source, rig)
     a, wrapper = _textured(obj, directory)
-    wrapper.base_color_texture.image.filepath = '//A.PNG'
+    first_image = wrapper.base_color_texture.image
+    first_image.filepath_raw = str(directory / 'A.PNG')
+    first_image.save()
     b, other = _material(obj, 'Shared B')
-    image = wrapper.base_color_texture.image.copy()
-    image.filepath = '//B.PNG'
+    (directory / 'B.PNG').write_bytes((directory / 'A.PNG').read_bytes())
+    image = bpy.data.images.load(str(directory / 'B.PNG'), check_existing=False)
     other.base_color_texture.image = image
     obj.data.materials.append(a)
     obj.data.polygons[1].material_index = 2
@@ -1379,7 +1381,7 @@ def _cfg_shared_entries(addon, directory, manifest):
     bpy.context.view_layer.update()
     snapshot = _snapshot(obj)
     context = _context_snapshot()
-    results = {}
+    results, binary_paths = {}, {}
     for extension in ('o3d', 'cfg', 'sco', 'hum'):
         root = directory / extension
         root.mkdir(exist_ok=True)
@@ -1388,14 +1390,22 @@ def _cfg_shared_entries(addon, directory, manifest):
             result = human.export_human(str(path), bpy.context, rig, [obj])
             cfg = Path(result['cfg_path'])
             binary = Path(result['mesh_paths'][0])
-            assert ('[model]', (cfg.name,)) in _cfg_blocks(path.read_text(encoding='cp1252'))
+            assert cfg == root / 'model' / 'shared.cfg'
+            assert binary == root / 'model' / 'shared.o3d'
+            assert ('[model]', (r'model\shared.cfg',)) in _cfg_blocks(path.read_text(encoding='cp1252'))
+            assert {Path(item).name for item in result['texture_paths']} == {'A.png', 'B.png', 'arrow-checker.png'}
+            for output, original in (('A.png', 'A.PNG'), ('B.png', 'B.PNG'),
+                                     ('arrow-checker.png', 'arrow-checker.png')):
+                assert (root / 'textures' / output).read_bytes() == (directory / original).read_bytes()
         else:
             exporter.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7, True, objects=[obj])
             cfg = None if extension == 'o3d' else path
             binary = path if cfg is None else root / 'shared.o3d'
         records = read_export(binary.read_bytes())
         assert [name for name, _ in records['bones']] == ['Main', 'Hip']
-        assert [m[-1] for m in records['materials']] == ['A.PNG', 'B.PNG', 'A.PNG']
+        expected_names = (['../textures/A.png', '../textures/B.png', '../textures/A.png']
+                          if extension == 'hum' else ['A.PNG', 'B.PNG', 'A.PNG'])
+        assert [m[-1] for m in records['materials']] == expected_names
         assert [t[3] for t in records['triangles']] == [0, 2]
         if cfg:
             text = cfg.read_text(encoding='cp1252' if extension == 'hum' else 'utf-8')
@@ -1403,11 +1413,15 @@ def _cfg_shared_entries(addon, directory, manifest):
             assert sum(command == '[smoothskin]' for command, _ in _cfg_blocks(text)) == 1
             if extension == 'hum':
                 assert [values for command, values in _cfg_blocks(text) if command == '[setbone]'] == [('Main', '-11'), ('Hip', '-10')], text
-        results[extension] = records
+        results[extension], binary_paths[extension] = records, binary
         assert _snapshot(obj) == snapshot
         assert _context_snapshot() == context
-    assert all(records == results['o3d'] for records in results.values()), 'entry points serialized different decisions'
-    manifest['shared_entrypoints'] = {extension: {'sha256': hashlib.sha256((directory / extension / 'shared.o3d').read_bytes()).hexdigest(),
+    assert all(results[extension] == results['o3d'] for extension in ('cfg', 'sco')), 'generic entry points serialized different decisions'
+    mapped_names = {'A.PNG': '../textures/A.png', 'B.PNG': '../textures/B.png'}
+    expected_human = dict(results['o3d'], materials=[(*material[:-1], mapped_names[material[-1]])
+                                                   for material in results['o3d']['materials']])
+    assert results['hum'] == expected_human, 'HUM changed records beyond bundled texture references'
+    manifest['shared_entrypoints'] = {extension: {'sha256': hashlib.sha256(binary_paths[extension].read_bytes()).hexdigest(),
         'bones': [name for name, _ in records['bones']], 'material_names': [m[-1] for m in records['materials']]}
         for extension, records in results.items()}
 

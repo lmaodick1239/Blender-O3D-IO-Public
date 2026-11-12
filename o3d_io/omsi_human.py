@@ -12,13 +12,14 @@ from math import isfinite
 from numbers import Real
 import ntpath
 import os
+import shutil
 import unicodedata
 from io import BytesIO, StringIO
 
 from mathutils import Matrix, Vector
 
 from .io_o3d_export import prepared_export_mesh
-from .mmd_rig import CANONICAL_NAMES, _source_segment, read_source_rig
+from .mmd_rig import CANONICAL_NAMES, CANONICAL_SLOTS, _source_segment, read_source_rig
 
 
 DEFAULT_SETTINGS = {'seat_height': .90, 'feetdist': .04,
@@ -153,11 +154,12 @@ def _primary_meshes(armature, objects, context, warnings):
 
 
 def measure_human(armature, meshes, *, overrides=None, scale=1.0, context=None,
-                  confirm_stale=False) -> dict:
+                  confirm_stale=False, turn_180=False) -> dict:
     """Return errors/warnings, 22 links or None, height, and final XYZ landmarks.
 
     Bounds use primary bound meshes evaluated in rest space. Metadata is only
     consumed if current or explicitly confirmed; overrides always take priority.
+    turn_180 rotates measured XYZ around Z; overrides remain final file vectors.
     Errors block serialization, not generic conversion/export.
     """
     import bpy
@@ -201,7 +203,8 @@ def measure_human(armature, meshes, *, overrides=None, scale=1.0, context=None,
             warnings.append(f'Feet are not near the ground plane (minimum Z={_number(low)}); no translation applied')
 
         def final(point):
-            return (armature.matrix_world @ _vector(point)) * scale
+            point = (armature.matrix_world @ _vector(point)) * scale
+            return Vector((-point.x, -point.y, point.z)) if turn_180 else point
 
         def head(name):
             return final(armature.data.bones[name].head_local)
@@ -403,15 +406,14 @@ def _human_cfg_props(owner, *, skip_skin=True):
             _cfg_value(value, 'Preserved CFG parameter')
 
 
-def _human_output_paths(filepath, meshes, overwrite):
+def _human_output_paths(filepath, meshes, overwrite, textures):
     from . import omsi_paths
     hum_path = os.path.abspath(os.fspath(filepath))
     root, basename = os.path.split(hum_path)
     _safe_text(basename, 'HUM filename')
     if ntpath.splitext(basename)[1].lower() != '.hum':
         raise ValueError('Human destination must have a .hum extension')
-    cfg_name = ntpath.splitext(basename)[0] + '.cfg'
-    # serialize_hum validates the same relative-path grammar for the model name.
+    cfg_name = 'model\\' + ntpath.splitext(basename)[0] + '.cfg'
     paths = [omsi_paths.safe_export_path(root, basename),
              omsi_paths.safe_export_path(root, cfg_name)]
     for obj in meshes:
@@ -421,8 +423,15 @@ def _human_output_paths(filepath, meshes, overwrite):
                 or any(part in ('', '..') for part in normalized.split('\\'))
                 or any(char in normalized for char in ':*?"<>|')):
             raise ValueError(f'Unsafe human mesh export path: {relative!r}')
-        paths.append(omsi_paths.safe_export_path(root, relative))
-    lexical, resolved = set(), set()
+        parts = [part for part in normalized.split('\\') if part != '.']
+        if parts and parts[0].casefold() == 'model':
+            parts.pop(0)
+        if not parts:
+            raise ValueError(f'Empty human mesh export path: {relative!r}')
+        paths.append(omsi_paths.safe_export_path(root, 'model/' + '/'.join(parts)))
+    paths.extend(omsi_paths.safe_export_path(root, relative) for _, relative in textures['files'])
+    lexical, resolved, checked, existing_files = set(), set(), [], []
+    source_keys = {source.casefold() for source in textures['sources']}
     def overlaps(key, previous):
         return any(key == other or key.startswith(other + os.sep)
                    or other.startswith(key + os.sep) for other in previous)
@@ -455,15 +464,28 @@ def _human_output_paths(filepath, meshes, overwrite):
         resolved.update((resolved_key, existing_key))
         if os.path.isdir(existing):
             raise ValueError(f'Human output path is an existing directory: {path!r}')
+        if (resolved_key in source_keys or existing_key in source_keys
+                or (os.path.exists(existing) and any(os.path.samefile(existing, source)
+                    for source in textures['sources']))):
+            raise ValueError(f'Human output would overwrite a source texture: {path!r}')
+        if os.path.exists(existing):
+            if any(os.path.samefile(existing, previous) for previous in existing_files):
+                raise ValueError(f'Human bundle output paths collide at {path!r}')
+            existing_files.append(existing)
         if not overwrite and (os.path.lexists(path) or os.path.lexists(existing)):
             raise ValueError(f'Human output already exists; explicit overwrite consent required: {path!r}')
-    return paths, cfg_name
+        checked.append(existing)
+    mesh_paths = {id(obj): os.path.relpath(path, os.path.dirname(checked[1])).replace(os.sep, '/')
+                  for obj, path in zip(meshes, checked[2:2 + len(meshes)])}
+    return checked, cfg_name, mesh_paths
 
 
 def export_human(filepath, context, armature, meshes, *, settings=None, overrides=None,
                  scale=1.0, overwrite=False, confirm_stale=False, o3d_version=7,
-                 export_custom_normals=True, preflight_only=False) -> dict:
-    """Preflight a complete HUM/CFG/O3D bundle and publish HUM last.
+                 export_custom_normals=True, preflight_only=False, turn_180=False,
+                 max_texture_size=0, compress_textures=False, dds_converter='',
+                 texture_format=None) -> dict:
+    """Preflight a HUM/model/textures bundle and publish HUM last.
 
     All validation/overwrite refusal happens before destination files are opened.
     Later OS write failures may leave partial model files: this is not a
@@ -475,17 +497,46 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
     opening output files. The panel uses a temporary destination for readiness;
     the actual chosen destination and overwrite consent are checked on export.
     """
-    from . import io_o3d_export, o3d_cfg_parser, o3dconvert
+    from .human_texture_export import staged_textures
     meshes = _human_candidates(context, armature, meshes)
     for obj in (context.view_layer.objects.active, armature, *meshes):
         if obj is not None and obj.type in {'MESH', 'ARMATURE'} and obj.mode == 'EDIT':
             raise ValueError(f'{obj.name}: switch to Object Mode before human export; pending edits are unsupported')
+    with staged_textures(meshes, max_texture_size=max_texture_size,
+                         compress_textures=compress_textures, dds_converter=dds_converter,
+                         texture_format=texture_format) as textures:
+        return _export_human_bundle(filepath, context, armature, meshes, textures,
+            settings=settings, overrides=overrides, scale=scale, overwrite=overwrite,
+            confirm_stale=confirm_stale, o3d_version=o3d_version,
+            export_custom_normals=export_custom_normals, preflight_only=preflight_only, turn_180=turn_180)
+
+
+def _export_human_bundle(filepath, context, armature, meshes, textures, *, settings, overrides,
+                         scale, overwrite, confirm_stale, o3d_version, export_custom_normals,
+                         preflight_only, turn_180):
+    from . import io_o3d_export, o3d_cfg_parser, o3dconvert
     measurements = measure_human(armature, meshes, overrides=overrides, scale=scale,
-                                 context=context, confirm_stale=confirm_stale)
-    paths, cfg_name = _human_output_paths(filepath, meshes, overwrite)
+                                 context=context, confirm_stale=confirm_stale, turn_180=turn_180)
+    paths, cfg_name, mesh_names = _human_output_paths(filepath, meshes, overwrite, textures)
     payload = serialize_hum(cfg_name, measurements, settings)
-    hum_path, cfg_path, *mesh_paths = paths
+    hum_path, cfg_path = paths[:2]
+    mesh_paths = paths[2:2 + len(meshes)]
+    texture_paths = paths[2 + len(meshes):]
+    texture_names = textures['names']
+    measurements['warnings'].extend(textures['warnings'])
     global_matrix = Matrix.Scale(_scalar(scale), 4)
+    if turn_180:
+        # O3D vertices are XZY: Y is the vertical axis after preparation.
+        global_matrix @= Matrix.Diagonal((-1, 1, -1, 1))
+    bone_slots = dict(CANONICAL_SLOTS)
+    if turn_180:
+        # Procedural human slots pivot at fixed signed-X sides, independent of names.
+        for name in bone_slots:
+            if name.endswith(('_L', '_R')):
+                x = -(armature.matrix_world @ armature.data.bones[name].head_local).x
+                if abs(x) <= 1e-8:
+                    raise ValueError(f'{name}: cannot bind a paired human limb on X=0')
+                bone_slots[name] = CANONICAL_SLOTS[name[:-1] + ('L' if x < 0 else 'R')]
     metadata = {}
     for obj, path in zip(meshes, mesh_paths):
         _validate_transform(obj)
@@ -501,7 +552,7 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
                 raise ValueError(f'{obj.name}: nonfinite serialized human geometry')
             for name, _ in geometry['bones']:
                 _safe_text(name, 'Serialized bone name')
-            materials = io_o3d_export._build_o3d_materials(path, evaluated.material_slots, cfg_path)
+            materials = io_o3d_export._build_o3d_materials(path, evaluated.material_slots, cfg_path, texture_names)
             for material in materials:
                 _cfg_value(material[-1], 'Material texture path')
             for slot in evaluated.material_slots:
@@ -515,10 +566,10 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
                     for key in ('base_color_texture', 'alpha_texture', 'specular_texture', 'emission_color_texture'):
                         texture = getattr(wrapper, key, None)
                         if texture is not None and texture.image is not None:
-                            _cfg_value(o3d_cfg_parser.texture_name(cfg_path, texture.image), 'CFG texture path')
+                            _cfg_value(o3d_cfg_parser.texture_name(cfg_path, texture.image, texture_names), 'CFG texture path')
                     bump = io_o3d_export.blender_compat.find_bump_map(wrapper)
                     if bump is not None:
-                        _cfg_value(o3d_cfg_parser.texture_name(cfg_path, bump[0]), 'CFG bump texture path')
+                        _cfg_value(o3d_cfg_parser.texture_name(cfg_path, bump[0], texture_names), 'CFG bump texture path')
                         _cfg_value(bump[1], 'CFG bump strength')
             # Exercise the real binary codec, including packing/range validation,
             # in memory. The subsequent shared exporter uses the same data path.
@@ -529,7 +580,8 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
             except (OverflowError, TypeError) as error:
                 raise ValueError(f'{obj.name}: invalid serialized human geometry: {error}') from error
             metadata[id(obj)] = {'smoothskin': geometry['smoothskin'],
-                                 'bones': tuple(name for name, _ in geometry['bones'])}
+                                 'bones': {name: bone_slots[name] for name, _ in geometry['bones']
+                                           if name in bone_slots}}
     scene = context.scene
     for key in ('groups', 'friendlyname', 'tree'):
         if key in scene:
@@ -538,18 +590,26 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
     stream = StringIO()
     o3d_cfg_parser._write_cfg_stream(
         stream, cfg_path, context, False, objects_override=meshes, smoothskin_by_object=metadata,
-        human_bindings_by_object={key: data['bones'] for key, data in metadata.items()})
+        human_bindings_by_object={key: data['bones'] for key, data in metadata.items()},
+        texture_names=texture_names, mesh_paths=mesh_names)
     try:
         stream.getvalue().encode('cp1252')
     except UnicodeEncodeError as error:
         raise ValueError('Model CFG must be CP1252 encodable') from error
     if preflight_only:
-        return {'measurements': measurements, 'warnings': measurements['warnings']}
+        return {'measurements': measurements, 'warnings': measurements['warnings'],
+                'max_texture_size': textures['max_texture_size']}
+    for (staged, _), destination in zip(textures['files'], texture_paths):
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        shutil.copyfile(staged, destination)
+    os.makedirs(os.path.dirname(cfg_path), exist_ok=True)
     io_o3d_export.do_export(cfg_path, context, global_matrix, False, o3d_version,
-                           export_custom_normals, objects=meshes, human_bindings=True)
+                           export_custom_normals, objects=meshes, human_bindings=True,
+                           human_bone_slots=bone_slots, texture_names=texture_names, mesh_paths=mesh_names)
     with open(hum_path, 'wb') as stream:
         stream.write(payload)
     return {'hum_path': hum_path, 'cfg_path': cfg_path, 'mesh_paths': mesh_paths,
+            'texture_paths': texture_paths, 'max_texture_size': textures['max_texture_size'],
             'warnings': measurements['warnings']}
 
 

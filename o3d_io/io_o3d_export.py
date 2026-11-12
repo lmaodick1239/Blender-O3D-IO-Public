@@ -179,8 +179,32 @@ def _export_corner_data(mesh):
             "triangles": [[*triangle.loops, triangle.material_index] for triangle in mesh.loop_triangles]}
 
 
+def _uv_source_link(link, prefix):
+    """Look through group outputs, validating the actual UV source rather than its label."""
+    while link.from_node.bl_idname == 'ShaderNodeGroup':
+        group = link.from_node
+        tree = group.node_tree
+        if group.mute or tree is None:
+            raise ValueError(prefix + 'muted or missing coordinate group')
+        animation = tree.animation_data
+        if animation and (animation.action or animation.drivers or animation.nla_tracks):
+            raise ValueError(prefix + 'animated node group coordinates are not supported')
+        outputs = [node for node in tree.nodes
+                   if node.bl_idname == 'NodeGroupOutput' and node.is_active_output]
+        if len(outputs) != 1:
+            raise ValueError(prefix + 'ambiguous coordinate group output')
+        socket = next((socket for socket in outputs[0].inputs
+                       if socket.identifier == link.from_socket.identifier), None)
+        if socket is None or not socket.is_linked:
+            raise ValueError(prefix + 'unlinked coordinate group output is not a UV source')
+        if socket.type != 'VECTOR' or socket.links[0].from_socket.type != 'VECTOR':
+            raise ValueError(prefix + 'coordinate group output requires vector sockets')
+        link = socket.links[0]
+    return link
+
+
 def _image_uvs(mesh, material, image, loops):
-    """Resolve one bounded UV -> optional static Mapping -> flat image path."""
+    """Resolve UVs (including group outputs) -> optional static Mapping -> flat image."""
     layer = next((uv for uv in mesh.uv_layers if uv.active_render), None)
     if layer is None:
         layer = mesh.uv_layers.active or next(iter(mesh.uv_layers), None)
@@ -217,7 +241,7 @@ def _image_uvs(mesh, material, image, loops):
             if not socket.is_linked:
                 raise ValueError(prefix + 'unlinked Mapping Vector is not a UV source')
         if socket.is_linked:
-            link = socket.links[0]
+            link = _uv_source_link(socket.links[0], prefix)
             source = link.from_node
             if source.mute or getattr(source, 'from_instancer', False):
                 raise ValueError(prefix + 'muted or From Instances coordinate source')
@@ -396,7 +420,7 @@ def prepared_export_mesh(obj, context=None, global_matrix=None):
         mesh = evaluated.to_mesh(preserve_all_data_layers=True, depsgraph=context.evaluated_depsgraph_get())
         axis = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
         export_matrix = global_matrix if global_matrix is not None else Matrix.Identity(4)
-        frame_matrix = axis @ export_matrix @ obj.matrix_world @ axis
+        frame_matrix = export_matrix @ axis @ obj.matrix_world @ axis
         frame_matrix.transpose()
         corners = _export_corner_data(mesh)
         # Compose directions in float64: finite sequential position baking can
@@ -444,7 +468,7 @@ def validate_character_export(obj, context=None, global_matrix=None, export_cust
                 "smoothskin": geometry["smoothskin"]}
 
 
-def _build_o3d_materials(filepath, materials, texture_filepath=None):
+def _build_o3d_materials(filepath, materials, texture_filepath=None, texture_names=None):
     texture_filepath = texture_filepath or filepath
     o3d_mats = []
     for material_slot in materials:
@@ -479,7 +503,7 @@ def _build_o3d_materials(filepath, materials, texture_filepath=None):
         o3d_mat.extend(_raw_material_component(material, mat, 'emission', emitted))
         o3d_mat.append(_o3d_specular_power(material, mat, roughness))
         if mat.base_color_texture is not None and mat.base_color_texture.image is not None:
-            o3d_mat.append(o3d_cfg_parser.texture_name(texture_filepath, mat.base_color_texture.image))
+            o3d_mat.append(o3d_cfg_parser.texture_name(texture_filepath, mat.base_color_texture.image, texture_names))
         else:
             o3d_mat.append("")
         o3d_mats.append(o3d_mat)
@@ -492,7 +516,7 @@ def _build_o3d_materials(filepath, materials, texture_filepath=None):
 
 def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, materials, o3d_version,
                 export_custom_normals, allow_smoothskin=False, allowed_names=None,
-                texture_filepath=None):
+                texture_filepath=None, texture_names=None):
     if len(materials) > 65535:
         raise ValueError("O3D supports at most 65535 materials")
     geometry = prepare_o3d_geometry(
@@ -504,7 +528,7 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
     verts, tris, bones = (geometry[key] for key in ("verts", "tris", "bones"))
     if geometry["smoothskin"] and not allow_smoothskin:
         log("WARNING: direct O3D export cannot express [smoothskin]; blended weights may load rigidly")
-    o3d_mats = _build_o3d_materials(filepath, materials, texture_filepath)
+    o3d_mats = _build_o3d_materials(filepath, materials, texture_filepath, texture_names)
     # Reuse human preflight's real in-memory codec path before destructive open:
     # validation AND packing failures must leave an existing destination intact.
     payload = BytesIO()
@@ -524,7 +548,8 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
 
 
 def do_export(filepath, context, global_matrix, use_selection, o3d_version, export_custom_normals=True,
-              *, objects=None, human_bindings=False):
+              *, objects=None, human_bindings=False, human_bone_slots=None,
+              texture_names=None, mesh_paths=None):
     """
     Exports the selected CFG/SCO/O3D file
     :param o3d_version: O3D version to export the file as
@@ -564,7 +589,7 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
                 path = omsi_paths.safe_export_path(obj_root, os.path.basename(filepath))
             else:
                 relative = (os.path.basename(filepath)[:-4] + "-" + ob.name + ".o3d" if single_o3d
-                            else str(ob.get("export_path", ob.name + ".o3d")))
+                            else str((mesh_paths or {}).get(id(ob), ob.get("export_path", ob.name + ".o3d"))))
                 path = omsi_paths.safe_export_path(obj_root, relative)
             # abspath normalizes lexical paths without losing symlink spellings.
             lexical_key = os.path.abspath(path).casefold()
@@ -592,15 +617,21 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
                     allow_smoothskin=not single_o3d,
                     allowed_names=allowed_names,
                     texture_filepath=filepath if not single_o3d else path,
+                    texture_names=texture_names,
                 )
         if not single_o3d:
+            bindings = None
+            if human_bindings:
+                from .mmd_rig import CANONICAL_SLOTS
+                slots = CANONICAL_SLOTS if human_bone_slots is None else human_bone_slots
+                bindings = {key: {name: slots[name] for name, _ in data["bones"] if name in slots}
+                            for key, data in export_metadata.items()}
             o3d_cfg_parser.write_cfg(
                 filepath, obs, context, use_selection,
                 smoothskin_by_object=export_metadata,
                 objects_override=obs if objects is not None else None,
-                human_bindings_by_object={key: tuple(name for name, _ in data["bones"])
-                                          for key, data in export_metadata.items()}
-                if human_bindings else None,
+                human_bindings_by_object=bindings,
+                texture_names=texture_names, mesh_paths=mesh_paths,
             )
     finally:
         bpy.context.window_manager.progress_end()

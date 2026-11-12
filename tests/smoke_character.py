@@ -209,6 +209,79 @@ def assert_material_flatten(addon: ModuleType) -> None:
     assert (list(plain.node_tree.nodes), list(plain.node_tree.links), tuple(plain.diffuse_color)) == original
 
 
+def assert_mmd_group_uv_export(addon: ModuleType) -> None:
+    """Flattened MMD Base UV groups must export the render UVs without guessing by name."""
+    import tempfile
+    from pathlib import Path
+    from mathutils import Matrix
+
+    material, _, textures, _, _, _ = _mmd_material(addon)
+    tree = material.node_tree
+    group = bpy.data.node_groups.new("Renamed MMD UV group", "ShaderNodeTree")
+    for name in ("Base UV", "Sphere UV"):
+        group.interface.new_socket(name=name, in_out="OUTPUT", socket_type="NodeSocketVector")
+    output = group.nodes.new("NodeGroupOutput")
+    coordinates = group.nodes.new("ShaderNodeTexCoord")
+    group.links.new(coordinates.outputs["UV"], output.inputs["Base UV"])
+    group.links.new(coordinates.outputs["Normal"], output.inputs["Sphere UV"])
+    uv_group = tree.nodes.new("ShaderNodeGroup")
+    uv_group.node_tree = group
+    uv_group.name = "Renamed UV provider"
+    base = textures["Base"]
+    base.name = "mmd_base_tex"
+    base.image.filepath = "base.png"
+    tree.links.new(uv_group.outputs["Base UV"], base.inputs["Vector"])
+    assert _materials(addon).flatten_material(material)
+
+    mesh = bpy.data.meshes.new("MMD group UV triangle")
+    mesh.from_pydata([(0, 0, 0), (1, 0, 0), (0, 1, 0)], [], [(0, 1, 2)])
+    mesh.uv_layers.new(name="Editing")
+    render = mesh.uv_layers.new(name="Render")
+    render.active_render = True
+    mesh.uv_layers.active_index = 0
+    for uv, value in zip(render.uv, ((.125, .25), (.75, .375), (.25, .875))):
+        uv.vector = value
+    mesh.materials.append(material)
+    obj = bpy.data.objects.new("MMD group UV triangle", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    exporter = addon.o3d_io.io_o3d_export
+    try:
+        with tempfile.TemporaryDirectory(prefix="o3d-mmd-group-uv-") as temporary:
+            path = Path(temporary) / "mesh.o3d"
+            def export():
+                exporter.do_export(str(path), bpy.context, Matrix.Identity(4), True, 7)
+            export()
+            parsed = addon.o3d_io.o3dconvert.import_o3d(path.read_bytes())
+            assert {tuple(vertex[2]) for vertex in parsed[1]} == {
+                (.125, .75), (.75, .625), (.25, .125)}, parsed[1]
+            assert base.inputs["Vector"].links[0].from_node == uv_group
+            sentinel = path.read_bytes()
+            # A similarly named output may carry normals, be muted or animated.
+            for invalid in ("normal", "muted", "animated"):
+                if invalid == "normal":
+                    group.links.new(coordinates.outputs["Normal"], output.inputs["Base UV"])
+                elif invalid == "muted":
+                    uv_group.mute = True
+                else:
+                    coordinates.outputs["UV"].driver_add("default_value", 0)
+                try:
+                    export()
+                except ValueError as error:
+                    assert "Unsupported coordinates" in str(error), error
+                else:
+                    raise AssertionError(f"invalid grouped UV source accepted: {invalid}")
+                finally:
+                    group.links.new(coordinates.outputs["UV"], output.inputs["Base UV"])
+                    uv_group.mute = False
+                    group.animation_data_clear()
+                assert path.read_bytes() == sentinel
+    finally:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+
 def _rig(addon):
     return importlib.import_module(addon.__name__ + ".o3d_io.mmd_rig")
 

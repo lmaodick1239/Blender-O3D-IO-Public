@@ -22,12 +22,14 @@ import smoke_character_fix_round_2
 import smoke_character_final_fix
 import smoke_lod
 import smoke_human
+import smoke_human_textures
 import smoke_export_fidelity
 from smoke_support import load_addon
 
 CHECKS = [
     smoke_character.assert_toon_reset,
     smoke_character.assert_material_flatten,
+    smoke_character.assert_mmd_group_uv_export,
     smoke_character.assert_bone_name_mapping,
     smoke_character.assert_weight_merge,
     smoke_character.assert_auto_armature_build,
@@ -160,6 +162,10 @@ def run() -> None:
         addon.unregister()
         smoke_character_panel.assert_character_panel_unregistered(addon)
         smoke_human.assert_human_unregistered(addon)
+    # This standalone-compatible runner owns its registration cycle and fixtures.
+    smoke_human_textures.run()
+    smoke_character_panel.assert_character_panel_unregistered(addon)
+    smoke_human.assert_human_unregistered(addon)
     print('BLENDER_O3D_IO_PUBLIC_SYNTHETIC_SMOKE_OK', bpy.app.version_string,
           'root_checks', len(CHECKS), 'human_synthetic_checks', len(smoke_human.CHECKS),
           'optional_private_checks', len(smoke_human.PRIVATE_CHECKS) if args.with_private_fixtures else 0)

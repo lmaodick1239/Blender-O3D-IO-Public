@@ -528,7 +528,10 @@ def assert_export_bundle(addon, human):
         material = bpy.data.materials.new('Human preserved material')
         material.use_nodes = True
         image = bpy.data.images.new('Human texture', width=1, height=1)
-        image.filepath = str(root / 'texture' / 'body.bmp')
+        image.filepath_raw = str(root / 'body.png')
+        image.file_format = 'PNG'
+        image.save()
+        mesh['export_path'] = r'model\parts\body.o3d'
         texture = material.node_tree.nodes.new('ShaderNodeTexImage')
         texture.image = image
         shader = material.node_tree.nodes.get('Principled BSDF')
@@ -542,6 +545,7 @@ def assert_export_bundle(addon, human):
         bpy.context.scene.collection.objects.unlink(mesh)
         high.objects.link(mesh)
         low = copy_mesh(mesh, 'body_low', low_collection)
+        low['export_path'] = 'parts/body_low.o3d'
         low['omsi_lod_level'] = 1
         low.vertex_groups.remove(low.vertex_groups['Hip'])
         low.vertex_groups.remove(low.vertex_groups['helper😀'])
@@ -555,11 +559,16 @@ def assert_export_bundle(addon, human):
         result = human.export_human(str(root / 'character.hum'), bpy.context, rig, [mesh, low],
                                     overrides=REQUIRED_OVERRIDES, scale=2)
         assert source_snapshot() == before
+        assert Path(result['hum_path']) == root / 'character.hum'
+        assert Path(result['cfg_path']) == root / 'model' / 'character.cfg'
         assert Path(result['hum_path']).is_file() and Path(result['cfg_path']).is_file()
-        assert {Path(path).name for path in result['mesh_paths']} == {'body.o3d', 'body_low.o3d'}
+        assert {Path(path).relative_to(root).as_posix() for path in result['mesh_paths']} == {
+            'model/parts/body.o3d', 'model/parts/body_low.o3d'}
         assert all(Path(path).is_file() for path in result['mesh_paths'])
+        assert {Path(path).relative_to(root).as_posix() for path in result['texture_paths']} == {'textures/body.png'}
+        assert (root / 'textures' / 'body.png').read_bytes() == (root / 'body.png').read_bytes()
         payload = Path(result['hum_path']).read_bytes()
-        assert b'[model]\r\ncharacter.cfg\r\n' in payload
+        assert b'[model]\r\nmodel\\character.cfg\r\n' in payload
         lines = payload.decode('cp1252').splitlines()
         links = lines.index('[links]') + 1
         close([float(value) for value in lines[links + 14:links + 16]], (-.01, 1.55))
@@ -569,25 +578,125 @@ def assert_export_bundle(addon, human):
         assert '[visible]\n1' in cfg and '[matl_noZwrite]' in cfg
         assert cfg.count('[smoothskin]') == 1, cfg
         slots = importlib.import_module(addon.__name__ + '.o3d_io.mmd_rig').CANONICAL_SLOTS
-        for part, expected in ((mesh, {'Main', 'Hip'}), (low, {'Main'})):
-            parsed = addon.o3d_io.o3dconvert.import_o3d((root / part['export_path']).read_bytes())
+        for relative, expected in (('parts/body.o3d', {'Main', 'Hip'}), ('parts/body_low.o3d', {'Main'})):
+            parsed = addon.o3d_io.o3dconvert.import_o3d((root / 'model' / relative).read_bytes())
             names = {bone[0] for bone in parsed[4]}
             assert names == expected, names
-            block = cfg.split('[mesh]\n' + part['export_path'] + '\n', 1)[1].split('[LOD]', 1)[0]
+            assert parsed[3][0][-1] == '../textures/body.png', parsed[3]
+            block = cfg.replace('\\', '/').split('[mesh]\n' + relative + '\n', 1)[1].split('[LOD]', 1)[0]
             for name in names:
                 assert f'[setbone]\n{name}\n{slots[name]}\n' in block, block
             assert '[setbone]\nOA_L\n' not in block
         assert any(abs(vertex[0][1] - 3.6) < 1e-5 for vertex in
-                   addon.o3d_io.o3dconvert.import_o3d((root / 'body.o3d').read_bytes())[1])
+                   addon.o3d_io.o3dconvert.import_o3d((root / 'model' / 'parts' / 'body.o3d').read_bytes())[1])
         assert isinstance(result['warnings'], list)
+
+
+def assert_turn_180(addon, human):
+    # Catches a horizontal-axis flip, geometry/landmark mismatch, and lost UI forwarding.
+    rig, mesh, source, settings = panel_fixture(addon, human, metadata=True)
+    mesh['export_path'] = 'body.o3d'
+    low = copy_mesh(mesh, 'body_low')
+    low['omsi_lod_level'] = 1
+    settings.scale = 2
+    settings.turn_180 = True
+    before = source_snapshot()
+    measured = human.measure_human(rig, [mesh, low], scale=2, turn_180=True)
+    assert not measured['errors'], measured
+    close(measured['landmarks']['shoulder'], (.4, .08, 2.9))
+    close(measured['landmarks']['neck'], (0, .02, 3.1))
+    close(measured['landmarks']['finger'], (1.5, .04, 2.76))
+    assert abs(measured['height'] - 3.6) < 1e-5
+    assert source_snapshot() == before
+    assert bpy.ops.omsi.refresh_human_measurements() == {'FINISHED'}
+    assert 'Shoulder: 0.4, 0.08, 2.9' in settings.measured_landmarks
+    assert bpy.ops.omsi.human_preflight() == {'FINISHED'}
+    with tempfile.TemporaryDirectory(prefix='omsi-human-turn-') as temporary:
+        root = Path(temporary)
+        before = source_snapshot()
+        human.export_human(str(root / 'preview.hum'), bpy.context, rig, [mesh, low],
+                           scale=2, turn_180=True, preflight_only=True)
+        assert not list(root.iterdir()) and source_snapshot() == before
+        assert bpy.ops.omsi.export_human(filepath=str(root / 'turned.hum')) == {'FINISHED'}
+        lines = (root / 'turned.hum').read_text(encoding='cp1252').splitlines()
+        start = lines.index('[links]') + 1
+        links = [float(value) for value in lines[start:lines.index('[walk_param]')] if value]
+        close(links, measured['links'])
+        for part in (mesh, low):
+            parsed = addon.o3d_io.o3dconvert.import_o3d((root / 'model' / part['export_path']).read_bytes())
+            assert any((Vector(vertex[0]) - Vector((-.4, 2.9, .08))).length < 1e-5
+                       for vertex in parsed[1]), parsed[1]
+            close([value for row in parsed[5] for value in row],
+                  (-2, 0, 0, 0, 0, 2, 0, 0, 0, 0, -2, 0, 0, 0, 0, 1))
+        turned = addon.o3d_io.o3dconvert.import_o3d((root / 'model' / 'body.o3d').read_bytes())
+        overridden = human.measure_human(rig, [mesh], scale=2, turn_180=True,
+            overrides={'neck': (-.03, 1.6), 'finger': (.8, -.05, 1.4)})
+        close(overridden['landmarks']['neck'], (0, -.03, 1.6))
+        close(overridden['landmarks']['finger'], (.8, -.05, 1.4))
+        settings.turn_180 = False
+        assert bpy.ops.omsi.export_human(filepath=str(root / 'unturned.hum'), overwrite=True) == {'FINISHED'}
+        parsed = addon.o3d_io.o3dconvert.import_o3d((root / 'model' / 'body.o3d').read_bytes())
+        assert any((Vector(vertex[0]) - Vector((.4, 2.9, -.08))).length < 1e-5
+                   for vertex in parsed[1])
+        assert turned[2] == parsed[2] and turned[4] == parsed[4]  # Winding and weights.
+        assert len(turned[1]) == len(parsed[1])
+        for rotated, original in zip(turned[1], parsed[1]):
+            for index in (0, 1):  # Positions and normals both rotate about O3D Y.
+                x, y, z = original[index]
+                close(rotated[index], (-x, y, -z))
+
+
+def assert_turn_180_limb_bindings(addon, human):
+    # Each runtime slot must pivot on the same signed-X side as its weighted limb.
+    slots = {'OS_L': -2, 'OS_R': -3, 'US_L': -4, 'US_R': -5,
+             'OA_L': -6, 'OA_R': -7, 'UA_L': -8, 'UA_R': -9,
+             'Hand_L': -13, 'Hand_R': -14}
+    with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
+        vertices, faces = [], []
+        mesh.vertex_groups.clear()
+        for name in slots:
+            point = Vector(POINTS[name])
+            first = len(vertices)
+            vertices.extend((point, point + Vector((0, .01, 0)), point + Vector((0, 0, .01))))
+            faces.append((first, first + 1, first + 2))
+        mesh.data.clear_geometry()
+        mesh.data.from_pydata(vertices, [], faces)
+        for index, name in enumerate(slots):
+            mesh.vertex_groups.new(name=name).add(list(range(index * 3, index * 3 + 3)), 1, 'REPLACE')
+        low = copy_mesh(mesh, 'limbs_low')
+        low['omsi_lod_level'] = 1
+        for reversed_source in (False, True):
+            if reversed_source:
+                yaw = Matrix.Diagonal((-1, -1, 1, 1))
+                for obj in (rig, mesh, low, source):
+                    obj.data.transform(yaw)
+            human.capture_landmarks(source, rig)
+            bpy.context.view_layer.update()
+            before = source_snapshot()
+            result = human.export_human(str(Path(temporary) / 'limbs.hum'), bpy.context,
+                                        rig, [mesh, low], turn_180=True, overwrite=True)
+            assert source_snapshot() == before
+            cfg = Path(result['cfg_path']).read_text(encoding='cp1252')
+            for path in result['mesh_paths']:
+                parsed = addon.o3d_io.o3dconvert.import_o3d(Path(path).read_bytes())
+                block = cfg.split('[mesh]\n' + Path(path).name + '\n', 1)[1].split('[mesh]', 1)[0]
+                for name, weights in parsed[4]:
+                    side = name[-1] if reversed_source else ('R' if name.endswith('_L') else 'L')
+                    expected_slot = slots[name[:-1] + side]
+                    assert f'[setbone]\n{name}\n{expected_slot}\n' in block, block
+                    for index, weight in weights:
+                        x = parsed[1][index][0][0]
+                        assert (x < 0) == (side == 'L'), (name, expected_slot, x)
 
 
 def _assert_export_mesh_edit_refusal(addon, human, pending_height):
     with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         other = copy_mesh(mesh, 'object_mode_body')
-        for name in ('character.hum', 'character.cfg', 'body.o3d', 'object_mode_body.o3d'):
-            (root / name).write_bytes(b'Edit-mode sentinel ' + name.encode())
+        for name in ('character.hum', 'model/character.cfg', 'model/body.o3d', 'model/object_mode_body.o3d'):
+            path = root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'Edit-mode sentinel ' + name.encode())
         select_only(mesh)
         bpy.ops.object.mode_set(mode='EDIT')
         edit = bmesh.from_edit_mesh(mesh.data)
@@ -622,8 +731,10 @@ def assert_export_nan_edit_preflight(addon, human):
 def assert_export_rig_edit_preflight(addon, human):
     with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
-        for name in ('character.hum', 'character.cfg', 'body.o3d'):
-            (root / name).write_bytes(b'Armature Edit-mode sentinel')
+        for name in ('character.hum', 'model/character.cfg', 'model/body.o3d'):
+            path = root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'Armature Edit-mode sentinel')
         for editing in (rig, source):
             select_only(editing)
             bpy.ops.object.mode_set(mode='EDIT')
@@ -712,8 +823,10 @@ def assert_export_preflight(addon, human):
             mesh['export_path'], second['export_path'] = paths
             with tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                for name in ('character.hum', 'character.cfg', 'body.o3d', 'late_body.o3d'):
-                    (root / name).write_bytes(b'SENTINEL\x00\xff ' + name.encode())
+                for name in ('character.hum', 'model/character.cfg', 'model/body.o3d', 'model/late_body.o3d'):
+                    path = root / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b'SENTINEL\x00\xff ' + name.encode())
                 if setup:
                     setup(root)
                 before, source_before = disk_snapshot(root), source_snapshot()
@@ -722,10 +835,12 @@ def assert_export_preflight(addon, human):
                                                    settings=settings, overwrite=overwrite, o3d_version=version))
                 assert disk_snapshot(root) == before
                 assert source_snapshot() == source_before
-        for existing in ('character.hum', 'character.cfg', 'body.o3d', 'late_body.o3d', 'BODY.O3D'):
+        for existing in ('character.hum', 'model/character.cfg', 'model/body.o3d', 'model/late_body.o3d', 'MODEL/BODY.O3D'):
             with tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                (root / existing).write_bytes(b'overwrite sentinel')
+                path = root / existing
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b'overwrite sentinel')
                 before = disk_snapshot(root)
                 refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context, rig, [mesh, second],
                                                    overrides=REQUIRED_OVERRIDES), 'overwrite')
@@ -738,29 +853,29 @@ def assert_export_preflight(addon, human):
         attempt(filename='bad\nname.hum')
         attempt(version=999)
         for paths in (('same.o3d', 'SAME.O3D'), ('nested/same.o3d', r'nested\same.o3d'),
-                      ('body.o3d', 'CHARACTER.HUM'), ('body.o3d', 'CHARACTER.CFG'),
+                      ('model/same.o3d', 'same.o3d'), ('body.o3d', 'MODEL/CHARACTER.CFG'),
                       ('body.o3d', '../escape.o3d'), ('body.o3d', 'bad\npath.o3d'),
                       ('body.o3d', '😀.o3d'), ('body.o3d', 'x[mesh].o3d'),
-                      ('body.o3d', 'character.hum/inner.o3d'),
+                      ('body.o3d', 'model/character.cfg/inner.o3d'),
                       ('body.o3d', 'character.cfg/inner.o3d'),
                       ('fresh.o3d', 'fresh.o3d/inner.o3d')):
             attempt(paths)
         def aliases(root):
-            (root / 'actual.o3d').write_bytes(b'alias sentinel')
-            (root / 'one.o3d').symlink_to('actual.o3d')
-            (root / 'two.o3d').symlink_to('actual.o3d')
+            (root / 'model' / 'actual.o3d').write_bytes(b'alias sentinel')
+            (root / 'model' / 'one.o3d').symlink_to('actual.o3d')
+            (root / 'model' / 'two.o3d').symlink_to('actual.o3d')
         attempt(('one.o3d', 'two.o3d'), setup=aliases)
         def masked_case(root):
-            (root / 'actual.o3d').write_bytes(b'masked lexical sentinel')
-            (root / 'same.o3d').symlink_to('actual.o3d')
+            (root / 'model' / 'actual.o3d').write_bytes(b'masked lexical sentinel')
+            (root / 'model' / 'same.o3d').symlink_to('actual.o3d')
         attempt(('same.o3d', 'SAME.O3D'), setup=masked_case)
-        for destination in ('character.hum', 'character.cfg'):
+        for destination in ('../character.hum', 'character.cfg'):
             def alias_bundle(root, destination=destination):
-                (root / 'bundle_alias.o3d').symlink_to(destination)
+                (root / 'model' / 'bundle_alias.o3d').symlink_to(destination)
             attempt(('body.o3d', 'bundle_alias.o3d'), setup=alias_bundle)
         with tempfile.TemporaryDirectory() as outside:
             def escape(root):
-                (root / 'escape').symlink_to(outside, target_is_directory=True)
+                (root / 'model' / 'escape').symlink_to(outside, target_is_directory=True)
             attempt(('body.o3d', 'escape/out.o3d'), setup=escape)
             assert not list(Path(outside).iterdir())
         # A bad late material/bone/geometry/CFG string must not truncate the first file.
@@ -810,10 +925,12 @@ def _assert_export_alias_parent_refusal(addon, human, suffix):
             mesh['export_path'], second['export_path'] = paths
             with tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                (root / 'actual').mkdir()
-                (root / 'alias').symlink_to('actual', target_is_directory=True)
-                for name in ('character.hum', 'character.cfg', 'sentinel.o3d'):
-                    (root / name).write_bytes(b'Alias-parent sentinel ' + name.encode())
+                (root / 'model' / 'actual').mkdir(parents=True)
+                (root / 'model' / 'alias').symlink_to('actual', target_is_directory=True)
+                for name in ('character.hum', 'model/character.cfg', 'model/sentinel.o3d'):
+                    path = root / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b'Alias-parent sentinel ' + name.encode())
                 before, source_before = disk_snapshot(root), source_snapshot()
                 refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context, rig,
                                                    [mesh, second], overrides=REQUIRED_OVERRIDES,
@@ -857,28 +974,48 @@ def assert_export_texture_preflight(addon, human):
         shader = material.node_tree.nodes.get('Principled BSDF')
         base = material.node_tree.nodes.new('ShaderNodeTexImage')
         base.image = bpy.data.images.new('Base texture', width=1, height=1)
-        base.image.filepath = 'base.bmp'
+        base.image.filepath_raw = str(root / 'base.png')
+        base.image.file_format = 'PNG'
+        base.image.save()
+        base.image.pack()
         material.node_tree.links.new(base.outputs['Color'], shader.inputs['Base Color'])
         alpha = material.node_tree.nodes.new('ShaderNodeTexImage')
         alpha.image = bpy.data.images.new('Alpha texture', width=1, height=1)
+        alpha.image.filepath_raw = str(root / 'alpha.png')
+        alpha.image.file_format = 'PNG'
+        alpha.image.save()
+        alpha.image.pack()
         material.node_tree.links.new(alpha.outputs['Color'], shader.inputs['Alpha'])
         for filename in ('alpha\n[mesh].bmp', 'alpha\x85.bmp', 'alpha😀.bmp'):
             alpha.image.filepath = filename
-            for name in ('character.hum', 'character.cfg', 'body.o3d'):
-                (root / name).write_bytes(b'texture preflight sentinel')
+            for name in ('character.hum', 'model/character.cfg', 'model/body.o3d'):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b'texture preflight sentinel')
+            # Image filenames are mapped to safe bundle names; explicit CFG
+            # texture parameters still cannot inject commands or Unicode.
             before, source_before = disk_snapshot(root), source_snapshot()
+            human.export_human(str(root / 'character.hum'), bpy.context, rig, [mesh],
+                               overrides=REQUIRED_OVERRIDES, overwrite=True, preflight_only=True)
+            assert disk_snapshot(root) == before and source_snapshot() == source_before
+            material['cfg_data'] = [['[matl_nightmap]', filename]]
+            material.update_tag()
+            bpy.context.view_layer.update()
+            source_before = source_snapshot()
             refuses(lambda: human.export_human(str(root / 'character.hum'), bpy.context, rig, [mesh],
                                                overrides=REQUIRED_OVERRIDES, overwrite=True))
             assert disk_snapshot(root) == before and source_snapshot() == source_before
+            del material['cfg_data']
 
 
 def assert_export_io_failure(addon, human):
     """Inject only at the real destination open, never the serializer API."""
     with export_fixture(addon) as (rig, mesh, source), tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
-        cfg = root / 'failure.cfg'
+        cfg = root / 'model' / 'failure.cfg'
+        cfg.parent.mkdir()
         cfg.write_bytes(b'CFG sentinel')
-        body = root / 'body.o3d'
+        body = root / 'model' / 'body.o3d'
         body.write_bytes(b'geometry sentinel')
         select_only(rig)
         bpy.ops.object.mode_set(mode='POSE')
@@ -963,8 +1100,8 @@ def assert_human_native_registration(addon, human):
     with tempfile.TemporaryDirectory(prefix='omsi-human-panel-') as temporary:
         root = Path(temporary)
         assert bpy.ops.omsi.export_human(filepath=str(root / 'panel.hum')) == {'FINISHED'}
-        assert (root / 'panel.hum').is_file() and (root / 'panel.cfg').is_file()
-        assert (root / (mesh.name + '.o3d')).is_file()
+        assert (root / 'panel.hum').is_file() and (root / 'model' / 'panel.cfg').is_file()
+        assert (root / 'model' / (mesh.name + '.o3d')).is_file()
 
 
 class RecordingHumanLayout:
@@ -1028,7 +1165,7 @@ def assert_human_panel_draw(addon, human):
         assert source_snapshot() == before
         names = {name for kind, name, enabled in layout.records if kind == 'prop'}
         assert {'voice', 'mass_kg', 'feetdist', 'seat_height', 'use_height_override',
-                'scale', 'selection_only', 'export_custom_normals', 'o3d_version'} <= names
+                'scale', 'turn_180', 'selection_only', 'export_custom_normals', 'o3d_version'} <= names
         assert not {'walk_params', 'neck_override', 'finger_override'} & names
         assert any(kind == 'label' and rig.name in text for kind, text, _ in layout.records)
         assert {text for kind, text, enabled in layout.records if kind == 'operator' and enabled} == {
@@ -1125,6 +1262,8 @@ def assert_human_native_persistence(addon, human):
     second_rig, second_mesh, second_source = fixture(addon)
     second = second_rig.omsi_human_settings
     first.voice, first.mass_kg = 'M4', 88
+    assert not first.turn_180 and not second.turn_180
+    first.turn_180 = True
     first.use_finger_override = True
     first.finger_override = (.8, -.03, 1.4)
     first.walk_params = (1.5, 90, 1.1, .9, .2)
@@ -1139,6 +1278,7 @@ def assert_human_native_persistence(addon, human):
         second = bpy.data.objects[second_name].omsi_human_settings
         assert (first.voice, first.mass_kg, second.voice, second.mass_kg) == ('M4', 88, 'F1', 55)
         assert first.use_finger_override and not second.use_finger_override
+        assert first.turn_180 and not second.turn_180
         close(first.finger_override, (.8, -.03, 1.4))
         close(first.walk_params, (1.5, 90, 1.1, .9, .2))
         assert abs(second.scale - .8) < 1e-5
@@ -1158,7 +1298,8 @@ def assert_human_native_errors(addon, human):
     operation = SimpleNamespace(filepath='', overwrite=False, report=lambda kinds, text: reports.append(text))
     with tempfile.TemporaryDirectory(prefix='omsi-human-native-errors-') as temporary:
         root = Path(temporary)
-        cfg = root / 'native.cfg'
+        cfg = root / 'model' / 'native.cfg'
+        cfg.parent.mkdir()
         cfg.write_bytes(b'sibling sentinel')
         operation.filepath = str(root / 'native.hum')
         assert panel.ExportHuman.execute(operation, context) == {'CANCELLED'}
@@ -1241,10 +1382,11 @@ def assert_human_native_scope(addon, human):
 def assert_human_readiness_no_write(addon, human):
     # Removing the no-write boundary must fail this real native readiness check.
     rig, mesh, source, settings = panel_fixture(addon, human, metadata=True)
-    # Readiness must reserve normalized top-level paths, not raw '.' tokens.
+    # Readiness reserves the CFG name after stripping an initial model/ prefix.
     paths = ('__readiness__.hum/model.o3d', './__readiness__.hum/model.o3d',
              r'.\__readiness__.hum\model.o3d', '././__READINESS__.CFG/./model.o3d',
-             r'.\.\__READINESS__.CFG\.\model.o3d')
+             r'.\.\__READINESS__.CFG\.\model.o3d', 'model/__readiness__.cfg/model.o3d',
+             './model/./__READINESS__.CFG/model.o3d', r'.\MODEL\__readiness__.cfg\model.o3d')
     before = (bpy.context.view_layer.objects.active, tuple(bpy.context.selected_objects),
               bpy.context.scene.frame_current, rig.mode, rig.data.pose_position,
               [(mod.show_viewport, mod.show_render) for mod in mesh.modifiers])
@@ -1373,10 +1515,10 @@ def assert_supplied_panel_bundle(addon, human):
             root = Path(temporary)
             assert bpy.ops.omsi.export_human(filepath=str(root / 'fixture.hum')) == {'FINISHED'}
             lines = (root / 'fixture.hum').read_text(encoding='cp1252').splitlines()
-            assert lines[lines.index('[model]') + 1] == 'fixture.cfg'
+            assert lines[lines.index('[model]') + 1] == r'model\fixture.cfg'
             links = [float(line) for line in lines[lines.index('[links]') + 1:lines.index('[walk_param]')] if line]
             assert len(links) == 22 and all(math.isfinite(value) for value in links)
-            assert (root / 'fixture.cfg').is_file()
+            assert (root / 'model' / 'fixture.cfg').is_file()
             meshes = list(root.rglob('*.o3d'))
             assert meshes and all(addon.o3d_io.o3dconvert.import_o3d(item.read_bytes()) for item in meshes)
             print('HUMAN_FIXTURE_PANEL_BUNDLE_OK_SUPPORTED_VARIANT', len(links), len(meshes), settings.measured_height)
@@ -1422,7 +1564,8 @@ CHECKS = [assert_human_native_registration, assert_human_panel_draw, assert_huma
           assert_alignment_and_transforms, assert_symmetry, assert_bounds_and_physics,
           assert_nested_collection_lods, assert_multiple_collection_lods,
           assert_coordinate_golden, assert_save_reload,
-          assert_export_bundle, assert_export_finite_edit_preflight,
+          assert_export_bundle, assert_turn_180, assert_turn_180_limb_bindings,
+          assert_export_finite_edit_preflight,
           assert_export_nan_edit_preflight, assert_export_rig_edit_preflight,
           assert_export_candidates, assert_export_preflight,
           assert_export_alias_parent_preflight, assert_export_alias_suffix_preflight,
