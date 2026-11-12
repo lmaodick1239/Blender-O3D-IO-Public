@@ -1575,7 +1575,7 @@ def runtime_fixture(addon, *, left_sign, horizontal=False):
             palm = patch((h, (sign * .86, 0, 1.4), (sign * .78, -.045, 1.4),
                           (sign * .78, 0, 1.435)), {'Hand_' + side: 1},
                          ((0, 1, 2), (0, 3, 1), (1, 3, 2), (2, 3, 0)))
-            hand_samples[side] = palm  # wrist, finger, thumb side, palm normal tip
+            hand_samples[side] = palm  # wrist, finger, thumb side, palm support point
             seams.extend(((body[0], upper[0]), (upper[1], forearm[0]), (forearm[1], palm[0])))
             # Known reference points; expected upward B is composed independently.
             start = len(reference)
@@ -1704,6 +1704,11 @@ def assert_arm_normalization_runtime(addon):
                     actual_pose = [weighted_point(actual[i], bindings[i], matrices) for i in range(len(expected))]
                     orientation_dots = []
                     for side, (wrist, finger, thumb, palm) in hands.items():
+                        actual_palm = (actual_pose[finger] - actual_pose[wrist]).cross(actual_pose[thumb] - actual_pose[wrist])
+                        reference_palm = (reference_pose[finger] - reference_pose[wrist]).cross(reference_pose[thumb] - reference_pose[wrist])
+                        dot = actual_palm.normalized().dot(reference_palm.normalized())
+                        assert dot > 1 - 1e-5, (state, phase, side, 'palm normal', dot)
+                        orientation_dots.append(dot)
                         for tip in (finger, thumb, palm):
                             a = actual_pose[tip] - actual_pose[wrist]
                             e = reference_pose[tip] - reference_pose[wrist]
@@ -1728,6 +1733,9 @@ def assert_arm_normalization_runtime(addon):
                         dots = [(off_pose[tip] - off_pose[wrist]).normalized().dot(
                                 (reference_pose[tip] - reference_pose[wrist]).normalized())
                                 for tip in (finger, thumb, palm)]
+                        off_palm = (off_pose[finger] - off_pose[wrist]).cross(off_pose[thumb] - off_pose[wrist])
+                        ref_palm = (reference_pose[finger] - reference_pose[wrist]).cross(reference_pose[thumb] - reference_pose[wrist])
+                        dots.append(off_palm.normalized().dot(ref_palm.normalized()))
                         assert min(dots) < 1 - 1e-5, ('beta45 accidentally matches full orientation', state, phase, side, dots)
                         side_failures.append(min(dots))
                     failures.append({'state': state, 'phase': phase, 'off_beta45_min_dots': side_failures,
