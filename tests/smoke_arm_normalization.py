@@ -7,6 +7,8 @@ from contextlib import contextmanager
 import importlib
 import hashlib
 import math
+import json
+import os
 from pathlib import Path
 import sys
 import subprocess
@@ -1461,20 +1463,684 @@ def assert_arm_normalization_panel(addon):
     print('ARM_NORMALIZATION_PANEL_PERSISTENCE_OK', 'isolated subprocess')
 
 
-def run():
+def runtime_arm_matrices(joints, state, phase=0, *, beta=80):
+    """Independent original-animation arm graph, never the enhanced IK model.
+
+    Equation provenance: retained native func-00626b98.c:531-625,1501-1802
+    and openOMSI human_omsi.rs at a19eac8:34-140,414-503,528-609.
+    D3DX uses row vectors p M in (X right,Y up,Z forward). Here mathutils
+    column vectors use M.T in those SAME file/D3D coordinates. If displayed
+    in Blender, C swaps Y/Z, so the display matrix is C M.T C.
+    Degrees use openOMSI's .017453292 radians factor, not native .01745;
+    this is structural equation coverage, not bitwise native equivalence.
+    Torso B9=identity, zero stoop/reach/hold/running and no smoothing.
+    Walking deliberately fixes A=18 degrees to isolate the arm graph and
+    retains unequal 1.5/1.2 elbow coefficients. beta80 gives standing80 and
+    walking77; beta45 gives standing45/walking42. Seated lowering stays fixed67.
+    Anatomical names are kept;
+    procedural side/sign follows exported shoulder X, not the name suffix.
+    """
+    if state == 'standing':
+        lower, axial, swings, elbows, hand = beta, -30, (-3, -3), (29, 29), (0, 0, 0)
+    elif state == 'walking':
+        q, amplitude = math.sin(2 * math.pi * phase), 18
+        lower, axial = beta - 3, -30
+        swings = ((q - .2) * amplitude, (-q - .2) * amplitude)
+        elbows = (1.5 * (q + 1) * amplitude, 1.2 * (1 - q) * amplitude)
+        hand = (0, 0, 0)
+    elif state == 'seated':
+        lower, axial, swings, elbows, hand = 67, -58, (35, 35), (46, 46), (41, -26, 5)
+    else:
+        raise ValueError('unknown runtime state: ' + state)
+    def rotation(degrees, axis):
+        return Matrix.Rotation(degrees * .017453292, 4, axis)
+    def about(point, matrix):
+        return Matrix.Translation(point) @ matrix @ Matrix.Translation(-point)
+    result = {'Main': Matrix.Identity(4)}
+    for anatomy in ('L', 'R'):
+        oa, ua, hn = (stem + '_' + anatomy for stem in ('OA', 'UA', 'Hand'))
+        shoulder, elbow, wrist = (joints[name] for name in (oa, ua, hn))
+        # Native B4/6/11 are negative-X; B5/7/12 are positive-X.
+        index, mirror = (0, 1) if shoulder.x < 0 else (1, -1)
+        upper = about(shoulder, rotation(-3 * mirror, 'Y') @ rotation(lower * mirror, 'Z')
+                      @ rotation(swings[index] * mirror, 'Y')
+                      @ rotation(axial * mirror, elbow - shoulder))
+        forearm = upper @ about(elbow, rotation(elbows[index] * mirror, 'Y'))
+        hx, hz, hy = hand
+        palm = forearm @ about(wrist, rotation(hy * mirror, 'Y')
+                              @ rotation(hz * mirror, 'Z') @ rotation(-hx, 'X'))
+        result.update({oa: upper, ua: forearm, hn: palm})
+    return result
+
+
+def runtime_cases():
+    return [('standing', 0), *(('walking', phase) for phase in (0, .25, .5, .75)), ('seated', 0)]
+
+
+def weighted_point(point, weights, matrices):
+    # Native func-005fdf40.c:152-230: independent normalized weighted positions.
+    mass = sum(weights.values())
+    return sum((weight / mass * (matrices.get(name, Matrix.Identity(4)) @ point)
+                for name, weight in weights.items()), Vector())
+
+
+def literal_upward(points):
+    """Scalar two-segment elevation oracle; preserve authored depth, never roll.
+
+    Rotation in Blender XZ: (x,z)->(c*x+s*z,-s*x+c*z). Each segment's
+    raw elevation fixes its rotation; forearm pivot translates to raised elbow.
+    This is also used for independent one-way private mixed-weight expectations.
+    """
+    result = {'Main': Matrix.Identity(4)}
+    for side in ('L', 'R'):
+        oa, ua, hand = (stem + '_' + side for stem in ('OA', 'UA', 'Hand'))
+        s, e, h = (points[name] for name in (oa, ua, hand))
+        sign = 1 if s.x > 0 else -1
+        a = math.degrees(math.atan2(sign * (e.z - s.z), sign * (e.x - s.x)))
+        b = math.degrees(math.atan2(sign * (h.z - e.z), sign * (h.x - e.x)))
+        raised = s + yaw(e - s, a)
+        result[oa] = Matrix.Translation(s) @ Matrix.Rotation(math.radians(a), 4, 'Y') @ Matrix.Translation(-s)
+        result[ua] = Matrix.Translation(raised) @ Matrix.Rotation(math.radians(b), 4, 'Y') @ Matrix.Translation(-e)
+        result[hand] = result[ua].copy()
+    return result
+
+
+@contextmanager
+def runtime_fixture(addon, *, left_sign, horizontal=False):
+    """Literal horizontal triangles, independently lowered rigid and mixed input.
+
+    Catches wrong normalization axes/pivots, dropped mixed skinning, incorrect
+    anatomical/name swaps, mirrored hands and exporter corner/winding changes.
+    B^-1 constructs each mixed A-pose sample: opposite LBS blends do NOT invert.
+    """
+    angle = 0 if horizontal else 35
+    with arm_fixture(addon, left_sign=left_sign, upper=angle,
+                     forearm=0 if horizontal else 10) as (rig, points):
+        up = literal_upward(points)
+        reference, bindings, faces, hand_samples, seams = [], [], [], {}, []
+        def patch(vertices, weights, triangles):
+            start = len(reference)
+            reference.extend(Vector(point) for point in vertices)
+            bindings.extend(dict(weights) for _ in vertices)
+            faces.extend(tuple(start + index for index in face) for face in triangles)
+            return list(range(start, len(reference)))
+        for side, sign in (('L', left_sign), ('R', -left_sign)):
+            s, e, h = (Vector((sign * x, 0, 1.4)) for x in (.2, .5, .75))
+            body = patch((s, s + Vector((0, .025, 0)), s + Vector((0, 0, .025))),
+                         {'Main': 1}, ((0, 1, 2),))
+            upper = patch((s, e, e + Vector((0, .025, 0)), s + Vector((0, .025, 0))),
+                          {'OA_' + side: 1}, ((0, 1, 2), (0, 2, 3)))
+            forearm = patch((e, h, h + Vector((0, .025, 0)), e + Vector((0, .025, 0))),
+                            {'UA_' + side: 1}, ((0, 1, 2), (0, 2, 3)))
+            palm = patch((h, (sign * .86, 0, 1.4), (sign * .78, -.045, 1.4),
+                          (sign * .78, 0, 1.435)), {'Hand_' + side: 1},
+                         ((0, 1, 2), (0, 3, 1), (1, 3, 2), (2, 3, 0)))
+            hand_samples[side] = palm  # wrist, finger, thumb side, palm normal tip
+            seams.extend(((body[0], upper[0]), (upper[1], forearm[0]), (forearm[1], palm[0])))
+            # Known reference points; expected upward B is composed independently.
+            start = len(reference)
+            for point, weights in ((s + Vector((sign * .02, -.02, .015)), {'Main': .25, 'OA_' + side: .75}),
+                                   (e + Vector((0, -.02, .01)), {'OA_' + side: .4, 'UA_' + side: .6}),
+                                   (h + Vector((0, -.02, .025)), {'UA_' + side: .3, 'Hand_' + side: .7})):
+                reference.append(point)
+                bindings.append(weights)
+            faces.append((start, start + 1, start + 2))
+        original = []
+        for point, weights in zip(reference, bindings):
+            blend = sum((weight * up.get(name, Matrix.Identity(4)) for name, weight in weights.items()),
+                        Matrix(((0.,) * 4,) * 4))
+            original.append(blend.inverted() @ point)
+        data = bpy.data.meshes.new('Independent runtime samples')
+        data.from_pydata(original, [], faces)
+        data.update()
+        obj = bpy.data.objects.new('Independent runtime samples', data)
+        bpy.context.scene.collection.objects.link(obj)
+        material = bpy.data.materials.new('Runtime sample material')
+        data.materials.append(material)
+        try:
+            uv = data.uv_layers.new(name='Sample identity')
+            for loop in data.loops:
+                uv.uv[loop.index].vector = ((loop.vertex_index + 1) / (len(reference) + 1), .25)
+            for name in {name for weights in bindings for name in weights}:
+                group = obj.vertex_groups.new(name=name)
+                for index, weights in enumerate(bindings):
+                    if name in weights:
+                        group.add([index], weights[name], 'REPLACE')
+            mod = obj.modifiers.new('Runtime rest', 'ARMATURE')
+            mod.object = rig
+            yield rig, obj, points, reference, bindings, faces, hand_samples, seams
+        finally:
+            bpy.data.objects.remove(obj, do_unlink=True)
+            bpy.data.meshes.remove(data)
+            bpy.data.materials.remove(material)
+
+
+def runtime_records(addon, rig, obj, path, *, normalized):
+    from o3d_export_support import read_export
+    normalizer = importlib.import_module(addon.__name__ + '.o3d_io.human_arm_normalization')
+    callback = (normalizer.make_rest_deformer(rig, normalizer.build_arm_transforms(rig))
+                if normalized else None)
+    addon.o3d_io.io_o3d_export.do_export(str(path), bpy.context, Matrix.Identity(4), False, 7,
+                                       objects=[obj], rest_deformer=callback)
+    return read_export(path.read_bytes())
+
+
+def runtime_decoded(records, count):
+    # UV identity disambiguates coincident shoulder/elbow corners and split normals.
+    result, ids = {}, []
+    for vertex in records['vertices']:
+        index = round(vertex[6] * (count + 1)) - 1
+        assert 0 <= index < count
+        point = Vector(vertex[:3])
+        if index in result:
+            close(point, result[index])
+        result[index] = point
+        ids.append(index)
+    assert set(result) == set(range(count))
+    weights = [{} for _ in ids]
+    for name, entries in records['bones']:
+        for index, weight in entries:
+            weights[index][name] = weight
+    return result, ids, weights
+
+
+def assert_arm_normalization_runtime(addon):
+    # The oracle must reject missing rest conversion even with beta45 compensation.
+    render_data = None
+    with preserve_context(), tempfile.TemporaryDirectory(prefix='o3d-arm-runtime-') as directory:
+        for left_sign in (-1, 1):
+            with runtime_fixture(addon, left_sign=left_sign) as fixture:
+                rig, obj, points, reference, bindings, faces, hands, seams = fixture
+                before = rig_state(rig), repr([(tuple(v.co), tuple((g.group, g.weight) for g in v.groups))
+                                               for v in obj.data.vertices])
+                root = Path(directory)
+                after = runtime_records(addon, rig, obj, root / 'after.o3d', normalized=True)
+                off = runtime_records(addon, rig, obj, root / 'before.o3d', normalized=False)
+                actual, ids, emitted = runtime_decoded(after, len(reference))
+                off_points, _, _ = runtime_decoded(off, len(reference))
+                convert = lambda p: Vector((p.x, p.z, p.y))
+                expected = [convert(point) for point in reference]
+                normalized_joints = {name: convert(literal_upward(points).get(name, Matrix.Identity(4)) @ point)
+                                     for name, point in points.items()}
+                raw_joints = {name: convert(point) for name, point in points.items()}
+                # Source triangle winding must be reversed once for the XZY reflection.
+                expected_faces = {min(face[i:] + face[:i] for i in range(3))
+                                  for a, b, c in faces for face in ((a, c, b),)}
+                actual_faces = {min(face[i:] + face[:i] for i in range(3))
+                                for a, b, c, _ in after['triangles']
+                                for face in ((ids[a], ids[b], ids[c]),)}
+                assert actual_faces == expected_faces, 'serialized triangle winding/coverage changed'
+                assert len(after['triangles']) == len(faces)
+                for index, weights in enumerate(emitted):
+                    expected_weights = bindings[ids[index]]
+                    assert weights.keys() == expected_weights.keys()
+                    close(tuple(weights[name] for name in sorted(weights)),
+                          tuple(expected_weights[name] for name in sorted(weights)))
+                failures = []
+                for state, phase in runtime_cases():
+                    matrices = runtime_arm_matrices(normalized_joints, state, phase)
+                    if state == 'seated':
+                        seated_beta45 = runtime_arm_matrices(normalized_joints, state, phase, beta=45)
+                        for name in matrices:
+                            matrix_close(matrices[name], seated_beta45[name])
+                    reference_pose = [weighted_point(p, w, matrices) for p, w in zip(expected, bindings)]
+                    actual_pose = [weighted_point(actual[i], bindings[i], matrices) for i in range(len(expected))]
+                    orientation_dots = []
+                    for side, (wrist, finger, thumb, palm) in hands.items():
+                        for tip in (finger, thumb, palm):
+                            a = actual_pose[tip] - actual_pose[wrist]
+                            e = reference_pose[tip] - reference_pose[wrist]
+                            dot = a.normalized().dot(e.normalized())
+                            assert dot > 1 - 1e-5, (state, phase, side, tip, dot)
+                            orientation_dots.append(dot)
+                    for a, e in zip(actual_pose, reference_pose):
+                        assert (a - e).length < 2e-5, (state, phase, a, e)
+                    for a, b, c, _ in after['triangles']:
+                        ai, bi, ci = ids[a], ids[b], ids[c]
+                        an = (actual_pose[bi] - actual_pose[ai]).cross(actual_pose[ci] - actual_pose[ai])
+                        en = (reference_pose[bi] - reference_pose[ai]).cross(reference_pose[ci] - reference_pose[ai])
+                        assert an.dot(en) > 0, (state, phase, ai, bi, ci)
+                    for a, b in seams:
+                        close(actual_pose[a], actual_pose[b])
+                    # Real model-specific A-pose elbow/wrist pivots and axis in the
+                    # disabled graph; beta reduction cannot fix twist/hand direction.
+                    disabled = runtime_arm_matrices(raw_joints, state, phase, beta=45)
+                    off_pose = [weighted_point(off_points[i], bindings[i], disabled) for i in range(len(expected))]
+                    side_failures = []
+                    for side, (wrist, finger, thumb, palm) in hands.items():
+                        dots = [(off_pose[tip] - off_pose[wrist]).normalized().dot(
+                                (reference_pose[tip] - reference_pose[wrist]).normalized())
+                                for tip in (finger, thumb, palm)]
+                        assert min(dots) < 1 - 1e-5, ('beta45 accidentally matches full orientation', state, phase, side, dots)
+                        side_failures.append(min(dots))
+                    failures.append({'state': state, 'phase': phase, 'off_beta45_min_dots': side_failures,
+                                     'normalized_min_orientation_dot': min(orientation_dots),
+                                     'normalized_max_position_error_m': max((a - e).length for a, e in zip(actual_pose, reference_pose)),
+                                     'normalized_max_seam_error_m': max((actual_pose[a] - actual_pose[b]).length for a, b in seams)})
+                assert (rig_state(rig), repr([(tuple(v.co), tuple((g.group, g.weight) for g in v.groups))
+                                             for v in obj.data.vertices])) == before
+                if left_sign == 1:
+                    render_data = {'after': after, 'before': off, 'reference_points': expected,
+                                   'bindings': bindings, 'joints': normalized_joints, 'raw_joints': raw_joints,
+                                   'negative_orientation': failures}
+        if RENDER_OUTPUT_DIR is not None:
+            # Reference is independently authored horizontal geometry, also serialized.
+            with runtime_fixture(addon, left_sign=1, horizontal=True) as fixture:
+                rig, obj = fixture[:2]
+                render_data['reference'] = runtime_records(addon, rig, obj, Path(directory) / 'reference.o3d', normalized=False)
+            render_runtime_comparison(render_data, RENDER_OUTPUT_DIR, 'synthetic')
+    print('ARM_RUNTIME_ORIENTATION_OK', '2 anatomical conventions; standing/walking[0,.25,.5,.75]/seated; beta45 rejected')
+
+
+RENDER_OUTPUT_DIR = None
+
+
+def render_runtime_comparison(data, output_dir, label):
+    """Optional Blender CPU renders of decoded exported triangles and skinning.
+
+    Synthetic has independently authored AND exported horizontal reference.
+    Private compares the original A-pose export to normalized actual character;
+    it has no independently authored private T-pose and no target-game claim.
+    Neutral diagnostic materials expose shape/orientation; source textures are
+    neither edited nor represented as a game-material rendering validation.
+    """
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    variants = [name for name in ('before', 'after', 'reference') if name in data]
+    collections = (bpy.data.objects, bpy.data.meshes, bpy.data.materials, bpy.data.cameras,
+                   bpy.data.lights, bpy.data.curves, bpy.data.worlds, bpy.data.scenes)
+    original_ids = [set(items) for items in collections]
+    caller = bpy.context.window.scene
+    evidence = {'coverage': label, 'coordinate_display': 'C swaps D3D Y-up to Blender Z-up',
+                'radians_per_degree': .017453292, 'torso': 'identity', 'walking_A_degrees': 18,
+                'variants': variants, 'target_game': 'unverified', 'states': [],
+                'reference': 'independently authored horizontal geometry' if label == 'synthetic' else
+                             'no independent private reference; actual before/after geometry',
+                'negative_orientation': data.get('negative_orientation', [])}
+    try:
+        scene = bpy.data.scenes.new('Arm normalization diagnostic render')
+        bpy.context.window.scene = scene
+        scene.render.engine = 'CYCLES'
+        scene.cycles.device = 'CPU'
+        scene.cycles.samples = 16
+        scene.render.threads_mode, scene.render.threads = 'FIXED', 4
+        scene.render.resolution_x, scene.render.resolution_y = 400 * len(variants), 600
+        scene.render.resolution_percentage = 100
+        scene.render.image_settings.file_format = 'PNG'
+        world = bpy.data.worlds.new('Diagnostic studio')
+        world.use_nodes = True
+        world.node_tree.nodes['Background'].inputs['Color'].default_value = (.18, .18, .18, 1)
+        world.node_tree.nodes['Background'].inputs['Strength'].default_value = .8
+        scene.world = world
+        camera_data = bpy.data.cameras.new('Diagnostic camera')
+        camera = bpy.data.objects.new('Diagnostic camera', camera_data)
+        scene.collection.objects.link(camera)
+        # The installed-inferred private Turn180 faces +Y; inspect its front so
+        # the original long hair does not hide the arm comparison.
+        view_sign = -1 if label == 'private' else 1
+        camera.location = (0, -8 * view_sign, 3.4)
+        camera.rotation_euler = (Vector((0, 0, .85)) - camera.location).to_track_quat('-Z', 'Y').to_euler()
+        camera_data.type = 'ORTHO'
+        camera_data.ortho_scale = 1.95 * len(variants)
+        scene.camera = camera
+        light_data = bpy.data.lights.new('Diagnostic key', 'AREA')
+        light_data.energy, light_data.shape, light_data.size = 650, 'DISK', 5
+        light = bpy.data.objects.new('Diagnostic key', light_data)
+        scene.collection.objects.link(light)
+        light.location = (-2, -4 * view_sign, 5)
+        light.rotation_euler = (-light.location).to_track_quat('-Z', 'Y').to_euler()
+        palette = ((.22, .48, .85, 1), (.85, .31, .18, 1), (.32, .35, .40, 1), (.8, .67, .53, 1))
+        materials = []
+        for index, color in enumerate(palette):
+            material = bpy.data.materials.new('Diagnostic ' + str(index))
+            material.diffuse_color = color
+            material.use_nodes = True
+            material.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = color
+            material.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = .7
+            materials.append(material)
+        mesh_objects = []
+        for slot, variant in enumerate(variants):
+            records = data[variant]
+            mesh = bpy.data.meshes.new(label + ' ' + variant)
+            mesh.from_pydata([(0, 0, 0)] * len(records['vertices']), [],
+                             [(a, c, b) for a, b, c, _ in records['triangles']])
+            mesh.update()
+            obj = bpy.data.objects.new(label + ' ' + variant, mesh)
+            scene.collection.objects.link(obj)
+            obj.location.x = (slot - (len(variants) - 1) / 2) * 1.85 * view_sign
+            for material in materials:
+                mesh.materials.append(material)
+            weights = [{} for _ in records['vertices']]
+            for name, entries in records['bones']:
+                for index, weight in entries:
+                    weights[index][name] = weight
+            for polygon in mesh.polygons:
+                bone = max(weights[polygon.vertices[0]], key=weights[polygon.vertices[0]].get)
+                polygon.material_index = 0 if bone.endswith('_L') else 1 if bone.endswith('_R') else 2
+            mesh_objects.append((obj, records, weights))
+            font = bpy.data.curves.new('Diagnostic label', 'FONT')
+            font.body = variant + (' / beta45' if variant == 'before' else ' / beta80')
+            font.align_x, font.size = 'CENTER', .10
+            caption = bpy.data.objects.new('Diagnostic label', font)
+            scene.collection.objects.link(caption)
+            caption.location = (obj.location.x, -.05, -.1)
+            caption.rotation_euler = (math.pi / 2, 0, math.pi if view_sign < 0 else 0)
+        for state, phase in (('standing', 0), ('walking', .25), ('seated', 0)):
+            matrices_by_variant = {}
+            for (obj, records, weights), variant in zip(mesh_objects, variants):
+                raw = variant == 'before'
+                matrices = runtime_arm_matrices(data['raw_joints'] if raw else data['joints'], state, phase,
+                                                beta=45 if raw else 80)
+                matrices_by_variant[variant] = {name: [list(row) for row in matrix] for name, matrix in matrices.items()}
+                for vertex, source, binding in zip(obj.data.vertices, records['vertices'], weights):
+                    point = weighted_point(Vector(source[:3]), binding, matrices)
+                    vertex.co = (point.x, point.z, point.y)
+                obj.data.update()
+            scene.render.filepath = str((output / (label + '-' + state + '.png')).resolve())
+            bpy.ops.render.render(write_still=True, scene=scene.name)
+            evidence['states'].append({'state': state, 'phase': phase, 'image': Path(scene.render.filepath).name,
+                                       'matrices': matrices_by_variant})
+        (output / (label + '-render-evidence.json')).write_text(json.dumps(evidence, indent=2))
+        (output / (label + '-exported-records.json')).write_text(json.dumps({k: data[k] for k in variants}))
+    finally:
+        bpy.context.window.scene = caller
+        for collection, previous in zip(collections, original_ids):
+            for item in set(collection) - previous:
+                collection.remove(item, do_unlink=True)
+    print('ARM_BLENDER_RENDER_OK', label, str(output), 'standing/walking phase .25/seated; neutral materials')
+
+
+def private_geometry_expected(obj, transforms):
+    expected, bindings = [], []
+    names = {group.index: group.name for group in obj.vertex_groups}
+    for vertex in obj.data.vertices:
+        weights = {names[g.group]: g.weight for g in vertex.groups if g.weight > 0}
+        bindings.append(weights)
+        expected.append(weighted_point(obj.matrix_world @ vertex.co, weights, transforms))
+    return expected, bindings
+
+
+def assert_private_records(records, obj, expected, bindings):
+    """Match actual corners by UV/position/weights, not exporter vertex ordering."""
+    candidates = {}
+    for loop in obj.data.loops:
+        uv = obj.data.uv_layers.active.uv[loop.index].vector
+        key = tuple(round(v, 5) for v in (uv.x, 1 - uv.y))
+        candidates.setdefault(key, []).append(loop.vertex_index)
+    weights = [{} for _ in records['vertices']]
+    for name, entries in records['bones']:
+        for index, weight in entries:
+            weights[index][name] = weight
+    covered, actual_to_source = set(), []
+    for vertex, binding in zip(records['vertices'], weights):
+        assert all(math.isfinite(v) for v in vertex)
+        assert abs(Vector(vertex[3:6]).length - 1) < 1e-4
+        # Float32's serialized (1-v) can cross a rounding boundary even when
+        # the central bucket contains OTHER source corners. Always search all
+        # neighboring UV buckets; exact position/weight tolerances still decide.
+        u, v = vertex[6:]
+        possible = {index for du in (-1e-5, 0, 1e-5) for dv in (-1e-5, 0, 1e-5)
+                    for index in candidates.get((round(u + du, 5), round(v + dv, 5)), [])}
+        matches = [index for index in possible
+                   if (Vector(vertex[:3]) - expected[index]).length < 2e-5
+                   and binding.keys() == bindings[index].keys()
+                   and all(abs(binding[name] - bindings[index][name]) < 1e-6 for name in binding)]
+        assert matches, (obj.name, vertex, binding, sorted(possible)[:8])
+        covered.update(matches)
+        actual_to_source.append(matches)
+    # O3D serializes triangle corners. Reduced LODs retain loose source vertices
+    # (LOD1 has 38); they must stay unchanged but are not exported surface points.
+    used = {loop.vertex_index for loop in obj.data.loops}
+    assert covered == used, (obj.name, len(covered), len(used), sorted(used - covered))
+    # Check serialized oriented surfaces against the source topology with XZY's
+    # single reflection, including the real mixed-weight seam triangles.
+    wanted = {min(face[i:] + face[:i] for i in range(3)) for polygon in obj.data.polygons
+              for a, b, c in (tuple(polygon.vertices),) for face in ((a, c, b),)}
+    # Retain all matching source identities at coincident/nearby UV corners.
+    # Arbitrarily selecting matches[0] loses topology on reduced seam duplicates.
+    from itertools import product
+    got = set()
+    for a, b, c, _ in records['triangles']:
+        alternatives = {min(face[i:] + face[:i] for i in range(3))
+                        for face in product(actual_to_source[a], actual_to_source[b], actual_to_source[c])}
+        matching_faces = wanted & alternatives
+        assert matching_faces, (obj.name, a, b, c, alternatives)
+        got.update(matching_faces)
+    assert len(records['triangles']) == len(obj.data.polygons)
+    assert got == wanted, (obj.name, len(got), len(wanted))
+    return weights
+
+
+def assert_arm_normalization_private(addon, path, *, evidence_files=(), render_output_dir=None):
+    """Opt-in supplied fixture, no autoexec/save or installed-output writes.
+
+    Turn180=True is installed-output inference (all 22 links), NOT a saved bool.
+    Only canonical rig + its three owned LODs are selected. Optional hash manifests
+    contain {absolute_path: {size, sha256}} and are read only in this private call.
+    No external checkout or private evidence is needed by any public check.
+    """
+    from smoke_human import source_snapshot, select_only
+    from o3d_export_support import read_export
+    human = importlib.import_module(addon.__name__ + '.o3d_io.omsi_human')
+    expected_hashes = {}
+    for evidence in evidence_files:
+        expected_hashes.update(json.loads(Path(evidence).read_text()))
+    protected = {Path(name) for name in expected_hashes} | {path.resolve()}
+    def hashes():
+        return {str(p): {'size': p.stat().st_size, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()}
+                for p in sorted(protected)}
+    before_hashes = hashes()
+    for name, value in expected_hashes.items():
+        assert before_hashes[name] == value, ('protected input differs from evidence', name)
+    assert not bpy.context.preferences.filepaths.use_scripts_auto_execute
+    try:
+        bpy.ops.wm.open_mainfile(filepath=str(path.resolve()), use_scripts=False)
+        assert not bpy.context.preferences.filepaths.use_scripts_auto_execute
+        rig = bpy.data.objects['knd_mesh Materials Materials OMSI Rig']
+        meshes = [bpy.data.objects[name] for name in ('knd_mesh Materials Materials Converted',
+                  'knd_mesh Materials Materials Converted_LOD1', 'knd_mesh Materials Materials Converted_LOD2')]
+        assert len(rig.data.bones) == 13
+        for lod, obj in enumerate(meshes):
+            assert obj.parent == rig and obj.get('omsi_lod_level', 0) == lod
+            assert len(obj.modifiers) == 1 and obj.modifiers[0].object == rig
+            assert obj.get('omsi_lod_source_id') == meshes[0].get('omsi_lod_source_id')
+        assert dict(meshes[0]['omsi_lod_outputs']) == {'1': meshes[1], '2': meshes[2]}
+        assert all(obj.get('omsi_lod_owner') == meshes[0] for obj in meshes[1:])
+        select_only(rig, *meshes)
+        settings = rig.omsi_human_settings
+        # Explicit installed-inferred orientation, never recovered saved UI state.
+        settings.turn_180, settings.normalize_arms = True, True
+        settings.walk_params = (1.4, 80, 1, 1, 0)
+        assert settings.turn_180 and settings.normalize_arms
+        close(settings.walk_params, (1.4, 80, 1, 1, 0))
+        points = {bone.name: rig.matrix_world @ bone.head_local for bone in rig.data.bones}
+        independent = literal_upward(points)
+        normalized_points = {name: independent.get(name, Matrix.Identity(4)) @ point for name, point in points.items()}
+        metadata = rig['omsi_human_landmarks']
+        assert metadata['version'] == 1 and not metadata.get('missing')
+        captured = {name: Vector(point) for name, point in metadata['points'].items()}
+        def expected_links(normalized, turn=True, scale=1):
+            result = []
+            for stem in ('OS', 'US', 'Main', 'OA', 'UA', 'neck', 'Hand', 'finger'):
+                if stem in ('Main', 'neck'):
+                    point = points['Main'] if stem == 'Main' else rig.matrix_world @ captured['neck']
+                else:
+                    pair = []
+                    for side in ('L', 'R'):
+                        name = ('Hand' if stem == 'finger' else stem) + '_' + side
+                        p = rig.matrix_world @ captured['finger_' + side] if stem == 'finger' else points[name]
+                        pair.append(independent.get(name, Matrix.Identity(4)) @ p if normalized else p)
+                    point = Vector((sum(abs(p.x) for p in pair) / 2, sum(p.y for p in pair) / 2,
+                                    sum(p.z for p in pair) / 2))
+                x, y, z = point * scale
+                result.extend(((-y if turn else y), z) if stem in ('Main', 'neck') else
+                              (abs(x), -y if turn else y, z))
+            return result
+        # Recheck all-22-link Turn180 evidence when an installed HUM was supplied.
+        installed = [Path(name) for name in expected_hashes if Path(name).suffix.lower() == '.hum']
+        for hum in installed:
+            links, _ = hum_records(hum)
+            close(links, expected_links(False))
+            assert max(abs(a - b) for a, b in zip(links, expected_links(False, False))) > .1
+        target_images = {node.image for obj in meshes for material in obj.data.materials
+                         for node in material.node_tree.nodes if node.type == 'TEX_IMAGE' and node.image}
+        assert len(target_images) == 3
+        def snapshot():
+            # Include authored corner normals/UVs and the three target source-image
+            # bytes/paths, in addition to source IDs/rest/pose/metadata/weights/context.
+            images = [(image.name, image.filepath, image.colorspace_settings.name,
+                       hashlib.sha256(Path(bpy.path.abspath(image.filepath, library=image.library)).read_bytes()).hexdigest())
+                      for image in sorted(target_images, key=lambda item: item.name)]
+            extra = [(obj.name, tuple(tuple(n.vector) for n in obj.data.corner_normals),
+                      tuple((uv.name, tuple(tuple(v.vector) for v in uv.uv)) for uv in obj.data.uv_layers),
+                      tuple((p.name, tuple(p.head_local), tuple(p.tail_local)) for p in rig.data.bones))
+                     for obj in meshes]
+            return source_snapshot(), repr(extra), rig_state(rig)[:4], images
+        before = snapshot()
+        with tempfile.TemporaryDirectory(prefix='o3d-private-arms-') as directory:
+            root = Path(directory)
+            kwargs = {'settings': {'walk_params': tuple(settings.walk_params)}, 'turn_180': settings.turn_180,
+                      'normalize_arms': settings.normalize_arms}
+            preview = human.export_human(str(root / 'after' / 'character.hum'), bpy.context, rig, meshes,
+                                         preflight_only=True, **kwargs)
+            assert not list(root.iterdir())
+            result = human.export_human(str(root / 'after' / 'character.hum'), bpy.context, rig, meshes, **kwargs)
+            close(hum_records(Path(result['hum_path']))[0], expected_links(True))
+            close(preview['measurements']['links'], expected_links(True))
+            assert not preview['measurements']['errors']
+            cfg = Path(result['cfg_path']).read_text(encoding='cp1252')
+            assert cfg.count('[mesh]') == cfg.count('[smoothskin]') == 3
+            slots = {'Main': -11, 'Hip': -10, 'Head': -12, 'OA_L': -6, 'OA_R': -7,
+                     'UA_L': -8, 'UA_R': -9, 'Hand_L': -13, 'Hand_R': -14,
+                     'OS_L': -2, 'OS_R': -3, 'US_L': -4, 'US_R': -5}
+            after_records = []
+            for obj, emitted_path in zip(meshes, result['mesh_paths']):
+                expected, weights = private_geometry_expected(obj, independent)
+                expected = [Vector((-p.x, p.z, -p.y)) for p in expected]
+                records = read_export(Path(emitted_path).read_bytes())
+                assert {name for name, _ in records['bones']} == set(points)
+                assert_private_records(records, obj, expected, weights)
+                block = cfg.split('[mesh]\n' + Path(emitted_path).name + '\n', 1)[1].split('[mesh]', 1)[0]
+                for name, slot in slots.items():
+                    assert f'[setbone]\n{name}\n{slot}\n' in block, (name, block)
+                after_records.append(records)
+            # Every limb joint and captured finger must agree with the same
+            # independent elevation plan, no redundant numeric baseline overrides.
+            links = hum_records(Path(result['hum_path']))[0]
+            close((links[13], links[18]), (points['OA_L'].z,) * 2)
+            height = max(v[1] for v in after_records[0]['vertices']) - min(v[1] for v in after_records[0]['vertices'])
+            assert abs(hum_records(Path(result['hum_path']))[1] - height) < 2e-5
+            assert snapshot() == before
+            # Distinct sentinel overrides stay final coordinates at nonunit scale,
+            # independent of either yaw state. Export, do not just measure previews.
+            overrides = {'elbow': (.71, -.12, 1.81), 'hand': (.82, -.13, 1.82),
+                         'finger': (.93, -.14, 1.83), 'neck': (.15, 1.95), 'waist': (0, -.16, 1.21)}
+            for turn in (False, True):
+                emitted = human.export_human(str(root / ('override-' + str(turn)) / 'character.hum'),
+                    bpy.context, rig, meshes, normalize_arms=True, turn_180=turn, scale=1.7, overrides=overrides)
+                links, _ = hum_records(Path(emitted['hum_path']))
+                for name, start in (('elbow', 11), ('hand', 16), ('finger', 19)):
+                    close(links[start:start + 3], overrides[name])
+                    assert any(name in w and 'normalized' in w for w in emitted['warnings'])
+                close(links[6:8], overrides['waist'][1:])
+                close(links[14:16], overrides['neck'])
+                assert snapshot() == before
+            if render_output_dir is not None:
+                legacy = human.export_human(str(root / 'before' / 'character.hum'), bpy.context, rig, meshes,
+                    settings={'walk_params': (1.4, 45, 1, 1, 0)}, turn_180=True, normalize_arms=False)
+                before_records = read_export(Path(legacy['mesh_paths'][0]).read_bytes())
+                render_runtime_comparison({'before': before_records, 'after': after_records[0],
+                    'joints': {name: Vector((-p.x, p.z, -p.y)) for name, p in normalized_points.items()},
+                    'raw_joints': {name: Vector((-p.x, p.z, -p.y)) for name, p in points.items()}},
+                    render_output_dir, 'private')
+                assert snapshot() == before
+            assert settings.turn_180 and settings.normalize_arms
+            close(settings.walk_params, (1.4, 80, 1, 1, 0))
+            after = snapshot()
+            assert after == before
+            if render_output_dir is not None:
+                (Path(render_output_dir) / 'private-source-image-hashes.json').write_text(json.dumps(
+                    {'before': before[-1], 'after': after[-1]}, indent=2))
+            print('ARM_PRIVATE_SOURCE_IMAGES_OK', len(after[-1]), json.dumps(after[-1]))
+    finally:
+        after_hashes = hashes()
+        assert after_hashes == before_hashes, 'protected private/source/installed bytes changed'
+        if render_output_dir is not None:
+            output = Path(render_output_dir)
+            output.mkdir(parents=True, exist_ok=True)
+            (output / 'private-protected-hashes.json').write_text(json.dumps(
+                {'before': before_hashes, 'after': after_hashes, 'count': len(protected)}, indent=2))
+        print('ARM_PRIVATE_HASHES_OK', len(protected), json.dumps(after_hashes, sort_keys=True))
+    print('ARM_PRIVATE_FIXTURE_OK', 'canonical rig + owned 3 LODs; installed-inferred Turn180=True; beta80')
+
+
+def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--check', choices=('plan', 'mesh', 'normals', 'bundle', 'panel', 'all'), default='all')
-    args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
-    checks = {'plan': assert_arm_transform_plan, 'mesh': assert_arm_mesh_deformation,
-              'normals': assert_arm_normalization_normals, 'bundle': assert_arm_normalization_bundle,
-              'panel': assert_arm_normalization_panel}
+    parser.add_argument('--check', choices=(*PUBLIC_CHECKS, 'private', 'all'), default='all')
+    parser.add_argument('--with-private-fixtures', action='store_true')
+    parser.add_argument('--private-blend', type=Path)
+    parser.add_argument('--private-evidence-file', type=Path, action='append', default=[])
+    parser.add_argument('--render-output-dir', type=Path)
+    args = parser.parse_args(argv)
+    if args.with_private_fixtures != (args.private_blend is not None):
+        parser.error('--with-private-fixtures and --private-blend must be supplied together')
+    if (args.check == 'private' or args.private_evidence_file) and not args.with_private_fixtures:
+        parser.error('private checks/evidence require both private opt-in flags')
+    for path in ([args.private_blend] if args.with_private_fixtures else []) + args.private_evidence_file:
+        if not path.is_file() or not os.access(path, os.R_OK):
+            parser.error('private input must be an existing readable file: ' + str(path))
+    return args
+
+
+def assert_arm_normalization_cli(addon):
+    # Exercise behavior: default no private dependency, strict paired opt-in,
+    # invalid input/unknown checks fail, and a named check does not run all.
+    from contextlib import redirect_stderr
+    import io
+    default = parse_args([])
+    assert not default.with_private_fixtures and default.private_blend is None
+    assert not default.private_evidence_file and default.render_output_dir is None
+    assert parse_args(['--check', 'runtime']).check == 'runtime'
+    with tempfile.TemporaryDirectory(prefix='o3d-arm-cli-') as directory:
+        readable = Path(directory) / 'input.blend'
+        readable.write_bytes(b'parser-only fixture; never opened as a scene')
+        supplied = parse_args(['--with-private-fixtures', '--private-blend', str(readable), '--check', 'private'])
+        assert supplied.private_blend == readable and supplied.check == 'private'
+        for arguments in (['--check', 'typo'], ['--check', 'private'], ['--with-private-fixtures'],
+                          ['--private-blend', str(readable)], ['--private-evidence-file', str(readable)],
+                          ['--with-private-fixtures', '--private-blend', str(readable.parent)],
+                          ['--with-private-fixtures', '--private-blend', str(readable) + '.missing']):
+            with redirect_stderr(io.StringIO()) as output:
+                try:
+                    parse_args(arguments)
+                except SystemExit as error:
+                    assert error.code == 2 and 'error:' in output.getvalue(), arguments
+                else:
+                    raise AssertionError('invalid CLI accepted: ' + repr(arguments))
+
+
+PUBLIC_CHECKS = {'plan': assert_arm_transform_plan, 'mesh': assert_arm_mesh_deformation,
+                 'normals': assert_arm_normalization_normals, 'bundle': assert_arm_normalization_bundle,
+                 'panel': assert_arm_normalization_panel, 'runtime': assert_arm_normalization_runtime,
+                 'cli': assert_arm_normalization_cli}
+# Root caller owns add-on registration. Public CHECKS never open private files.
+CHECKS = list(PUBLIC_CHECKS.values())
+
+
+def run():
+    global RENDER_OUTPUT_DIR
+    args = parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
+    RENDER_OUTPUT_DIR = args.render_output_dir
     addon = load_addon()
     try:
         addon.register()
-        for name, check in checks.items():
+        for name, check in PUBLIC_CHECKS.items():
             if args.check in (name, 'all'):
                 check(addon)
                 print('ARM_NORMALIZATION_CHECK_OK', name, bpy.app.version_string)
+        if args.with_private_fixtures:
+            assert_arm_normalization_private(addon, args.private_blend, evidence_files=args.private_evidence_file,
+                                             render_output_dir=args.render_output_dir)
     finally:
         addon.unregister()
 
