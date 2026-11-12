@@ -1507,8 +1507,8 @@ def runtime_arm_matrices(joints, state, phase=0, *, beta=80):
                       @ rotation(axial * mirror, elbow - shoulder))
         forearm = upper @ about(elbow, rotation(elbows[index] * mirror, 'Y'))
         hx, hz, hy = hand
-        palm = forearm @ about(wrist, rotation(hy * mirror, 'Y')
-                              @ rotation(hz * mirror, 'Z') @ rotation(-hx, 'X'))
+        palm = forearm @ about(wrist, rotation(-hx, 'X')
+                              @ rotation(hz * mirror, 'Z') @ rotation(hy * mirror, 'Y'))
         result.update({oa: upper, ua: forearm, hn: palm})
     return result
 
@@ -1645,6 +1645,23 @@ def runtime_decoded(records, count):
 
 
 def assert_arm_normalization_runtime(addon):
+    # Literal D3DX ROW-vector B4/6/11 and B5/7/12 multiplication anchors.
+    # These were calculated separately in double precision, not with this helper.
+    # Noncommuting seated hand angles lock down transposition/composition order;
+    # comparing two geometries under the same wrong runtime graph would miss it.
+    anchor_joints = {stem + '_' + side: Vector((sign * x, 1.4, 0))
+                     for side, sign in (('L', -1), ('R', 1))
+                     for stem, x in (('OA', .2), ('UA', .5), ('Hand', .75))}
+    seated = runtime_arm_matrices(anchor_joints, 'seated')
+    for side, sign in (('L', -1), ('R', 1)):
+        for source, expected in zip(((.75, 1.4, 0), (.86, 1.4, 0), (.78, 1.4, -.045), (.78, 1.435, 0)),
+                ((.208180582326, 1.033566594533, .349797649477),
+                 (.205147070088, .993881994960, .452344859875),
+                 (.226662778550, .984647457619, .363593535325),
+                 (.238952511049, 1.036440525532, .384000411402))):
+            x, y, z = source
+            ex, ey, ez = expected
+            close(seated['Hand_' + side] @ Vector((sign * x, y, z)), (sign * ex, ey, ez))
     # The oracle must reject missing rest conversion even with beta45 compensation.
     render_data = None
     with preserve_context(), tempfile.TemporaryDirectory(prefix='o3d-arm-runtime-') as directory:
