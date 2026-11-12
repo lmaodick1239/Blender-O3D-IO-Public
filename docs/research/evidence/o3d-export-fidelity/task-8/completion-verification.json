@@ -1,0 +1,530 @@
+{
+  "recorded": "2026-11-12 Asia/Hong_Kong",
+  "base_head": "2fd6988603b2a5af975dfabad6fe3a90c891e53d",
+  "status": "automated follow-up complete and independently reviewed; authorized local merge pending",
+  "harness_sha256": "35a540588e375e2e90a60ed85f2ac591db4b66bfdef1e5fedd7895f17550c876",
+  "fix_evidence": {
+    "focused-red": {
+      "argv": [
+        "/mnt/Random/blender-5.0.1-linux-x64/blender",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "1",
+        "--python-exit-code",
+        "1",
+        "--python",
+        ".superpowers/final-verification/completion-followup-20261112/focused.py",
+        "--",
+        ".superpowers/final-verification/completion-followup-20261112/focused-red"
+      ],
+      "exit": 1,
+      "log": ".superpowers/final-verification/completion-followup-20261112/focused-red.log",
+      "log_sha256": "09d111cab9a81cb8252769742731126adc9012a5aa7a940774bfee2fa7ee1b76",
+      "inputs_unchanged": true,
+      "case_count": 3,
+      "passed": 0,
+      "failed_cases": [
+        {
+          "case": "flat_transform",
+          "failures": [
+            "custom_normal/flat_transform: oriented reference surface including winding: AssertionError: ((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((-3.40147, -1.06693, -1.8143, -0.50433, 0.1673, 0.84715, 0.13, 0.79), (0.0, 0.0, 0.0, -0.50433, 0.1673, 0.84715, 0.81, 0.68), (-0.57341, 1.36851, -0.61163, -0.50433, 0.1673, 0.84715, 0.27, 0.11))), ((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((-3.40147, -1.06693, -1.8143, -0.08056, 0.91783, -0.38871, 0.81, 0.68), (-0.81334, 0.16085, 0.54837, -0.08056, 0.91783, -0.38871, 0.27, 0.11), (0.0, 0.0, 0.0, -0.08056, 0.91783, -0.38871, 0.13, 0.79)))), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((-3.40147, -1.06693, -1.8143, -0.32149, -0.13954, 0.68479, 0.13, 0.79), (0.0, 0.0, 0.0, -0.32149, -0.13954, 0.68479, 0.81, 0.68), (-0.57341, 1.36851, -0.61163, -0.32149, -0.13954, 0.68479, 0.27, 0.11))), ((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((-3.40147, -1.06693, -1.8143, -0.11278, 1.28496, -0.54419, 0.81, 0.68), (-0.81334, 0.16085, 0.54837, -0.11278, 1.28496, -0.54419, 0.27, 0.11), (0.0, 0.0, 0.0, -0.11278, 1.28496, -0.54419, 0.13, 0.79)))))"
+          ],
+          "group": "custom_normal",
+          "manifest": "custom_normal/flat_transform/manifest.json",
+          "status": "FAIL"
+        },
+        {
+          "case": "smooth_transform",
+          "failures": [
+            "custom_normal/smooth_transform: oriented reference surface including winding: AssertionError: ((((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((-3.40147, -1.06693, -1.8143, -0.50865, 0.6374, 0.57879, 0.13, 0.79), (0.0, 0.0, 0.0, -0.51375, 0.6072, 0.60611, 0.81, 0.68), (-0.57341, 1.36851, -0.61163, -0.50433, 0.1673, 0.84715, 0.27, 0.11))), ((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((-3.40147, -1.06693, -1.8143, -0.50865, 0.6374, 0.57879, 0.81, 0.68), (-0.81334, 0.16085, 0.54837, -0.08056, 0.91783, -0.38871, 0.27, 0.11), (0.0, 0.0, 0.0, -0.51375, 0.6072, 0.60611, 0.13, 0.79)))), (((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((-3.40147, -1.06693, -1.8143, -0.34815, 1.00128, 0.0639, 0.13, 0.79), (0.0, 0.0, 0.0, -0.35642, 0.95223, 0.10826, 0.81, 0.68), (-0.57341, 1.36851, -0.61163, -0.32149, -0.13954, 0.68479, 0.27, 0.11))), ((0.7, 0.4, 0.2, 0.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ''), ((-3.40147, -1.06693, -1.8143, -0.34815, 1.00128, 0.0639, 0.81, 0.68), (-0.81334, 0.16085, 0.54837, -0.11278, 1.28496, -0.54419, 0.27, 0.11), (0.0, 0.0, 0.0, -0.35642, 0.95223, 0.10826, 0.13, 0.79)))))"
+          ],
+          "group": "custom_normal",
+          "manifest": "custom_normal/smooth_transform/manifest.json",
+          "status": "FAIL"
+        },
+        {
+          "case": "global_scale",
+          "failures": [
+            "transforms/global_scale: selection mode and active object unchanged: AssertionError: ((bpy.data.objects['global_scale'], {bpy.data.objects['global_scale'], bpy.data.objects['global_scale.001']}, 'OBJECT'), (bpy.data.objects['global_scale'], {bpy.data.objects['global_scale']}, 'OBJECT'))"
+          ],
+          "group": "transforms",
+          "manifest": "transforms/global_scale/manifest.json",
+          "status": "FAIL"
+        }
+      ]
+    },
+    "focused-green": {
+      "argv": [
+        "/mnt/Random/blender-5.0.1-linux-x64/blender",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "1",
+        "--python-exit-code",
+        "1",
+        "--python",
+        ".superpowers/final-verification/completion-followup-20261112/focused.py",
+        "--",
+        ".superpowers/final-verification/completion-followup-20261112/focused-green"
+      ],
+      "exit": 0,
+      "log": ".superpowers/final-verification/completion-followup-20261112/focused-green.log",
+      "log_sha256": "e508466c0b310925fd30842186d3bfe7665ba3520a70314a0445d5491e494164",
+      "inputs_unchanged": true,
+      "case_count": 3,
+      "passed": 3,
+      "failed_cases": []
+    },
+    "reference-final": {
+      "argv": [
+        "/mnt/Random/blender-5.0.1-linux-x64/blender",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "1",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "tests/smoke_export_fidelity.py",
+        "--",
+        "--compare-reference",
+        ".gitignorefolder/Blender-OMSI-Exporter",
+        "--output-dir",
+        ".superpowers/final-verification/completion-followup-20261112/reference-final"
+      ],
+      "exit": 1,
+      "log": ".superpowers/final-verification/completion-followup-20261112/reference-final.log",
+      "log_sha256": "ed0338c525d4bd2f2868dd7b6c78264008c43536ba11be4948f995dcf5f83b53",
+      "inputs_unchanged": true,
+      "case_count": 82,
+      "passed": 81,
+      "failed_cases": [
+        {
+          "case": "mapping_vector",
+          "failures": [
+            "uv_mapping/mapping_vector: reference export: 'bpy_prop_collection[key]: key \"Location\" not found'"
+          ],
+          "group": "uv_mapping",
+          "manifest": "uv_mapping/mapping_vector/manifest.json",
+          "status": "FAIL"
+        }
+      ]
+    },
+    "standalone-final": {
+      "argv": [
+        "/mnt/Random/blender-5.0.1-linux-x64/blender",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "1",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "tests/smoke_export_fidelity.py",
+        "--",
+        "--output-dir",
+        ".superpowers/final-verification/completion-followup-20261112/standalone-final"
+      ],
+      "exit": 0,
+      "log": ".superpowers/final-verification/completion-followup-20261112/standalone-final.log",
+      "log_sha256": "981228a83f2be151d399e2bf467cd240e4b278b2253bdc7f42cc3254faec5434",
+      "inputs_unchanged": true,
+      "case_count": 82,
+      "passed": 82,
+      "failed_cases": []
+    },
+    "pure-discovery": {
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit": 0,
+      "log": ".superpowers/final-verification/completion-followup-20261112/pure-discovery.log",
+      "log_sha256": "2397dcd7913e0dad029d42e0462736ba5cfe89872855841b27a11f048ef537f9",
+      "inputs_unchanged": true
+    },
+    "controls-final": {
+      "argv": [
+        "/mnt/Random/blender-5.0.1-linux-x64/blender",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "1",
+        "--python-exit-code",
+        "1",
+        "--python",
+        ".superpowers/final-verification/completion-followup-20261112/controls.py"
+      ],
+      "exit": 0,
+      "log": ".superpowers/final-verification/completion-followup-20261112/controls-final.log",
+      "log_sha256": "d074ba1671476ade6567947d02ae6295f5bb0f1714398f7d861b8932fb0fcd34",
+      "inputs_unchanged": true
+    },
+    "controls-verified": {
+      "argv": [
+        "/mnt/Random/blender-5.0.1-linux-x64/blender",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "1",
+        "--python-exit-code",
+        "1",
+        "--python",
+        ".superpowers/final-verification/completion-followup-20261112/controls.py"
+      ],
+      "exit": 0,
+      "log": ".superpowers/final-verification/completion-followup-20261112/controls-verified.log",
+      "log_sha256": "d074ba1671476ade6567947d02ae6295f5bb0f1714398f7d861b8932fb0fcd34",
+      "inputs_unchanged": true
+    }
+  },
+  "premerge_matrix": {
+    "phase": "premerge",
+    "repo": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity",
+    "source_head": "2fd6988603b2a5af975dfabad6fe3a90c891e53d",
+    "source_sha256": {
+      ".github/workflows/smoke_test.yml": "5349bc3fe907e5c2938e342ef7ba035cde98a7d6d7e43840ea87531ef2c07a6a",
+      "__init__.py": "ede86f9e49c953c626006d53c8f3c8febb7ee3e9ca3bc1f62b181ab49c6b9f9b",
+      "o3d_io/__init__.py": "ddbbe761b43c5ca3560527eab3921c12d635d2777ccc6241a4eed32953ba3c42",
+      "o3d_io/blender_compat.py": "47a133985113aaa37f77647f41b9336416f7c3a7dfd599bee2300bf88d24fbbe",
+      "o3d_io/blender_texture_io.py": "26039a9b3ce3b8b5a3d8b0337c33d741274e86c2490884f631e59f1200497e75",
+      "o3d_io/io_o3d_export.py": "b27b969aab2ec28805b7e52666cdfa30cccbd83557b1f8731d34e427f2ad8b2e",
+      "o3d_io/io_o3d_import.py": "905fbbab75fd995b6ac02cc1a7c1892fe72cbb2880f3ea801c885f0c08f4f075",
+      "o3d_io/io_omsi_map_panel.py": "e110a77c28dc35bd043af228ca79aba2c98e855960a824b0fd2d3820b6e8222a",
+      "o3d_io/io_omsi_spline.py": "ef412cb1081da16c1e63a33be4369d5a473aa24804f96fa0126efbb486f9d492",
+      "o3d_io/io_omsi_tile.py": "40c62f017534e0f7af28b06bccdb89c9724fec5fc0e3953a771d4d4dfb91ba21",
+      "o3d_io/layered_shader.py": "fc4c35018f75c156d021837a8300e0179d7456c37806f5aa5edc5c81a2025356",
+      "o3d_io/mesh_lod.py": "3064f96eb579ddf8a81c87ef68e6ed8df041eb4d8b00c8b2374df4cff6138b4d",
+      "o3d_io/mmd_materials.py": "8769282740dcee5e3e6592b3ffa4769ed7802ad889d90b3a2c60e84dfccd17ed",
+      "o3d_io/mmd_rig.py": "5d955f20952ca06ffb7c6721369c92960f865b6d05c2a5bfca2de1c7d6e7aab2",
+      "o3d_io/o3d_armature.py": "f808097575f498778391c58516df90ac30311b4b4fc17ac89e2bf8402a72db40",
+      "o3d_io/o3d_cfg_parser.py": "8cceccf8a3bb8d7086b7de70102ab375c411ece0c0776728728ea274928b2987",
+      "o3d_io/o3d_crypto.py": "8c48a5155124b23f409bd1153162aba35a2bd396d5eccabe55bdb16116aeb52c",
+      "o3d_io/o3d_node_shader_utils.py": "67fb3b2afa365545e839e8e0fdcc99f5f4f845374ac30640c4739daf68034277",
+      "o3d_io/o3dconvert.py": "dd3d6a34bff20494bf8f5bced7cd81815053a35f7d1eae79ada747870969ffc7",
+      "o3d_io/omsi_character_panel.py": "18870971eeafbd6642981d554eabb9d40d89e1641451dbb3d9d16bbb54b9e0fc",
+      "o3d_io/omsi_human.py": "39892bb17dc50b8ef875fa0c03ca3c633ce8e333907f9fb0132baedef84d47d0",
+      "o3d_io/omsi_paths.py": "b9917c6adbfc41ddbefde6ea99d14d68d3f10b35b7b84240dadff1bd0ec9bc6c",
+      "tests/blender_smoke.py": "3c3cecc16e488f349723af29ca2700875e8be2f57ff37befcbb7f9ed72b0e9a1",
+      "tests/build_native_validation.py": "56d4e71d8d0b81314438cd0b32b7498fb0629dd4c662cce5610b61dbe4e588dd",
+      "tests/o3d_export_support.py": "e5037886accdc2e3247ffb27d2ad95a1eea9a6097938081603fb2c71d6589cc3",
+      "tests/smoke_character.py": "6a779b41c88f1e4f627029f9ef4c6a163b101c946e4de34f829c352d627a7afa",
+      "tests/smoke_character_final_fix.py": "78291c66fc3451501a664a282d1707ed98d14ca50c58558a8e89f003b7b6baad",
+      "tests/smoke_character_fix_round_1.py": "20bb770d760d203c5b5db116f4093f873d2869804921c6707297b144028a4f74",
+      "tests/smoke_character_fix_round_2.py": "ebca83dc2ae840b4a490adcfbff229ca6b9a5ae1a0d148fbc8e020f699353029",
+      "tests/smoke_character_panel.py": "06d1bc67455da246bee4e58b284cc3b953e179d80e6676b132e6b261b361c690",
+      "tests/smoke_character_repair.py": "0956bf722702957e8cde3f48c5ab398a0f953f843d090f6998021ca66a680910",
+      "tests/smoke_character_review.py": "0562f811411bf367c6576569b4380f07fb484bf0ec52c6f32a02eeeb2805b1a4",
+      "tests/smoke_export_fidelity.py": "35a540588e375e2e90a60ed85f2ac591db4b66bfdef1e5fedd7895f17550c876",
+      "tests/smoke_human.py": "9c8886e241e5168e3a035bb00ee2384776210300d189ee64997448ec2e052fa8",
+      "tests/smoke_io.py": "c6cdc7c04b4b6022e5bed41515b319911b30707aeb4584ca7b1e0d7e04435f19",
+      "tests/smoke_lod.py": "135d5a3ae958b129849c1cfa9b3ea332d2a7e6dd4acbdd34415cbdf57ac93b81",
+      "tests/smoke_materials.py": "f9a9507510022e3df5fdc5fa5685639ec2cdd839bae9bdbd3341ae0b17598aa5",
+      "tests/smoke_paths.py": "f325723b472fdfbaa2da27412d6e495d8d95fce5e0c7c4766569bfc438053859",
+      "tests/smoke_support.py": "d12a70bd89e6893cd836492d0fda4b411415e0f2daa34796fad44d8dd58ca6f3",
+      "tests/test_o3d_export_support.py": "cf693c896d7b9a5be7a277fde40b2335cabfa662aedb9a73b311053e7a472c1d",
+      "tests/test_o3dconvert.py": "b5499adc866964b26bb8927f431bfc79de75c43fb3a40e1430d9384653f56bd8",
+      "tests/test_pack.py": "8be7dbb58b004209cb18c573d1c9211ca9e745f49c8f27939b9cb6a01b0599df"
+    },
+    "runs": [
+      {
+        "label": "pure",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "tests",
+          "-p",
+          "test_*.py",
+          "-v"
+        ],
+        "exit": 0,
+        "counts": {
+          "ROOT_CHECK_OK": 0,
+          "FIDELITY ": 0,
+          "HUMAN_CHECK_OK": 0
+        },
+        "pass": true,
+        "seconds": 0.12,
+        "log": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/pure.log",
+        "log_sha256": "2397dcd7913e0dad029d42e0462736ba5cfe89872855841b27a11f048ef537f9"
+      },
+      {
+        "label": "retained-evidence",
+        "command": [
+          "python3",
+          "-B",
+          "docs/research/evidence/o3d-export-fidelity/task-3/verify-evidence.py"
+        ],
+        "exit": 0,
+        "counts": {
+          "ROOT_CHECK_OK": 0,
+          "FIDELITY ": 0,
+          "HUMAN_CHECK_OK": 0
+        },
+        "pass": true,
+        "seconds": 0.24,
+        "log": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/retained-evidence.log",
+        "log_sha256": "e286141a8cd5b2f6c9b1a694b6a2d1cc67af9711f3ce648d8d8bbe562844ef35"
+      },
+      {
+        "label": "retained-evidence-regression",
+        "command": [
+          "python3",
+          "-B",
+          "docs/research/evidence/o3d-export-fidelity/task-3/test-verify-evidence.py"
+        ],
+        "exit": 0,
+        "counts": {
+          "ROOT_CHECK_OK": 0,
+          "FIDELITY ": 0,
+          "HUMAN_CHECK_OK": 0
+        },
+        "pass": true,
+        "seconds": 0.42,
+        "log": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/retained-evidence-regression.log",
+        "log_sha256": "f570a0e147dc10a11a5e058d9dc34136410494856a444911b7ea8c56454ab025"
+      },
+      {
+        "label": "standalone-4.2.23",
+        "command": [
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/blender-runtimes/4.2.23/extracted/blender-4.2.23-linux-x64/blender",
+          "--background",
+          "--factory-startup",
+          "--threads",
+          "1",
+          "--python-exit-code",
+          "1",
+          "--python",
+          "tests/smoke_export_fidelity.py",
+          "--",
+          "--output-dir",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/standalone-cases-4.2.23"
+        ],
+        "exit": 0,
+        "counts": {
+          "ROOT_CHECK_OK": 0,
+          "FIDELITY ": 82,
+          "HUMAN_CHECK_OK": 0
+        },
+        "pass": true,
+        "seconds": 1.86,
+        "log": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/standalone-4.2.23.log",
+        "log_sha256": "250b7053baf95a57cea17c54162206426d4f46df573dc389a6a137182083850f"
+      },
+      {
+        "label": "integrated-4.2.23",
+        "command": [
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/blender-runtimes/4.2.23/extracted/blender-4.2.23-linux-x64/blender",
+          "--background",
+          "--factory-startup",
+          "--threads",
+          "1",
+          "--python-exit-code",
+          "1",
+          "--python",
+          "tests/blender_smoke.py",
+          "--",
+          "--fidelity-output-dir",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/integrated-cases-4.2.23"
+        ],
+        "exit": 0,
+        "counts": {
+          "ROOT_CHECK_OK": 121,
+          "FIDELITY ": 82,
+          "HUMAN_CHECK_OK": 31
+        },
+        "pass": true,
+        "seconds": 33.13,
+        "log": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/integrated-4.2.23.log",
+        "log_sha256": "64c89760b88d8375ca78a9b8a030af05e5aad7401a7d6d9880c3990bbbb2a398"
+      },
+      {
+        "label": "standalone-5.0.1",
+        "command": [
+          "/mnt/Random/blender-5.0.1-linux-x64/blender",
+          "--background",
+          "--factory-startup",
+          "--threads",
+          "1",
+          "--python-exit-code",
+          "1",
+          "--python",
+          "tests/smoke_export_fidelity.py",
+          "--",
+          "--output-dir",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/standalone-cases-5.0.1"
+        ],
+        "exit": 0,
+        "counts": {
+          "ROOT_CHECK_OK": 0,
+          "FIDELITY ": 82,
+          "HUMAN_CHECK_OK": 0
+        },
+        "pass": true,
+        "seconds": 1.86,
+        "log": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/standalone-5.0.1.log",
+        "log_sha256": "d2dea2fb09522f4fbfd59926d49cdea5e1933e9f0e436a634a57620b09a4764c"
+      },
+      {
+        "label": "integrated-5.0.1",
+        "command": [
+          "/mnt/Random/blender-5.0.1-linux-x64/blender",
+          "--background",
+          "--factory-startup",
+          "--threads",
+          "1",
+          "--python-exit-code",
+          "1",
+          "--python",
+          "tests/blender_smoke.py",
+          "--",
+          "--fidelity-output-dir",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/integrated-cases-5.0.1"
+        ],
+        "exit": 0,
+        "counts": {
+          "ROOT_CHECK_OK": 121,
+          "FIDELITY ": 82,
+          "HUMAN_CHECK_OK": 31
+        },
+        "pass": true,
+        "seconds": 37.59,
+        "log": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/integrated-5.0.1.log",
+        "log_sha256": "8db57140a7d90d882fd63a1136f5846168f080a94a6fdb6a940e85823eee2268"
+      },
+      {
+        "label": "standalone-5.2.4",
+        "command": [
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/blender-runtimes/5.2.4/extracted/blender-5.2.4-linux-x64/blender",
+          "--background",
+          "--factory-startup",
+          "--threads",
+          "1",
+          "--python-exit-code",
+          "1",
+          "--python",
+          "tests/smoke_export_fidelity.py",
+          "--",
+          "--output-dir",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/standalone-cases-5.2.4"
+        ],
+        "exit": 0,
+        "counts": {
+          "ROOT_CHECK_OK": 0,
+          "FIDELITY ": 82,
+          "HUMAN_CHECK_OK": 0
+        },
+        "pass": true,
+        "seconds": 2.2,
+        "log": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/standalone-5.2.4.log",
+        "log_sha256": "8affa752495191ec160d78c32803294d640eeb7f7edb1e661ccf246e5d02b67a"
+      },
+      {
+        "label": "integrated-5.2.4",
+        "command": [
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/blender-runtimes/5.2.4/extracted/blender-5.2.4-linux-x64/blender",
+          "--background",
+          "--factory-startup",
+          "--threads",
+          "1",
+          "--python-exit-code",
+          "1",
+          "--python",
+          "tests/blender_smoke.py",
+          "--",
+          "--fidelity-output-dir",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/integrated-cases-5.2.4"
+        ],
+        "exit": 0,
+        "counts": {
+          "ROOT_CHECK_OK": 121,
+          "FIDELITY ": 82,
+          "HUMAN_CHECK_OK": 31
+        },
+        "pass": true,
+        "seconds": 36.89,
+        "log": "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/integrated-5.2.4.log",
+        "log_sha256": "a2d86e19cff29db7b0467bb6243a6ea1d33e717e2d03bc657735e73a8ae28a51"
+      }
+    ],
+    "native_runtime": "NOT RUN",
+    "optional_private": "NOT REQUESTED",
+    "source_unchanged": true,
+    "pass": true
+  },
+  "native_status": "OPEN / NOT RENDERED; authorized host not established",
+  "reference_limit": "Unmodified reference VECTOR export raises missing Mapping Location; retained nonzero exit, not all-pass",
+  "artifact_reuse": "No product bytes changed; existing extension/archive and synthetic native bundle preserve their historical source provenance.",
+  "tested_harness_commit": "1bacc2a180cb6106614e33b22fb838f858198b4e",
+  "precommit_matrix_binding": "Matrix recorded HEAD2fd6988 while pending harness bytes matched final commit1bacc2a exactly; 42 input hashes stable before/after. No false original HEAD attribution.",
+  "supported_reference_focused": {
+    "harness_sha256": "35a540588e375e2e90a60ed85f2ac591db4b66bfdef1e5fedd7895f17550c876",
+    "builds": [
+      {
+        "version": "4.2.23",
+        "command": [
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/blender-runtimes/4.2.23/extracted/blender-4.2.23-linux-x64/blender",
+          "--background",
+          "--factory-startup",
+          "--threads",
+          "1",
+          "--python-exit-code",
+          "1",
+          "--python",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/completion-followup-20261112/focused.py",
+          "--",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/reference-focused-4.2.23"
+        ],
+        "exit": 0,
+        "counts": {
+          "pass": 3,
+          "fail": 0
+        },
+        "log": ".superpowers/final-verification/premerge-ub1c30u3/reference-focused-4.2.23.log",
+        "log_sha256": "dac562ce9633374236f63e6896a3cc27d49a40ec5b7628cbb3b38ad9c5235415"
+      },
+      {
+        "version": "5.2.4",
+        "command": [
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/blender-runtimes/5.2.4/extracted/blender-5.2.4-linux-x64/blender",
+          "--background",
+          "--factory-startup",
+          "--threads",
+          "1",
+          "--python-exit-code",
+          "1",
+          "--python",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/completion-followup-20261112/focused.py",
+          "--",
+          "/mnt/Random/users/user/Documents/GitHub/Blender-O3D-IO-Public/.worktrees/o3d-export-fidelity/.superpowers/final-verification/premerge-ub1c30u3/reference-focused-5.2.4"
+        ],
+        "exit": 0,
+        "counts": {
+          "pass": 3,
+          "fail": 0
+        },
+        "log": ".superpowers/final-verification/premerge-ub1c30u3/reference-focused-5.2.4.log",
+        "log_sha256": "f1b68453c22a6a09d56bad15ba6f12d6a0deb21001b607b94d86faea6be1102a"
+      }
+    ]
+  },
+  "independent_review": {
+    "verdict": "Spec compliance PASS; task quality PASS; no Critical/P1/P2/P3 code findings",
+    "reviewed_harness_commit": "1bacc2a180cb6106614e33b22fb838f858198b4e",
+    "reviewed_harness_sha256": "35a540588e375e2e90a60ed85f2ac591db4b66bfdef1e5fedd7895f17550c876",
+    "method": "fresh complete frozen incremental review plus actual source, requirements, nine final matrix log identities, 42 source hashes and explicit reference/native limits",
+    "prior_interrupted_review": "not accepted; source drift led to refreshed package, final-source rerun and fresh review"
+  }
+}

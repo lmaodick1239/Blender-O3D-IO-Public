@@ -48,6 +48,10 @@ python3 -B tests/build_native_validation.py --verify-package .superpowers/native
 
 The reference path is optional, never required by public CI. The generator refuses existing output directories and checks package containment, file hashes, every emitted declaration/reference and independently decoded O3D values. A real initial Blender import-path failure was fixed in the generator only; the final package generation/offline verification passed separately. This helper-only change occurred after the public matrix; product and public-suite bytes did not change. The manifest records the actual pre-commit source hashes rather than falsely attributing uncommitted helper bytes to an earlier HEAD.
 
+## Retained research helper behavior
+
+Despite its historical “Read-only” module description, [check-derived-math.py](<../task-3/check-derived-math.py>) **regenerates `derived-math.json` when run**. It does not launch Blender or OMSI. The helper is itself a byte/hash-bound retained artifact, so its historical text is preserved rather than cosmetically changing the capture or weakening the retention check. For a read-only integrity check, use `python3 -B docs/research/evidence/o3d-export-fidelity/task-3/verify-evidence.py`; do not run the regeneration helper merely to inspect evidence.
+
 ## Native gates explicitly NOT closed
 
 No usable authorized OMSI installation was established and no OMSI/Wine process was launched. The supplied executable/project were used for read-only static evidence, not as a rendering host. No installation, prefix or graphics change was performed for validation. Portable Blender test executors are separate scratch tools, not bundled runtime dependencies; an earlier unauthenticated Tavily status launcher unexpectedly provisioned21 environment packages, was stopped and is recorded rather than hidden.
