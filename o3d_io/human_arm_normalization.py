@@ -1,4 +1,4 @@
-"""Read-only world-space arm elevation plans for canonical human rigs."""
+"""World-space arm elevation plans and temporary rest-mesh deformation."""
 import math
 
 from mathutils import Matrix, Vector
@@ -70,3 +70,56 @@ def build_arm_transforms(armature) -> dict[str, Matrix]:
 def transform_landmark(transforms, bone_name, point_world) -> Vector:
     """Transform a world-space landmark; unlisted bones use identity."""
     return transforms.get(bone_name, Matrix.Identity(4)) @ Vector(point_world)
+
+
+def make_rest_deformer(armature, transforms):
+    """Deform evaluated temporary rest meshes; never change source data or weights."""
+    allowed_names = set(armature.data.bones.keys())
+    identity = Matrix.Identity(4)
+
+    def deform(obj, mesh):
+        groups = {group.index: group.name for group in obj.vertex_groups
+                  if group.name in allowed_names}
+        source_points = [vertex.co.copy() for vertex in mesh.vertices]
+        source_normals = ([normal.vector.copy() for normal in mesh.corner_normals]
+                          if mesh.has_custom_normals else None)
+        world = obj.matrix_world
+        world_inverse = None
+        normal_matrices = {}
+        changed = False
+        for index, vertex in enumerate(mesh.vertices):
+            influences = [(groups[entry.group], entry.weight) for entry in vertex.groups
+                          if entry.group in groups and math.isfinite(entry.weight) and entry.weight > 0]
+            mass = sum(weight for _, weight in influences)
+            if not mass or all(transforms.get(name, identity) == identity for name, _ in influences):
+                continue
+            if world_inverse is None:
+                world_inverse = world.inverted()
+            world_point = world @ source_points[index]
+            point_world = Vector((0, 0, 0))
+            linear_world = Matrix(((0, 0, 0), (0, 0, 0), (0, 0, 0)))
+            for name, weight in influences:
+                weight /= mass
+                transform = transforms.get(name, identity)
+                point_world += weight * (transform @ world_point)
+                linear_world += weight * transform.to_3x3()
+            jacobian = world_inverse.to_3x3() @ linear_world @ world.to_3x3()
+            if not all(math.isfinite(value) for row in jacobian for value in row):
+                raise ValueError('Arm normalization requires a finite Jacobian')
+            determinant = jacobian.determinant()
+            if not math.isfinite(determinant) or abs(determinant) < 1e-8:
+                raise ValueError('Arm normalization requires a nonsingular Jacobian')
+            if source_normals is not None:
+                normal_matrices[index] = jacobian.inverted().transposed()
+            vertex.co = world_inverse @ point_world
+            changed = True
+        if not changed:
+            return
+        mesh.update()
+        if source_normals is not None:
+            normals = [((normal_matrices[loop.vertex_index] @ source_normals[loop.index]).normalized()
+                        if loop.vertex_index in normal_matrices else source_normals[loop.index])
+                       for loop in mesh.loops]
+            mesh.normals_split_custom_set(normals)
+
+    return deform

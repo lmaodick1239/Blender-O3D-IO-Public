@@ -407,7 +407,7 @@ def validate_o3d_geometry(geometry, o3d_version=7, character_runtime=False):
 
 
 @contextmanager
-def prepared_export_mesh(obj, context=None, global_matrix=None):
+def prepared_export_mesh(obj, context=None, global_matrix=None, *, rest_deformer=None):
     """Yield evaluated rest mesh baked to export space, with preserved corner tessellation."""
     context = context or bpy.context
     states = [(modifier, modifier.show_viewport, modifier.show_render)
@@ -418,6 +418,8 @@ def prepared_export_mesh(obj, context=None, global_matrix=None):
             modifier.show_viewport = modifier.show_render = False
         evaluated = obj.evaluated_get(context.evaluated_depsgraph_get())
         mesh = evaluated.to_mesh(preserve_all_data_layers=True, depsgraph=context.evaluated_depsgraph_get())
+        if rest_deformer is not None:
+            rest_deformer(evaluated, mesh)
         axis = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
         export_matrix = global_matrix if global_matrix is not None else Matrix.Identity(4)
         frame_matrix = export_matrix @ axis @ obj.matrix_world @ axis
@@ -549,7 +551,7 @@ def export_mesh(filepath, context, blender_obj, mesh, transform_matrix, material
 
 def do_export(filepath, context, global_matrix, use_selection, o3d_version, export_custom_normals=True,
               *, objects=None, human_bindings=False, human_bone_slots=None,
-              texture_names=None, mesh_paths=None):
+              texture_names=None, mesh_paths=None, rest_deformer=None):
     """
     Exports the selected CFG/SCO/O3D file
     :param o3d_version: O3D version to export the file as
@@ -610,7 +612,7 @@ def do_export(filepath, context, global_matrix, use_selection, o3d_version, expo
             log("Exporting " + ob.name + "...")
             bpy.context.window_manager.progress_update(index)
             allowed_names = _armature_bone_names(ob)
-            with prepared_export_mesh(ob, context, global_matrix) as (evaluated, mesh, matrix):
+            with prepared_export_mesh(ob, context, global_matrix, rest_deformer=rest_deformer) as (evaluated, mesh, matrix):
                 export_metadata[id(ob)] = export_mesh(
                     path, context, evaluated, mesh, matrix, evaluated.material_slots,
                     o3d_version, export_custom_normals,
