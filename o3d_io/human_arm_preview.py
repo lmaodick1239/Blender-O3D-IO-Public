@@ -9,6 +9,7 @@ It is neither a full game animation nor an automatic collision check. Reused
 source material graphs give context, not proof of game shader parity.
 """
 import math
+from uuid import uuid4
 
 import bpy
 from bpy.app.handlers import persistent
@@ -17,6 +18,9 @@ from mathutils import Matrix, Vector
 from . import human_arm_normalization as normalization
 from . import io_o3d_export, mmd_rig, omsi_human
 
+# Durable across Blender Undo/load and lost Python state. Copies handed to
+# another owner must strip this property (native ID.copy() also copies tags).
+_OWNER_KEY = '_o3d_io_arm_preview_token'
 _session = None
 
 
@@ -60,22 +64,12 @@ def arm_pose_matrices(joints, pose, phase=0.0, *, beta=80.0):
     return result
 
 
-def _runtime_joints(armature, measurements, transforms, turn_180):
-    """HUM serializes symmetric final XYZ landmarks, not raw per-side heads."""
-    joints = {}
-    for side in ('L', 'R'):
-        name = 'OA_' + side
-        point = armature.matrix_world @ armature.data.bones[name].head_local
-        if transforms is not None:
-            point = normalization.transform_landmark(transforms, name, point)
-        x = -point.x if turn_180 else point.x
-        if abs(x) <= 1e-8:
-            raise ValueError(f'{name}: cannot bind a paired human limb on X=0')
-        sign = -1 if x < 0 else 1
-        for stem, landmark in (('OA', 'shoulder'), ('UA', 'elbow'), ('Hand', 'hand')):
-            x, y, z = measurements['landmarks'][landmark]
-            joints[stem + '_' + side] = Vector((sign * x, z, y))
-    return joints
+def _runtime_joints(measurements):
+    """Fixed signed runtime graph from final symmetric HUM landmarks."""
+    return {stem + '_' + side: Vector((sign * x, z, y))
+            for side, sign in (('L', -1), ('R', 1))
+            for stem, landmark in (('OA', 'shoulder'), ('UA', 'elbow'), ('Hand', 'hand'))
+            for x, y, z in (measurements['landmarks'][landmark],)}
 
 
 def _display_geometry(geometry, matrices):
@@ -109,25 +103,23 @@ def _live(item, collection):
         return False
 
 
-def _release(session):
-    if session is None:
-        return
-    # Only these exact owned IDs are removed; material slots reference source IDs.
-    for obj in session['objects']:
-        if _live(obj, bpy.data.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
-    for mesh in session['meshes']:
-        if _live(mesh, bpy.data.meshes):
-            bpy.data.meshes.remove(mesh, do_unlink=True)
-    if _live(session['collection'], bpy.data.collections):
-        bpy.data.collections.remove(session['collection'])
+def _release(session=None, *, keep_token=None):
+    # Scan durable tags, never stale RNA proxies, names or generic skip_export.
+    # A failed stage releases just its token; replacement/explicit cleanup also
+    # recover orphaned sessions. Shared source materials are never owned.
+    token = session['token'] if session is not None else None
+    for group in (bpy.data.objects, bpy.data.meshes, bpy.data.collections):
+        for item in list(group):
+            owner = item.get(_OWNER_KEY)
+            if owner and owner != keep_token and (token is None or owner == token):
+                group.remove(item, do_unlink=True)
 
 
 def clear_preview():
-    """Idempotently discard only this module's session, even after source removal."""
+    """Discard owned IDs even after Undo, source removal or lost Python state."""
     global _session
-    previous, _session = _session, None
-    _release(previous)
+    _session = None
+    _release()
 
 
 def is_preview_active(armature=None):
@@ -169,14 +161,20 @@ def refresh_preview(context, armature, meshes, *, normalize_arms=False, arm_rest
     if measurements['errors']:
         raise ValueError('; '.join(measurements['errors']))
     primary = omsi_human._primary_meshes(armature, meshes, context, [])
-    matrices = arm_pose_matrices(_runtime_joints(armature, measurements, transforms, turn_180), pose, phase, beta=beta)
+    graph = arm_pose_matrices(_runtime_joints(measurements), pose, phase, beta=beta)
+    slot_names = {slot: name for name, slot in mmd_rig.CANONICAL_SLOTS.items()}
+    # Each emitted bone selects its own runtime slot; an unnormalized limb can
+    # cross X=0 between shoulder, elbow and wrist. Extra bones remain identity.
+    matrices = {name: graph[slot_names[slot]]
+                for name, slot in omsi_human._human_bone_slots(armature, transforms, turn_180).items()}
     global_matrix = Matrix.Scale(omsi_human._scalar(scale), 4)
     if turn_180:
         global_matrix @= Matrix.Diagonal((-1, 1, -1, 1))
-    staged = {'armature': armature, 'objects': [], 'meshes': [],
+    staged = {'armature': armature, 'objects': [], 'meshes': [], 'token': uuid4().hex,
               'collection': bpy.data.collections.new('OMSI Arm Preview')}
     rest_min = None
     try:
+        staged['collection'][_OWNER_KEY] = staged['token']
         for source in primary:
             omsi_human._validate_transform(source)
             admitted = io_o3d_export._armature_bone_names(source) if allowed is None else allowed
@@ -191,6 +189,7 @@ def refresh_preview(context, armature, meshes, *, normalize_arms=False, arm_rest
             points, normals = _display_geometry(geometry, matrices)
             data = bpy.data.meshes.new('OMSI Arm Preview ' + source.name)
             staged['meshes'].append(data)
+            data[_OWNER_KEY] = staged['token']
             data.from_pydata(points, [], [tri[:3] for tri in geometry['tris']])
             for material in materials:
                 data.materials.append(material)
@@ -205,6 +204,7 @@ def refresh_preview(context, armature, meshes, *, normalize_arms=False, arm_rest
             data.update()
             obj = bpy.data.objects.new('OMSI Arm Preview ' + source.name, data)
             staged['objects'].append(obj)
+            obj[_OWNER_KEY] = staged['token']
             obj['skip_export'] = True
             obj.hide_select = obj.hide_render = True
             staged['collection'].objects.link(obj)
@@ -223,8 +223,8 @@ def refresh_preview(context, armature, meshes, *, normalize_arms=False, arm_rest
     except Exception:
         _release(staged)
         raise
-    previous, _session = _session, staged
-    _release(previous)
+    _session = staged
+    _release(keep_token=staged['token'])
     return {'objects': tuple(staged['objects']), 'measurements': measurements, 'offset': (offset, 0, 0)}
 
 
@@ -234,13 +234,15 @@ def _clear_on_file_change(*_args):
 
 
 def register():
-    for handlers in (bpy.app.handlers.save_pre, bpy.app.handlers.load_pre):
+    for handlers in (bpy.app.handlers.save_pre, bpy.app.handlers.load_pre, bpy.app.handlers.load_post,
+                     bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
         if _clear_on_file_change not in handlers:
             handlers.append(_clear_on_file_change)
 
 
 def unregister():
     clear_preview()
-    for handlers in (bpy.app.handlers.save_pre, bpy.app.handlers.load_pre):
+    for handlers in (bpy.app.handlers.save_pre, bpy.app.handlers.load_pre, bpy.app.handlers.load_post,
+                     bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
         while _clear_on_file_change in handlers:
             handlers.remove(_clear_on_file_change)

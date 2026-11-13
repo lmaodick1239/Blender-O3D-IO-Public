@@ -158,6 +158,9 @@ def main():
                 parts = []
                 for obj, (source_name, geometry) in zip(result['objects'], captured):
                     data = obj.data.copy()
+                    # ID.copy carries preview tags: transfer this independent
+                    # mesh to the renderer before Clear releases preview IDs.
+                    data.pop(preview._OWNER_KEY, None)
                     data.materials.clear()
                     for material in materials:
                         data.materials.append(material)
@@ -188,6 +191,10 @@ def main():
                                   'preview_points_sha256': hashlib.sha256(json.dumps([list(p) for p in points]).encode()).hexdigest()})
                 variants.append({'pose': pose, 'angle': angle, 'parts': parts})
                 preview.clear_preview()
+                for variant in variants:
+                    for part in variant['parts']:
+                        assert len(part['object'].data.vertices) == part['vertices'], 'Clear removed renderer-owned geometry'
+                        assert preview._OWNER_KEY not in part['object'].data
 
         views = {'front': Vector((0, 8, 0)), 'front-three-quarter': Vector((3, 8, 0))}
         rotations = {name: (-direction).to_track_quat('-Z', 'Y') for name, direction in views.items()}

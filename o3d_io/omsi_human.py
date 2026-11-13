@@ -536,6 +536,23 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
             turn_180=turn_180, normalize_arms=normalize_arms, arm_rest_angle=arm_rest_angle)
 
 
+def _human_bone_slots(armature, arm_transforms=None, turn_180=False):
+    """Exact emitted slot policy, including legacy name-based off/off binding."""
+    bone_slots = dict(CANONICAL_SLOTS)
+    if turn_180 or arm_transforms is not None:
+        # Procedural human slots pivot at fixed signed-X sides, independent of names.
+        for name in bone_slots:
+            if name.endswith(('_L', '_R')):
+                point = armature.matrix_world @ armature.data.bones[name].head_local
+                if arm_transforms is not None:
+                    point = transform_landmark(arm_transforms, name, point)
+                x = -point.x if turn_180 else point.x
+                if abs(x) <= 1e-8:
+                    raise ValueError(f'{name}: cannot bind a paired human limb on X=0')
+                bone_slots[name] = CANONICAL_SLOTS[name[:-1] + ('L' if x < 0 else 'R')]
+    return bone_slots
+
+
 def _export_human_bundle(filepath, context, armature, meshes, textures, *, settings, overrides,
                          scale, overwrite, confirm_stale, o3d_version, export_custom_normals,
                          preflight_only, turn_180, normalize_arms, arm_rest_angle=0.0):
@@ -565,18 +582,7 @@ def _export_human_bundle(filepath, context, armature, meshes, textures, *, setti
     if turn_180:
         # O3D vertices are XZY: Y is the vertical axis after preparation.
         global_matrix @= Matrix.Diagonal((-1, 1, -1, 1))
-    bone_slots = dict(CANONICAL_SLOTS)
-    if turn_180 or arm_transforms is not None:
-        # Procedural human slots pivot at fixed signed-X sides, independent of names.
-        for name in bone_slots:
-            if name.endswith(('_L', '_R')):
-                point = armature.matrix_world @ armature.data.bones[name].head_local
-                if arm_transforms is not None:
-                    point = transform_landmark(arm_transforms, name, point)
-                x = -point.x if turn_180 else point.x
-                if abs(x) <= 1e-8:
-                    raise ValueError(f'{name}: cannot bind a paired human limb on X=0')
-                bone_slots[name] = CANONICAL_SLOTS[name[:-1] + ('L' if x < 0 else 'R')]
+    bone_slots = _human_bone_slots(armature, arm_transforms, turn_180)
     metadata = {}
     for obj, path in zip(meshes, mesh_paths):
         _validate_transform(obj)

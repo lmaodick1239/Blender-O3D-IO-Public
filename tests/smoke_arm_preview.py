@@ -294,6 +294,62 @@ def assert_arm_preview_geometry(addon):
                     preview.clear_preview()
 
 
+def assert_arm_preview_emitted_slots(addon):
+    # Catches legacy name-based off/off binding and per-bone side changes. The
+    # oracle uses actual CFG slots, decoded O3D weights and serialized HUM pivots;
+    # neither the production resolver nor shoulder-only file_joints participates.
+    preview, human, _ = modules(addon)
+    slot_names = {-6: 'OA_L', -7: 'OA_R', -8: 'UA_L', -9: 'UA_R', -13: 'Hand_L', -14: 'Hand_R'}
+    with preserve_context():
+        for left_sign in (1, -1):
+            for crossed in (None, 'UA', 'Hand'):
+                with bundle_fixture(addon, left_sign=left_sign, extra=True) as (rig, meshes, _, _, _):
+                    select_only(rig)
+                    if crossed:
+                        bpy.ops.object.mode_set(mode='EDIT')
+                        for side in ('L', 'R'):
+                            bone = rig.data.edit_bones[crossed + '_' + side]
+                            bone.head.x, bone.tail.x = -bone.head.x, -bone.tail.x
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                    try:
+                        for normalize in (False, True) if crossed is None else (False,):
+                            for turn in (False, True):
+                                options = dict(normalize_arms=normalize, arm_rest_angle=-15,
+                                               turn_180=turn, scale=1.3, confirm_stale=True)
+                                overrides = {'elbow': (.59, .04, 1.63), 'hand': (.88, .06, 1.54)}
+                                with tempfile.TemporaryDirectory(prefix='arm-preview-slots-') as root:
+                                    result = human.export_human(str(Path(root) / 'human.hum'), bpy.context,
+                                                                rig, meshes, overrides=overrides, **options)
+                                    records = read_export(Path(result['mesh_paths'][0]).read_bytes())
+                                    lines = Path(result['hum_path']).read_text(encoding='cp1252').splitlines()
+                                    links = [float(v) for v in lines[lines.index('[links]') + 1:lines.index('[walk_param]')] if v.strip()]
+                                    cfg = Path(result['cfg_path']).read_text(encoding='cp1252').splitlines()
+                                bindings = {cfg[i + 1]: int(cfg[i + 2]) for i, line in enumerate(cfg)
+                                            if line == '[setbone]'}
+                                joints = {stem + '_' + side: Vector((sign * xyz[0], xyz[2], xyz[1]))
+                                          for side, sign in (('L', -1), ('R', 1))
+                                          for stem, xyz in (('OA', links[8:11]), ('UA', links[11:14]),
+                                                            ('Hand', links[16:19]))}
+                                if crossed and turn:
+                                    assert bindings[crossed + '_L'] != {
+                                        'UA': -8 if bindings['OA_L'] == -6 else -9,
+                                        'Hand': -13 if bindings['OA_L'] == -6 else -14}[crossed]
+                                for state, phase in runtime_cases():
+                                    graph = runtime_arm_matrices(joints, state, phase, beta=45)
+                                    matrices = {name: graph.get(slot_names.get(slot), Matrix.Identity(4))
+                                                for name, slot in bindings.items()}
+                                    shown = preview.refresh_preview(bpy.context, rig, meshes, pose=state.upper(),
+                                        phase=phase, beta=45, overrides=overrides, **options)
+                                    try:
+                                        assert_display(shown['objects'][0], records, matrices)
+                                    except AssertionError as error:
+                                        raise AssertionError((left_sign, crossed, normalize, turn, state, phase,
+                                                              bindings, str(error))) from error
+                                print('ARM_PREVIEW_EMITTED_SLOTS_OK', left_sign, crossed, normalize, turn, bindings)
+                    finally:
+                        preview.clear_preview()
+
+
 def assert_arm_preview_placement(addon):
     # Raw base bounds miss active keys/modifiers; export-rest bounds also miss
     # the restored source pose. Check the actual evaluated world-space REST gap.
@@ -555,10 +611,169 @@ def assert_arm_preview_persistence(addon):
     print('ARM_PREVIEW_PERSISTENCE_OK isolated subprocess')
 
 
+def _undo_lifecycle(addon):
+    # Native Undo replaces RNA IDs: isolate this from every root-suite fixture.
+    # Missing durable cleanup must leave observable copies after Clear/save.
+    preview, human, _ = modules(addon)
+    def plain(value):
+        if isinstance(value, bpy.types.ID):
+            return value.bl_rna.identifier, value.name
+        if hasattr(value, 'to_dict'):
+            return plain(value.to_dict())
+        if isinstance(value, dict):
+            return {key: plain(item) for key, item in value.items()}
+        if isinstance(value, (tuple, list)):
+            return tuple(plain(item) for item in value)
+        return value
+    with tempfile.TemporaryDirectory(prefix='arm-preview-undo-') as root:
+        path = str(Path(root) / 'synthetic.blend')
+        with bundle_fixture(addon) as (rig, meshes, _, _, _):
+            select_only(rig)
+            names = rig.name, [obj.name for obj in meshes]
+            foreign_mesh = bpy.data.meshes.new('OMSI Arm Preview unrelated')
+            foreign = bpy.data.objects.new('OMSI Arm Preview unrelated', foreign_mesh)
+            foreign['skip_export'] = True
+            foreign_mesh.materials.append(meshes[0].data.materials[0])
+            foreign_collection = bpy.data.collections.new('OMSI Arm Preview unrelated')
+            bpy.context.scene.collection.children.link(foreign_collection)
+            foreign_collection.objects.link(foreign)
+            foreign_names = foreign.name, foreign_mesh.name, foreign_collection.name
+            bpy.ops.wm.save_as_mainfile(filepath=path)
+        # Fixture context exits before load/Undo; all later IDs are reacquired.
+        bpy.ops.wm.open_mainfile(filepath=path, use_scripts=False)
+        def sources():
+            return bpy.data.objects[names[0]], [bpy.data.objects[name] for name in names[1]]
+        def snapshot():
+            rig, meshes = sources()
+            return plain((rig_state(rig), dict(rig.items()),
+                [(mesh_state(obj), dict(obj.items()), dict(obj.data.items())) for obj in meshes],
+                [(m.name, tuple(m.diffuse_color), dict(m.items())) for m in bpy.data.materials]))
+        baseline = snapshot()
+        baseline_names = tuple(frozenset(item.name for item in group) for group in
+                               (bpy.data.objects, bpy.data.meshes, bpy.data.collections, bpy.data.materials))
+        def assert_clean(*, marker=False):
+            current = tuple(frozenset(item.name for item in group) for group in
+                            (bpy.data.objects, bpy.data.meshes, bpy.data.collections, bpy.data.materials))
+            expected = list(baseline_names)
+            if marker:
+                expected[0] |= {'Unrelated later edit'}
+            assert current == tuple(expected), ('owned IDs leaked', current, expected)
+            assert snapshot() == baseline, 'source content/materials changed'
+            assert bpy.data.objects[foreign_names[0]].data == bpy.data.meshes[foreign_names[1]]
+            assert foreign_names[0] in bpy.data.collections[foreign_names[2]].objects
+        def refresh():
+            rig, meshes = sources()
+            result = preview.refresh_preview(bpy.context, rig, meshes, normalize_arms=True, arm_rest_angle=-10)
+            owned = [*result['objects'], *(obj.data for obj in result['objects']), preview._session['collection']]
+            tokens = {item.get(preview._OWNER_KEY) for item in owned}
+            assert tokens == {preview._session['token']} and None not in tokens
+            return result
+        refresh()
+        bpy.ops.ed.undo_push(message='Preview exists')
+        marker = bpy.data.objects.new('Unrelated later edit', None)
+        bpy.context.scene.collection.objects.link(marker)
+        bpy.ops.ed.undo_push(message='After unrelated edit')
+        assert bpy.ops.ed.undo() == {'FINISHED'}
+        assert_clean()  # undo_post must dispose restored IDs without a Clear click
+        assert not preview.is_preview_active()
+        preview.clear_preview()
+        assert bpy.ops.ed.redo() == {'FINISHED'}
+        assert_clean(marker=True)
+        assert not preview.is_preview_active()
+        preview.clear_preview()
+        # Exercise actual stale RNA recovery too, independently of post handlers.
+        handlers = bpy.app.handlers.undo_post
+        handlers.remove(preview._clear_on_file_change)
+        try:
+            refresh()
+            bpy.ops.ed.undo_push(message='Preview for stale RNA cleanup')
+            marker = bpy.data.objects.new('Temporary stale RNA edit', None)
+            bpy.context.scene.collection.objects.link(marker)
+            bpy.ops.ed.undo_push(message='After stale RNA edit')
+            assert bpy.ops.ed.undo() == {'FINISHED'}
+            assert preview._session is not None and not preview.is_preview_active()
+            preview.clear_preview()
+            assert_clean(marker=True)
+        finally:
+            handlers.append(preview._clear_on_file_change)
+        # Missing Python state: replacement and every explicit lifecycle boundary
+        # must discover tagged objects/meshes/collections without session proxies.
+        refresh()
+        preview._session = None
+        refresh()
+        preview.clear_preview()
+        assert_clean(marker=True)
+        refresh()
+        preview._session = None
+        preview.clear_preview()
+        preview.clear_preview()
+        assert_clean(marker=True)
+        # An orphaned token must survive staged failure, then be replaced on success.
+        refresh()
+        preview._session = None
+        rig, meshes = sources()
+        meshes[1]['omsi_lod_level'] = 0
+        active = ids()
+        exporter = importlib.import_module(addon.__name__ + '.o3d_io.io_o3d_export')
+        prepare = exporter.prepare_o3d_geometry
+        count = 0
+        def fail(*args, **kwargs):
+            nonlocal count
+            count += 1
+            if count == 2:
+                raise RuntimeError('injected orphan replacement failure')
+            return prepare(*args, **kwargs)
+        exporter.prepare_o3d_geometry = fail
+        try:
+            try:
+                refresh()
+            except RuntimeError as error:
+                assert 'injected orphan' in str(error)
+            else:
+                raise AssertionError('orphan replacement failure swallowed')
+            assert ids() == active, 'failed stage removed prior orphan or leaked IDs'
+        finally:
+            exporter.prepare_o3d_geometry = prepare
+            meshes[1]['omsi_lod_level'] = 1
+        refresh()
+        preview._session = None
+        bpy.ops.wm.save_as_mainfile(filepath=path)
+        assert_clean(marker=True)
+        bpy.ops.wm.open_mainfile(filepath=path, use_scripts=False)
+        assert_clean(marker=True)
+        refresh()
+        preview._session = None
+        bpy.ops.wm.open_mainfile(filepath=path, use_scripts=False)
+        assert_clean(marker=True)
+        refresh()
+        preview._session = None
+        preview.unregister()
+        assert_clean(marker=True)
+        preview.register()
+        preview.register()
+        for handlers in (bpy.app.handlers.save_pre, bpy.app.handlers.load_pre, bpy.app.handlers.load_post,
+                         bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
+            assert sum(getattr(fn, '__module__', '') == preview.__name__ for fn in handlers) == 1
+    print('ARM_PREVIEW_UNDO_LIFECYCLE_OK', bpy.app.version_string)
+
+
+def assert_arm_preview_undo_lifecycle(addon):
+    expression = (f'import sys; sys.path.insert(0, {str(HERE)!r}); '
+                  'import smoke_arm_preview as t; a=t.load_addon(); a.register(); '
+                  't._undo_lifecycle(a); a.unregister()')
+    result = subprocess.run([bpy.app.binary_path, '--background', '--factory-startup', '--disable-autoexec',
+                             '--python-exit-code', '1', '--python-expr', expression],
+                            capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'ARM_PREVIEW_UNDO_LIFECYCLE_OK' in result.stdout, result.stdout
+    print('ARM_PREVIEW_UNDO_LIFECYCLE_OK isolated subprocess')
+
+
 PUBLIC_CHECKS = {'controls': assert_arm_preview_controls, 'matrices': assert_arm_preview_matrices,
                  'skin': assert_arm_preview_skin_modes,
-                 'geometry': assert_arm_preview_geometry, 'placement': assert_arm_preview_placement,
-                 'ownership': assert_arm_preview_ownership,
+                 'geometry': assert_arm_preview_geometry, 'emitted_slots': assert_arm_preview_emitted_slots,
+                 'placement': assert_arm_preview_placement, 'ownership': assert_arm_preview_ownership,
+                 'undo': assert_arm_preview_undo_lifecycle,
                  'scope': assert_arm_preview_primary_scope, 'persistence': assert_arm_preview_persistence}
 CHECKS = list(PUBLIC_CHECKS.values())
 
