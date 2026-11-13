@@ -505,14 +505,16 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
                  scale=1.0, overwrite=False, confirm_stale=False, o3d_version=7,
                  export_custom_normals=True, preflight_only=False, turn_180=False,
                  max_texture_size=0, compress_textures=False, dds_converter='',
-                 texture_format=None, normalize_arms=False) -> dict:
+                 texture_format=None, normalize_arms=False, arm_rest_angle=0.0) -> dict:
     """Preflight a HUM/model/textures bundle and publish HUM last.
 
     All validation/overwrite refusal happens before destination files are opened.
     Later OS write failures may leave partial model files: this is not a
     multi-file transaction. Source IDs, selection, pose and flags stay untouched.
     Landmark overrides are already final scaled file vectors, not scaled twice.
-    normalize_arms shares a temporary horizontal rest pose across all LODs.
+    normalize_arms shares a temporary rest pose across all LODs, with arms at
+    arm_rest_angle degrees below horizontal (0..89); disabled normalization
+    ignores the angle.
     Active/participating mesh or armature Edit mode is refused without flushing
     source edits: measurement and the shared exporter must see the same state.
     preflight_only runs the identical validation/serialization preparation, without
@@ -531,14 +533,19 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
             settings=settings, overrides=overrides, scale=scale, overwrite=overwrite,
             confirm_stale=confirm_stale, o3d_version=o3d_version,
             export_custom_normals=export_custom_normals, preflight_only=preflight_only,
-            turn_180=turn_180, normalize_arms=normalize_arms)
+            turn_180=turn_180, normalize_arms=normalize_arms, arm_rest_angle=arm_rest_angle)
 
 
 def _export_human_bundle(filepath, context, armature, meshes, textures, *, settings, overrides,
                          scale, overwrite, confirm_stale, o3d_version, export_custom_normals,
-                         preflight_only, turn_180, normalize_arms):
+                         preflight_only, turn_180, normalize_arms, arm_rest_angle=0.0):
     from . import io_o3d_export, o3d_cfg_parser, o3dconvert
-    arm_transforms = build_arm_transforms(armature) if normalize_arms else None
+    arm_transforms = None
+    if normalize_arms:
+        # Preserve the existing zero-target call as well as its exact arithmetic.
+        arm_transforms = (build_arm_transforms(armature)
+                          if type(arm_rest_angle) in (int, float) and arm_rest_angle == 0
+                          else build_arm_transforms(armature, rest_angle_degrees=arm_rest_angle))
     # One closed rig admission for deformation, codec preflight and publication,
     # including accepted parent-only and fully disabled-modifier bindings.
     allowed_names = set(armature.data.bones.keys()) if normalize_arms else None

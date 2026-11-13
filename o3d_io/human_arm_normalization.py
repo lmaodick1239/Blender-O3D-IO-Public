@@ -1,12 +1,13 @@
 """World-space arm elevation plans and temporary rest-mesh deformation."""
 import math
+from numbers import Real
 
 from mathutils import Matrix, Vector
 
 from .mmd_rig import CANONICAL_NAMES
 
 
-def _horizontal_yaw(delta, sign):
+def _horizontal_yaw(delta, sign, rest_angle_radians=0.0):
     delta = Vector(delta)
     length = delta.length
     projected = math.hypot(delta.x, delta.z)
@@ -17,7 +18,7 @@ def _horizontal_yaw(delta, sign):
         raise ValueError('Arm normalization requires nonzero outward arm segments')
     if abs(delta.y) > max(.01, projected * .25):
         raise ValueError('Arm normalization supports coronal A/T poses; align forward-pointing arms first')
-    angle = math.atan2(sign * delta.z, sign * delta.x)
+    angle = math.atan2(sign * delta.z, sign * delta.x) + sign * rest_angle_radians
     return Matrix.Identity(4) if abs(angle) <= 1e-6 else Matrix.Rotation(angle, 4, 'Y')
 
 
@@ -25,12 +26,16 @@ def _about(point, rotation):
     return Matrix.Translation(point) @ rotation @ Matrix.Translation(-point)
 
 
-def build_arm_transforms(armature) -> dict[str, Matrix]:
-    """Return per-canonical-bone rest transforms without changing the rig.
+def build_arm_transforms(armature, *, rest_angle_degrees=0.0) -> dict[str, Matrix]:
+    """Return rest transforms at 0..89 degrees below horizontal, without rig edits.
 
     The human export backend remains responsible for upright/uniform rig frames.
     Joint heads and pivots here are in world space; pose bones are never used.
     """
+    if (isinstance(rest_angle_degrees, bool) or not isinstance(rest_angle_degrees, Real)
+            or not 0 <= rest_angle_degrees <= 89):
+        raise ValueError('Arm rest angle must be a finite number from 0 through 89 degrees')
+    rest_angle_radians = math.radians(rest_angle_degrees)
     if getattr(armature, 'type', None) != 'ARMATURE':
         raise ValueError('Arm normalization requires a canonical armature')
     missing = set(CANONICAL_NAMES) - set(armature.data.bones.keys())
@@ -53,12 +58,19 @@ def build_arm_transforms(armature) -> dict[str, Matrix]:
         sign = 1 if shoulder.x > 0 else -1
         bone_name = oa
         try:
-            upper = _about(shoulder, _horizontal_yaw(elbow - shoulder, sign))
+            upper = _about(shoulder, _horizontal_yaw(elbow - shoulder, sign, rest_angle_radians))
             elbow_raised = upper @ elbow
-            wrist_raised = upper @ wrist
             bone_name = ua
-            forearm = _about(elbow_raised,
-                             _horizontal_yaw(wrist_raised - elbow_raised, sign)) @ upper
+            if rest_angle_radians:
+                # Validate the original forearm: a valid outward source segment
+                # can point inward after the upper arm moves to a steep target.
+                forearm = (Matrix.Translation(elbow_raised - elbow)
+                           @ _about(elbow, _horizontal_yaw(wrist - elbow, sign, rest_angle_radians)))
+            else:
+                # Retain the historical zero-target arithmetic exactly.
+                wrist_raised = upper @ wrist
+                forearm = _about(elbow_raised,
+                                 _horizontal_yaw(wrist_raised - elbow_raised, sign)) @ upper
         except ValueError as error:
             raise ValueError(f'{bone_name}: {error}') from error
         transforms[oa] = upper
