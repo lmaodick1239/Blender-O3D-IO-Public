@@ -33,6 +33,10 @@ The add-on gives you a fast O3D importer/exporter with full support for the form
 - Bones
 - UV coordinates
 
+Custom-normal import preserves authored directions after coordinate conversion
+and winding correction. Reimport the original O3D to update a mesh imported
+with an older version; existing saved meshes are not repaired automatically.
+
 ### CFG/SCO files — many features supported
 
 - LODs
