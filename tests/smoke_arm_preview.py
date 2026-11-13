@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
+import warnings
 
 import bpy
 from mathutils import Matrix, Vector
@@ -37,11 +38,14 @@ def ids():
 
 def source_state(rig, meshes):
     state = rig_state(rig)
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=DeprecationWarning,
+                                message=r"^'Material\.use_nodes' is expected to be removed in Blender 6\.0$")
+        materials = tuple((m.as_pointer(), repr(dict(m.items())), tuple(m.diffuse_color), m.use_nodes)
+                          for m in bpy.data.materials)
     return (state[:4], state[5:], repr([mesh_state(obj) for obj in meshes]),
             tuple((obj.hide_get(), obj.hide_viewport, obj.hide_render, obj.hide_select,
-                   obj.parent, repr(dict(obj.items()))) for obj in (rig, *meshes)),
-            tuple((m.as_pointer(), repr(dict(m.items())), tuple(m.diffuse_color), m.use_nodes)
-                  for m in bpy.data.materials))
+                   obj.parent, repr(dict(obj.items()))) for obj in (rig, *meshes)), materials)
 
 
 def displayed(point):
@@ -264,7 +268,11 @@ def assert_arm_preview_geometry(addon):
                             assert_display(obj, records)
                             assert list(obj.data.materials) == list(meshes[0].data.materials), [
                                 (m.name, m.as_pointer(), m.original.as_pointer()) for m in obj.data.materials]
-                            assert obj.location.x > max(v.co.x for v in meshes[0].data.vertices)
+                            bpy.context.view_layer.update()
+                            evaluated = meshes[0].evaluated_get(bpy.context.evaluated_depsgraph_get())
+                            source_max = max((evaluated.matrix_world @ v.co).x for v in evaluated.data.vertices)
+                            assert abs(min((obj.matrix_world @ v.co).x for v in obj.data.vertices)
+                                       - source_max - .25) < 2e-5
                             assert obj.location.y == obj.location.z == 0
                             offset = obj.location.copy()
                             for state, phase in runtime_cases():
@@ -284,6 +292,97 @@ def assert_arm_preview_geometry(addon):
                             assert ids() == baseline_ids and source_state(rig, meshes) == before
                 finally:
                     preview.clear_preview()
+
+
+def assert_arm_preview_placement(addon):
+    # Raw base bounds miss active keys/modifiers; export-rest bounds also miss
+    # the restored source pose. Check the actual evaluated world-space REST gap.
+    preview, _, _ = modules(addon)
+    with preserve_context():
+        for kind in ('shape_key', 'screw', 'generated_empty'):
+            with bundle_fixture(addon) as (rig, meshes, _, _, _):
+                source = meshes[0]
+                generated = nodes = None
+                try:
+                    if kind == 'shape_key':
+                        meshes[1]['omsi_lod_level'] = 0  # common offset for two primaries
+                        key = source.shape_key_add(name='Active +1 X')
+                        for point in key.data:
+                            point.co.x += 1
+                        key.value = 1
+                    elif kind == 'screw':
+                        modifier = source.modifiers.new('Extend visible X', 'SCREW')
+                        modifier.axis, modifier.angle, modifier.screw_offset = 'X', 0, 1.25
+                        modifier.steps = modifier.render_steps = 1
+                        source.location.x = .37
+                        source.scale = (1.2, 1.2, 1.2)
+                        # Ensure restored armature evaluation differs from export rest.
+                        rig.pose.bones['OA_R'].rotation_mode = 'XYZ'
+                        rig.pose.bones['OA_R'].rotation_euler.z = .6
+                    else:
+                        data = bpy.data.meshes.new('Empty generated source')
+                        generated = bpy.data.objects.new('Generated primary', data)
+                        bpy.context.scene.collection.objects.link(generated)
+                        generated.parent = rig
+                        generated.location.x = 2.5
+                        generated['export_path'] = 'generated_primary.o3d'
+                        # Make the only primary's base empty: modifiers own all geometry.
+                        source['omsi_lod_level'] = 1
+                        source = generated
+                        nodes = bpy.data.node_groups.new('Generated preview fixture', 'GeometryNodeTree')
+                        nodes.interface.new_socket(name='Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+                        cube = nodes.nodes.new('GeometryNodeMeshCube')
+                        output = nodes.nodes.new('NodeGroupOutput')
+                        nodes.links.new(cube.outputs['Mesh'], output.inputs['Geometry'])
+                        modifier = generated.modifiers.new('Generated cube', 'NODES')
+                        modifier.node_group = nodes
+                    inputs = [*meshes, generated] if generated else meshes
+                    select_only(rig, meshes[1])
+                    bpy.context.view_layer.update()
+                    before, baseline_ids = source_state(rig, meshes), ids()
+                    generated_before = ((tuple(source.matrix_world), source.parent, source.hide_get(),
+                                         source.hide_viewport, source.hide_render, source.hide_select,
+                                         len(source.data.vertices), modifier.node_group, modifier.show_viewport,
+                                         modifier.show_render) if generated else None)
+                    for turn, scale in ((False, 1.), (True, 1.3)):
+                        for normalize in (False, True):
+                            options = dict(turn_180=turn, scale=scale, normalize_arms=normalize, arm_rest_angle=15)
+                            shown = preview.refresh_preview(bpy.context, rig, inputs, **options)
+                            bpy.context.view_layer.update()
+                            depsgraph = bpy.context.evaluated_depsgraph_get()
+                            evaluated = source.evaluated_get(depsgraph)
+                            source_max = max((evaluated.matrix_world @ v.co).x for v in evaluated.data.vertices)
+                            preview_min = min((obj.matrix_world @ v.co).x
+                                              for obj in shown['objects'] for v in obj.data.vertices)
+                            gap = preview_min - source_max
+                            print('ARM_PREVIEW_PLACEMENT', kind, turn, scale, normalize,
+                                  {'evaluated_source_max_x': source_max, 'preview_min_x': preview_min, 'gap': gap})
+                            assert abs(gap - .25) < 2e-5, (kind, turn, scale, normalize, source_max, preview_min, gap)
+                            offset = shown['offset']
+                            for obj in shown['objects']:
+                                close(obj.location, offset)
+                            for pose in ('STANDING', 'WALKING', 'SEATED'):
+                                posed = preview.refresh_preview(bpy.context, rig, inputs, pose=pose, phase=.75, **options)
+                                close(posed['offset'], offset)
+                                for obj in posed['objects']:
+                                    close(obj.location, offset)
+                                assert source_state(rig, meshes) == before
+                            preview.clear_preview()
+                            assert ids() == baseline_ids and source_state(rig, meshes) == before
+                            if generated:
+                                assert not source.data.vertices
+                                assert (tuple(source.matrix_world), source.parent, source.hide_get(),
+                                        source.hide_viewport, source.hide_render, source.hide_select,
+                                        len(source.data.vertices), modifier.node_group, modifier.show_viewport,
+                                        modifier.show_render) == generated_before
+                finally:
+                    preview.clear_preview()
+                    if generated:
+                        data = generated.data
+                        bpy.data.objects.remove(generated, do_unlink=True)
+                        bpy.data.meshes.remove(data)
+                    if nodes:
+                        bpy.data.node_groups.remove(nodes)
 
 
 def assert_arm_preview_ownership(addon):
@@ -458,7 +557,8 @@ def assert_arm_preview_persistence(addon):
 
 PUBLIC_CHECKS = {'controls': assert_arm_preview_controls, 'matrices': assert_arm_preview_matrices,
                  'skin': assert_arm_preview_skin_modes,
-                 'geometry': assert_arm_preview_geometry, 'ownership': assert_arm_preview_ownership,
+                 'geometry': assert_arm_preview_geometry, 'placement': assert_arm_preview_placement,
+                 'ownership': assert_arm_preview_ownership,
                  'scope': assert_arm_preview_primary_scope, 'persistence': assert_arm_preview_persistence}
 CHECKS = list(PUBLIC_CHECKS.values())
 

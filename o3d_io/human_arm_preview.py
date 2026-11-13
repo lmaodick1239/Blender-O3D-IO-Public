@@ -210,7 +210,12 @@ def refresh_preview(context, armature, meshes, *, normalize_arms=False, arm_rest
             staged['collection'].objects.link(obj)
         if rest_min is None:
             raise ValueError('Human preview requires nonempty serialized primary geometry')
-        source_max = max((source.matrix_world @ vertex.co).x for source in primary for vertex in source.data.vertices)
+        # Export preparation has restored modifier flags; evaluate the visible
+        # source pose/shape now, including geometry generated on empty base meshes.
+        depsgraph = context.evaluated_depsgraph_get()
+        source_max = max((evaluated.matrix_world @ vertex.co).x
+                         for evaluated in (source.evaluated_get(depsgraph) for source in primary)
+                         for vertex in evaluated.data.vertices)
         offset = source_max - rest_min + .25
         for obj in staged['objects']:
             obj.location.x = offset
