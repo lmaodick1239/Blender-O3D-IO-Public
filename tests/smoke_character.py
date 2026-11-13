@@ -318,7 +318,7 @@ def assert_bone_name_mapping(addon: ModuleType) -> None:
     cases = [
         ("頭", "Head"), ("首", "Head"), ("ひじ.L", "UA_L"),
         ("腕捩.R", "OA_R"), ("手首.L", "Hand_L"),
-        ("足.R", "OS_R"), ("足首.L", "US_L"), ("スカート_0_1", "Hip"),
+        ("足.R", "OS_R"), ("足首.L", "US_L"), ("スカート_0_1", None),
         ("左手先", "Hand_L"), ("右人差指", "Hand_R"), ("手捩_R", "UA_R"),
         ("肩_L", "OA_L"), ("足先EX_R", "US_R"), ("つま先.L", "US_L"),
         ("右ひざ", "US_R"), ("上半身2", "Main"), ("胸", "Main"),
@@ -365,6 +365,41 @@ def assert_bone_name_mapping(addon: ModuleType) -> None:
     # Segment ties use supplied rig order, independent of alphabetical names.
     tie = {"Hip": segments["Main"], "Main": segments["Main"]}
     assert rig.build_mapping(mesh, tie)["Mystery"] == "Hip"
+
+    # A blanket skirt-to-Hip rule must not override spatial leg influences.
+    # Equivalent names must also preserve blended weights and extra-bone behavior.
+    skirt_segments = {
+        "Hip": (Vector((0, 0, 3)), Vector((0, 0, 4))),
+        "OS_L": (Vector((-1, 0, 1)), Vector((-1, 0, 2))),
+        "OS_R": (Vector((1, 0, 1)), Vector((1, 0, 2))),
+    }
+    skirt_weights = [
+        [(0, 1.0), (3, 0.25)], [(1, 1.0), (3, 0.75)], [(2, 1.0)],
+    ]
+    expected_weights = {
+        "Hip": [(0, 1.0), (3, 0.25)],
+        "OS_L": [(1, 1.0), (3, 0.75)],
+        "OS_R": [(2, 1.0)],
+    }
+    for prefix in ("EX_skirt", "スカート"):
+        names = [f"{prefix}_{index}" for index in range(3)]
+        skirt = _weighted_mesh(prefix, [
+            (0, 0, 3.5), (-1, 0, 1.5), (1, 0, 1.5), (-1, 0, 2.5),
+        ], list(zip(names, skirt_weights)))
+        skirt_before = _weight_snapshot(skirt)
+        try:
+            skirt_mapping = rig.build_mapping(skirt, skirt_segments)
+            assert skirt_mapping == dict(zip(names, ("Hip", "OS_L", "OS_R"))), skirt_mapping
+            assert rig.merge_weights(skirt, skirt_mapping) == expected_weights
+            assert rig.build_mapping(skirt, skirt_segments, keep_extra_bones=True) == {
+                name: f"mmd_{index}" for index, name in enumerate(names)
+            }
+            assert rig.map_bone_name(names[0], (*skirt_segments, names[0])) == names[0]
+            assert _weight_snapshot(skirt) == skirt_before
+        finally:
+            skirt_data = skirt.data
+            bpy.data.objects.remove(skirt, do_unlink=True)
+            bpy.data.meshes.remove(skirt_data)
 
     data = bpy.data.armatures.new("MMD source rest rig")
     armature = bpy.data.objects.new("MMD source rest rig", data)
