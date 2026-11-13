@@ -27,14 +27,15 @@ def _about(point, rotation):
 
 
 def build_arm_transforms(armature, *, rest_angle_degrees=0.0) -> dict[str, Matrix]:
-    """Return rest transforms at 0..89 degrees below horizontal, without rig edits.
+    """Return rest transforms at -89..+89 degrees, without rig edits.
 
+    Zero is horizontal; positive is below horizontal and negative is above.
     The human export backend remains responsible for upright/uniform rig frames.
     Joint heads and pivots here are in world space; pose bones are never used.
     """
     if (isinstance(rest_angle_degrees, bool) or not isinstance(rest_angle_degrees, Real)
-            or not 0 <= rest_angle_degrees <= 89):
-        raise ValueError('Arm rest angle must be a finite number from 0 through 89 degrees')
+            or not -89 <= rest_angle_degrees <= 89):
+        raise ValueError('Arm rest angle must be a finite number from -89 through +89 degrees')
     rest_angle_radians = math.radians(rest_angle_degrees)
     if getattr(armature, 'type', None) != 'ARMATURE':
         raise ValueError('Arm normalization requires a canonical armature')

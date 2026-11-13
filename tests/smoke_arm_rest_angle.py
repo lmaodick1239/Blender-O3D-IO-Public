@@ -24,7 +24,7 @@ from smoke_support import load_addon
 from o3d_export_support import read_export
 
 
-INVALID_ANGLES = (-1, 89.01, float('nan'), float('inf'), -float('inf'),
+INVALID_ANGLES = (-89.01, -90, 89.01, float('nan'), float('inf'), -float('inf'),
                   '15', b'15', None, True, False, complex(15, 0), complex(0, 0), [], {})
 
 
@@ -71,14 +71,16 @@ def assert_arm_rest_angle_plan(addon):
     identity = Matrix.Identity(4)
     with preserve_context():
         for left_sign in (-1, 1):
+            # Original upper10/forearm50 at +/-80 catches validation against
+            # an upper-rotated forearm instead of the valid original segment.
             for upper, forearm, depth in ((35, 10, (.015, -.012)),
-                                          (20, -10, (-.01, .02)),
+                                          (20, -10, (-.01, .02)), (10, 50, (.015, -.012)),
                                           (-20, 40, (0, 0)), (0, 0, (0, 0))):
                 with arm_fixture(addon, left_sign=left_sign, upper=upper,
                                  forearm=forearm, y_offsets=depth) as (rig, points):
                     before = source_state(rig)
                     default = normalization.build_arm_transforms(rig)
-                    for target in (0, 15, 35, 89):
+                    for target in (-15, -89, -80, 0, 15, 35, 80, 89):
                         transforms = normalization.build_arm_transforms(rig, rest_angle_degrees=target)
                         if target == 0:
                             assert transforms == default
@@ -111,10 +113,11 @@ def assert_arm_rest_angle_plan(addon):
         world = Matrix.Translation((.025, .07, .5)) @ Matrix.Scale(1.5, 4)
         with arm_fixture(addon, upper=20, forearm=10, y_offsets=(.01, -.01), world=world) as (rig, points):
             points = {name: world @ point for name, point in points.items()}
-            transforms = normalization.build_arm_transforms(rig, rest_angle_degrees=15)
-            for name in ('OA_L', 'UA_L', 'Hand_R'):
-                point = points['Hand_' + name[-1]]
-                assert (transforms[name] @ point - scalar_point(point, name, points, 15)).length < 2e-6
+            for target in (-15, 15):
+                transforms = normalization.build_arm_transforms(rig, rest_angle_degrees=target)
+                for name in ('OA_L', 'UA_L', 'Hand_R'):
+                    point = points['Hand_' + name[-1]]
+                    assert (transforms[name] @ point - scalar_point(point, name, points, target)).length < 2e-6
 
         # A nonzero target still refuses malformed original source segments.
         for side, sign in (('L', -1), ('R', 1)):
@@ -137,7 +140,7 @@ def assert_arm_rest_angle_identity(addon):
     identity = Matrix.Identity(4)
     with preserve_context():
         for left_sign in (-1, 1):
-            for target in (0, 15, 35, 89):
+            for target in (-15, -89, 0, 15, 35, 89):
                 for difference in (0, -.5e-6, .5e-6, -3e-6, 3e-6):
                     source = target + math.degrees(difference)
                     with arm_fixture(addon, left_sign=left_sign, upper=source, forearm=source,
@@ -252,7 +255,7 @@ def assert_arm_rest_angle_bundle(addon):
                 with bundle_fixture(addon, left_sign=left_sign, binding_form=binding,
                                     extra=True, custom=True) as (rig, meshes, points, weights, source_points):
                     before = source_state(rig, meshes)
-                    for target in (15, 35):
+                    for target in (-15, -89, 15, 35):
                         for turn_180, scale in ((False, 1), (True, 2)):
                             path = root / f'{left_sign}-{binding}-{target}-{turn_180}' / 'character.hum'
                             options = dict(normalize_arms=True, arm_rest_angle=target,
@@ -355,7 +358,7 @@ def assert_arm_rest_angle_compatibility(addon):
                 default = root / f'{normalized}-default'
                 human.export_human(str(default / 'character.hum'), bpy.context, rig, meshes, normalize_arms=normalized)
                 expected = bundle_bytes(default)
-                angles = (0,) if normalized else (0, 35, *INVALID_ANGLES)
+                angles = (0,) if normalized else (0, -15, -89, 35, *INVALID_ANGLES)
                 for index, angle in enumerate(angles):
                     destination = root / f'{normalized}-{index}'
                     human.export_human(str(destination / 'character.hum'), bpy.context, rig, meshes,

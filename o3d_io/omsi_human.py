@@ -513,8 +513,8 @@ def export_human(filepath, context, armature, meshes, *, settings=None, override
     multi-file transaction. Source IDs, selection, pose and flags stay untouched.
     Landmark overrides are already final scaled file vectors, not scaled twice.
     normalize_arms shares a temporary rest pose across all LODs, with arms at
-    arm_rest_angle degrees below horizontal (0..89); disabled normalization
-    ignores the angle.
+    arm_rest_angle degrees (-89..+89): 0 is horizontal, positive below and negative
+    above horizontal. Disabled normalization ignores the angle.
     Active/participating mesh or armature Edit mode is refused without flushing
     source edits: measurement and the shared exporter must see the same state.
     preflight_only runs the identical validation/serialization preparation, without
