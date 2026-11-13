@@ -9,6 +9,7 @@ from bpy_extras.io_utils import ExportHelper
 
 from . import human_texture_export, mmd_materials, mmd_rig, mesh_lod, omsi_human
 from . import human_arm_normalization as normalization
+from . import human_arm_preview
 from .omsi_paths import safe_export_path, unique_export_path
 
 
@@ -439,8 +440,37 @@ class VIEW3D_PT_omsi_character_lods(bpy.types.Panel):
         layout.operator('omsi.character_preflight')
 
 
+_preview_updating = False
+
+
+def _refresh_arm_preview(context):
+    target, settings, meshes, _, overrides = _human_inputs(context)
+    result = human_arm_preview.refresh_preview(context, target, meshes,
+        normalize_arms=settings.normalize_arms, arm_rest_angle=settings.arm_rest_angle,
+        scale=settings.scale, turn_180=settings.turn_180, confirm_stale=settings.confirm_stale,
+        overrides=overrides, export_custom_normals=settings.export_custom_normals,
+        pose=settings.arm_preview_pose, phase=settings.arm_preview_phase, beta=settings.walk_params[1])
+    settings.arm_preview_error = ''
+    return result
+
+
+def _preview_changed(self, context):
+    global _preview_updating
+    if _preview_updating or not human_arm_preview.is_preview_active(self.id_data):
+        return
+    _preview_updating = True
+    try:
+        if _human_target(context) == self.id_data:
+            _refresh_arm_preview(context)
+    except (ValueError, TypeError, RuntimeError, ReferenceError) as error:
+        self.arm_preview_error = 'Preview refresh refused: ' + str(error)
+    finally:
+        _preview_updating = False
+
+
 def _human_changed(self, context):
     self.status = 'Settings changed; refresh/check again'
+    _preview_changed(self, context)
 
 
 class OMSIHumanSettings(bpy.types.PropertyGroup):
@@ -462,8 +492,22 @@ class OMSIHumanSettings(bpy.types.PropertyGroup):
         description='Turn exported geometry and measured landmarks around the vertical axis; overrides remain final file coordinates',
         update=_human_changed)
     normalize_arms: BoolProperty(name='Normalize Arm Rest Pose', default=False,
-        description='Export a temporary horizontal arm rest pose; keep the editable rig and meshes unchanged',
+        description='Export a temporary arm rest pose at the chosen angle; keep the editable rig and meshes unchanged',
         update=_human_changed)
+    arm_rest_angle: FloatProperty(name='Rest Arm Angle (degrees)', default=0,
+        min=-89, max=89, soft_min=-45, soft_max=45,
+        description='Normalized rest angle: positive below horizontal, negative above; 0 is horizontal',
+        update=_human_changed)
+    arm_preview_pose: EnumProperty(name='Diagnostic Arm Pose', default='REST', items=(
+        ('REST', 'Exported Rest', 'Prepared export geometry without runtime animation'),
+        ('STANDING', 'Standing Arms', 'Diagnostic standing arm graph'),
+        ('WALKING', 'Walking Arms', 'Diagnostic walking arms at the selected cycle phase'),
+        ('SEATED', 'Seated Arms', 'Fixed 67 degree lowering; torso and legs remain static')),
+        update=_preview_changed)
+    arm_preview_phase: FloatProperty(name='Walking Cycle Phase', default=.25, min=0, max=1,
+        description='Diagnostic walking cycle from 0 to 1; does not change export settings',
+        update=_preview_changed)
+    arm_preview_error: StringProperty()
     selection_only: BoolProperty(name='Selection Only', default=True, update=_human_changed)
     max_texture_size: EnumProperty(name='Max Texture Size', default='0', items=(
         ('0', 'Keep Original', 'Copy at the original resolution'),
@@ -579,7 +623,10 @@ class RefreshHumanMeasurements(bpy.types.Operator):
         context.window.cursor_set('WAIT')
         try:
             target, settings, meshes, values, overrides = _human_inputs(context)
-            transforms = normalization.build_arm_transforms(target) if settings.normalize_arms else None
+            transforms = None
+            if settings.normalize_arms:
+                transforms = (normalization.build_arm_transforms(target) if settings.arm_rest_angle == 0
+                    else normalization.build_arm_transforms(target, rest_angle_degrees=settings.arm_rest_angle))
             result = omsi_human.measure_human(target, meshes, overrides=overrides,
                 scale=settings.scale, context=context, confirm_stale=settings.confirm_stale,
                 turn_180=settings.turn_180, arm_transforms=transforms)
@@ -621,7 +668,8 @@ class HumanPreflight(bpy.types.Operator):
                 result = omsi_human.export_human(os.path.join(root, stem + '.hum'),
                     context, target, meshes, settings=values, overrides=overrides,
                     scale=settings.scale, confirm_stale=settings.confirm_stale, turn_180=settings.turn_180,
-                    normalize_arms=settings.normalize_arms, o3d_version=int(settings.o3d_version),
+                    normalize_arms=settings.normalize_arms, arm_rest_angle=settings.arm_rest_angle,
+                    o3d_version=int(settings.o3d_version),
                     export_custom_normals=settings.export_custom_normals, preflight_only=True,
                     max_texture_size=int(settings.max_texture_size), texture_format=settings.texture_format,
                     dds_converter=settings.dds_converter)
@@ -690,7 +738,7 @@ class ExportHuman(bpy.types.Operator, ExportHelper):
             result = omsi_human.export_human(self.filepath, context, target, meshes,
                 settings=values, overrides=overrides, scale=settings.scale, turn_180=settings.turn_180,
                 overwrite=self.overwrite, confirm_stale=settings.confirm_stale,
-                normalize_arms=settings.normalize_arms,
+                normalize_arms=settings.normalize_arms, arm_rest_angle=settings.arm_rest_angle,
                 o3d_version=int(settings.o3d_version), export_custom_normals=settings.export_custom_normals,
                 max_texture_size=int(settings.max_texture_size), texture_format=settings.texture_format,
                 dds_converter=settings.dds_converter)
@@ -709,6 +757,31 @@ class ExportHuman(bpy.types.Operator, ExportHelper):
             return {'CANCELLED'}
         finally:
             context.window.cursor_set('DEFAULT')
+
+
+class PreviewHumanArms(bpy.types.Operator):
+    """Refresh an owned diagnostic copy from the current human export scope"""
+    bl_idname = 'omsi.preview_human_arms'
+    bl_label = 'Refresh Arm Preview'
+
+    def execute(self, context):
+        try:
+            _refresh_arm_preview(context)
+        except (ValueError, TypeError, RuntimeError) as error:
+            self.report({'ERROR'}, 'Arm preview refused: ' + str(error))
+            return {'CANCELLED'}
+        self.report({'INFO'}, 'Diagnostic arm preview refreshed; torso and legs are static')
+        return {'FINISHED'}
+
+
+class ClearHumanArmPreview(bpy.types.Operator):
+    """Clear the owned preview even when the source target is unavailable"""
+    bl_idname = 'omsi.clear_human_arm_preview'
+    bl_label = 'Clear Arm Preview'
+
+    def execute(self, context):
+        human_arm_preview.clear_preview()
+        return {'FINISHED'}
 
 
 class VIEW3D_PT_omsi_character_human(bpy.types.Panel):
@@ -763,7 +836,10 @@ class VIEW3D_PT_omsi_character_human(bpy.types.Panel):
         for name in ('scale', 'turn_180', 'normalize_arms', 'selection_only', 'export_custom_normals', 'o3d_version'):
             layout.prop(settings, name)
             if name == 'normalize_arms' and settings.normalize_arms:
-                layout.label(text='Walking arm lowering applies after normalization; remove earlier A-pose compensation.')
+                layout.prop(settings, 'arm_rest_angle')
+                layout.label(text='Walking arm lowering applies after the chosen rest angle; review existing A-pose compensation.')
+                if settings.arm_rest_angle != 0:
+                    layout.label(text='Nonzero rest targets also affect fixed seated animation.', icon='INFO')
         try:
             meshes = omsi_human.human_meshes(context, target, selection_only=settings.selection_only)
         except ValueError as error:
@@ -774,19 +850,50 @@ class VIEW3D_PT_omsi_character_human(bpy.types.Panel):
         layout.operator('omsi.export_human')
 
 
+class VIEW3D_PT_omsi_character_arm_preview(bpy.types.Panel):
+    bl_label = 'Diagnostic Arm Preview'
+    bl_parent_id = 'VIEW3D_PT_omsi_character_human'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'OMSI'
+
+    def draw(self, context):
+        layout = self.layout
+        # Keep cleanup available independently of source target resolution.
+        layout.operator('omsi.clear_human_arm_preview')
+        try:
+            settings = _human_target(context).omsi_human_settings
+        except ValueError as error:
+            layout.label(text=str(error), icon='ERROR')
+            return
+        layout.prop(settings, 'arm_preview_pose')
+        if settings.arm_preview_pose == 'WALKING':
+            layout.prop(settings, 'arm_preview_phase')
+        layout.operator('omsi.preview_human_arms')
+        layout.label(text='Diagnostic arms only; static torso + legs; seated lowering fixed at 67°.')
+        layout.label(text='No automatic collision check or game appearance guarantee.')
+        layout.label(text='Source material graphs provide context, not game shader parity.')
+        if settings.arm_preview_error:
+            layout.label(text=settings.arm_preview_error, icon='ERROR')
+
+
 def get_classes():
     return (OMSICharacterProps, OMSIHumanSettings, ResetMMDToon, FlattenMMDMaterials, ConvertMMDToOMSI,
             GenerateMeshLODs, CharacterPreflight, RefreshHumanMeasurements, HumanPreflight, ExportHuman,
+            PreviewHumanArms, ClearHumanArmPreview,
             VIEW3D_PT_omsi_character, VIEW3D_PT_omsi_character_materials, VIEW3D_PT_omsi_character_convert,
-            VIEW3D_PT_omsi_character_lods, VIEW3D_PT_omsi_character_human)
+            VIEW3D_PT_omsi_character_lods, VIEW3D_PT_omsi_character_human,
+            VIEW3D_PT_omsi_character_arm_preview)
 
 
 def register():
     bpy.types.Scene.omsi_character_data = PointerProperty(type=OMSICharacterProps)
     bpy.types.Object.omsi_human_settings = PointerProperty(type=OMSIHumanSettings)
+    human_arm_preview.register()
 
 
 def unregister():
+    human_arm_preview.unregister()
     if hasattr(bpy.types.Object, 'omsi_human_settings'):
         del bpy.types.Object.omsi_human_settings
     if hasattr(bpy.types.Scene, 'omsi_character_data'):

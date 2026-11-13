@@ -1593,11 +1593,11 @@ def assert_arm_normalization_panel(addon):
                         # Exact RNA and drawn guidance are part of the opt-in UI contract.
                         prop = first.bl_rna.properties['normalize_arms']
                         assert prop.name == 'Normalize Arm Rest Pose'
-                        assert prop.description == ('Export a temporary horizontal arm rest pose; '
+                        assert prop.description == ('Export a temporary arm rest pose at the chosen angle; '
                                                     'keep the editable rig and meshes unchanged')
                         first.show_walking = True
-                        help_text = ('Walking arm lowering applies after normalization; '
-                                     'remove earlier A-pose compensation.')
+                        help_text = ('Walking arm lowering applies after the chosen rest angle; '
+                                     'review existing A-pose compensation.')
                         for enabled in (True, False):
                             first.normalize_arms = enabled
                             before = geometry()
@@ -1606,7 +1606,8 @@ def assert_arm_normalization_panel(addon):
                             panel.VIEW3D_PT_omsi_character_human.draw(SimpleNamespace(layout=layout), bpy.context)
                             names = [name for name, _ in layout.properties]
                             assert names[names.index('scale'):names.index('selection_only') + 1] == [
-                                'scale', 'turn_180', 'normalize_arms', 'selection_only']
+                                'scale', 'turn_180', 'normalize_arms',
+                                *(['arm_rest_angle'] if enabled else []), 'selection_only']
                             walking = [kwargs for name, kwargs in layout.properties if name == 'walk_params']
                             assert [(kw['index'], kw['text']) for kw in walking] == [
                                 (0, 'Walk Parameter 1'), (1, 'Arm Lowering (degrees)'),

@@ -25,11 +25,15 @@ import smoke_human
 import smoke_human_textures
 import smoke_export_fidelity
 import smoke_arm_normalization
+import smoke_arm_rest_angle
+import smoke_arm_preview
 from smoke_support import load_addon
 
 CHECKS = [
     # Factory-byte arm baselines precede legacy checks that seed scene CFG metadata.
     *smoke_arm_normalization.CHECKS,
+    *smoke_arm_rest_angle.CHECKS,
+    *smoke_arm_preview.CHECKS,
     smoke_character.assert_toon_reset,
     smoke_character.assert_material_flatten,
     smoke_character.assert_mmd_group_uv_export,
