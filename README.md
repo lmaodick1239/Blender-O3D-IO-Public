@@ -1,108 +1,160 @@
 # Blender-O3D-IO
 
-[En Français](README-FR.md) (Merci a [@boingtheboeing](https://github.com/boingtheboeing) pour la traduction)
+[En Français](README-FR.md) (Merci à [@boingtheboeing](https://github.com/boingtheboeing) pour la traduction)
 
-An OMSI import and export add-on for Blender supporting `.map`, `.cfg`, `.sco`, and `.o3d` files.
+A Blender add-on for importing and exporting OMSI 2 files: `.map`, `.cfg`, `.sco`, and `.o3d`.
 
 ## Blender 4.x and 5.x support
 
-Version 1.3.4 supports Blender 4.0 through Blender 5.2, and is verified against Blender 5.2 LTS. It uses Blender's current custom-normal, Principled BSDF, material transparency, and multi-file selection APIs while retaining the legacy compatibility paths for older source installations.
+Version 1.3.4 works with Blender 4.0 through Blender 5.2 (tested on Blender 5.2 LTS). It uses the current Blender APIs for custom normals, Principled BSDF materials, material transparency, and multi-file selection, while still working with older files.
 
-Map and tile import build their materials on the shader wrapper shipped with the running Blender version, so the terrain and map-preview materials work on 4.0 and newer where the Principled BSDF sockets were renamed.
+Map and tile import builds its materials using the shader setup of whatever Blender version is running, so terrain and map-preview materials work on 4.0 and newer (where the Principled BSDF sockets changed names).
 
-For Blender 4.2 through 5.2, install the extension ZIP from `Edit > Preferences > Get Extensions > Install from Disk`. Select the ZIP file itself instead of its containing folder. Blender 4.0 and 4.1 can use the repository ZIP through the legacy add-on installer.
+**Installing:**
+- **Blender 4.2 – 5.2:** Go to `Edit > Preferences > Get Extensions > Install from Disk` and select the ZIP file itself (not the folder it's in).
+- **Blender 4.0 / 4.1:** Use the legacy add-on installer via the repository ZIP.
 
-The optional private `o3d_crypto.py` module is not distributed with this repository. Its warning only affects encrypted O3D files; ordinary import and export remain available.
+**Note:** The optional private `o3d_crypto.py` module is not included in this repository. You only need it to open encrypted O3D files — normal importing and exporting works without it.
 
 ![Blender-O3D-IO-Screenshot](https://user-images.githubusercontent.com/15130114/208222029-5f9c2eb7-1007-4c38-a06a-0f3214d0a2f6.png)
 
 ## Features
-Blender-O3D-IO includes a fast o3d file importer and exporter with full support for the format. For complex models, 
-`.cfg` and `.sco` files can also be imported and exported. OMSI map tiles (`.map` files) can also be imported.
 
- - Fully supports O3D file format:
-    - Explicit vertex normals
-    - Long headers (version >= 3)
-    - Encryption (requires private `o3d_crypto.py` module)
-    - Long triangle indices
-    - Alternative encryption seed
-    - Embedded materials
-    - Bones
-    - UV coordinates
- - Supports many features in CFG/SCO files:
-    - LODs
-    - Imports and exports advanced material features including:
-       - `[matl]`
-       - `[matl_alpha]`
-       - `[matl_transmap]`
-       - `[matl_envmap]` & `[matl_envmap_mask]`
-       - `[matl_bumpmap]` (Blender >= 2.80 only!)
-       - `[matl_nightmap]` & `[matl_lightmap]`
-       - ...
-    - Interior lights and spotlights
-    - Lens flares (`[light_enh]` and `[light_enh_2]`)
-    - Imports all referenced models (o3d files only) and textures in the CFG/SCO as separate objects
-    - Imports `.x` if a compatible importer is installed (https://github.com/Poikilos/io_import_x)
- - Imports OMSI map tiles (`.map` files): [WIP]
-    - Imports referenced scenery objects
-    - Imports terrain tiles and materials
-    - Imports splines and converts them to meshes
+The add-on gives you a fast O3D importer/exporter with full support for the format. For complex models, `.cfg` and `.sco` files can also be imported and exported. OMSI map tiles (`.map` files) can be imported too.
+
+### O3D files — fully supported
+
+- Explicit vertex normals
+- Long headers (version 3 and up)
+- Encryption (needs the private `o3d_crypto.py` module)
+- Long triangle indices
+- Alternative encryption seed
+- Embedded materials
+- Bones
+- UV coordinates
+
+### CFG/SCO files — many features supported
+
+- LODs
+- Advanced material features, both importing and exporting:
+  - `[matl]`
+  - `[matl_alpha]`
+  - `[matl_transmap]`
+  - `[matl_envmap]` & `[matl_envmap_mask]`
+  - `[matl_bumpmap]` (Blender 2.80 and newer only!)
+  - `[matl_nightmap]` & `[matl_lightmap]`
+  - ... and more
+- Interior lights and spotlights
+- Lens flares (`[light_enh]` and `[light_enh_2]`)
+- Imports all referenced models (o3d files only) and textures in the CFG/SCO as separate objects
+- Imports `.x` files if a compatible importer is installed (https://github.com/Poikilos/io_import_x)
+
+### Map tiles — work in progress
+
+- Imports referenced scenery objects
+- Imports terrain tiles and materials
+- Imports splines and converts them to meshes
 
 ## Installation
-1. Go to the releases page and download the latest release (available 
-[here](https://github.com/space928/Blender-O3D-IO-Public/releases/latest)), it should look like 
-`Blender-O3D-IO-Public-0.2.3.zip`
-2. Open Blender go to `Edit->Preferences...`
-3. Go to the `Add-ons` tab and then press `Install...`
+
+1. Download the latest release from the [releases page](https://github.com/space928/Blender-O3D-IO-Public/releases/latest) — it will look like `Blender-O3D-IO-Public-0.2.3.zip`
+2. Open Blender and go to `Edit -> Preferences...`
+3. Go to the `Add-ons` tab and press `Install...`
 4. Select the **zip** file (do NOT unzip it) and press `Install Add-on`
-5. You should now be able to import o3d/cfg/sco files from `File->Import->OMSI Model Config (*.cfg, *.sco, *.o3d)`
-6. Map tiles can be imported from `File->Import->OMSI Map Tile (*.map)`
-7. You can export o3d/cfg/sco files from `File->Export->OMSI Model Config (*.cfg, *.sco, *.o3d)`
+5. You can now import o3d/cfg/sco files from `File -> Import -> OMSI Model Config (*.cfg, *.sco, *.o3d)`
+6. Map tiles can be imported from `File -> Import -> OMSI Map Tile (*.map)`
+7. You can export o3d/cfg/sco files from `File -> Export -> OMSI Model Config (*.cfg, *.sco, *.o3d)`
 
 ### Packaging the extension ZIP
-To pack the add-on into a distribution-ready ZIP archive for Blender 4.2+ extensions:
+
+To pack the add-on into a distribution-ready ZIP for Blender 4.2+ extensions:
+
 ```bash
 ./pack.py
 ```
-This script reads `blender_manifest.toml`, filters out tests/docs/temporary files, and creates `dist/blender_o3d_io-<version>.zip` without requiring a Blender installation. Run `./pack.py --help` for CLI options (`--output-dir`, `--output-name`, `--dry-run`, `--verbose`, `--quiet`).
 
-Imported model, config, texture, spline, and terrain paths are resolved without regard to filename or directory casing, including on Linux. Existing files keep their original names; exact matches take priority, and regional-codepage fallbacks remain supported.
+The script reads `blender_manifest.toml`, filters out tests/docs/temporary files, and creates `dist/blender_o3d_io-<version>.zip` without needing a Blender installation. Run `./pack.py --help` for options (`--output-dir`, `--output-name`, `--dry-run`, `--verbose`, `--quiet`).
 
-Each O3D material keeps its own Blender material slot and face assignments, including repeated texture references. Images are loaded separately rather than merged by filename. Missing textures retain separate unloaded image references with their original paths for relinking; they never fall back to the first available texture. CFG material settings are matched by texture path and material index.
+### File handling details
+
+- Imported paths (models, configs, textures, splines, terrain) are matched case-insensitively, including on Linux. Exact matches win; regional-codepage fallbacks still work.
+- Each O3D material gets its own Blender material slot and face assignments, including repeated texture references. Images load separately, never merged by filename.
+- Missing textures keep their own unloaded image reference with the original path for relinking — they never silently fall back to some other texture.
+- CFG material settings are matched by texture path and material index.
 
 ## Converting MMD characters to OMSI
 
-Open the 3D View sidebar (`N`) and choose **OMSI > OMSI Character Tools**. These tools work without `mmd_tools`; import your MMD mesh and armature first using your preferred importer.
+Open the 3D View sidebar (`N`) and choose **OMSI > OMSI Character Tools**. These tools don't need `mmd_tools`; import your MMD mesh and armature first with whatever importer you prefer.
 
-1. Select the character mesh. Missing toon textures such as `toon02.bmp` can make MMD shaders magenta. **Reset MMD Toon Factor** disables their contributions; sphere reset is enabled by default. **Flatten MMD Materials** replaces MMD shaders with exportable Principled materials while retaining the base texture and UV mapping. By default both tools create working mesh/data copies with private materials, select the copies for the next click, and preserve the originals. Repeating an operation with nothing left to change creates no copies. **Apply to every material in the file** explicitly edits materials in place.
-2. In **Convert to OMSI Armature**, set source pointers if selection cannot identify them. **Auto from MMD joints** builds the canonical OMSI rig; **Copy template** uses a separate copy of your supplied armature. Defaults retain four influences per vertex, remove shape keys, preserve the source armature, and place the new mesh and rig in `OMSI_Converted`. Weights are merged and normalized. **Keep unmapped MMD bones as extras** preserves extra bones under ASCII names, but leaves them unbound: supply suitable human bindings yourself. Conversion selects its output and updates the sidebar pointers.
-3. Compatible `.hum` `[links]` and pivots are required for human animation. **Human Configuration & Export**, after **Mesh LODs**, derives these from supported canonical rest bones and preserved real neck/finger landmarks. Missing points need explicit numeric overrides, not collider positions. Physics, morph animation, and vehicle bindings remain outside these tools.
-4. **LOD Count** includes the full-detail source: one to three total levels, default three. Reduced ratios default to `0.5 / 0.25`; **LOD Factors** default to `0.2 / 0.1 / 0`. Factors are screen-size values. Active factors must descend strictly to the final zero, which the operator sets automatically. One level uses only factor zero. Each mesh belongs exclusively to its `LOD_<factor>` collection (for example `LOD_0.2`, `LOD_0.1`, `LOD_0`), with fresh relative output paths. Generation validates all levels before committing and replaces only previously managed outputs of that source.
-5. Use **Check Export Readiness** for strict serialized character limits, CP1252 bone names, weight normalization, helper groups, missing unpacked disk images, remaining shape keys, MMD shaders and unbound extras. Results appear in Blender reports and the console; readiness leaves the scene and source pointers unchanged. Packed/generated images count as available in Blender. Generic model export still needs texture files arranged separately; **Export Human** copies and packages its referenced textures.
-6. In **Human Configuration & Export**, confirm the labeled target, click **Refresh Measurements**, and resolve missing/stale findings using **Landmark Overrides** or explicit stale-point consent. Voice, mass (kg), seat height, feet distance, optional height and advanced walking values persist on that target rig. Overrides are final scaled file coordinates; do not multiply them by export scale again. Enable **Turn 180°** to turn exported meshes/LODs and measured landmarks around the vertical axis without changing the Blender scene; paired limb bindings follow their final exported side. Numeric overrides remain final file coordinates and must already match the chosen direction. Run this section's **Check Export Readiness**, then **Export Human** to choose `character.hum`: it writes `model/character.cfg`, O3Ds under `model/`, and copies referenced textures into `textures/`, with matching relative references, CP1252 text and exactly 22 link values. **Max Texture Size** offers **Keep Original** or a longest-edge limit from 64 to 8192 pixels; reduction keeps aspect ratio and alpha and never upscales. The largest source texture dimensions are shown in the sidebar and file picker. **Texture Format** offers **Keep Source Format** (default), **PNG (.png)**, **Targa (.tga)**, and **DDS (.dds)**. Keep Source Format preserves supported PNG, Targa, BMP and JPEG formats even when resizing; unchanged supported disk/packed images are copied byte for byte. Targa uses Blender's native writer and retains alpha. DDS uses optional `texconv` or ImageMagick's `magick` from PATH, or the executable selected in **DDS Converter**, for legacy DXT5 output. Resized or edited DDS sources also need that encoder to retain DDS; unavailable/failed conversion falls back to original/PNG with a warning. Unsupported source formats use PNG with a warning. Resolution defaults to unchanged, and all re-encoding uses private image copies. Explicit overwrite consent covers HUM, model files and copied textures and resets on each picker invocation. **Selection Only** retains selected character meshes; selecting only the target rig includes its bound meshes/LODs. Object Mode and upright, X-symmetric supported alignment are required. Keep the HUM and its generated `model/` and `textures/` folders together, and verify standing/walking/seated poses and LODs in OMSI. Generic **File > Export > OMSI Model Config** is unchanged; a manual HUM remains an alternative. See [the human tutorial](docs/tutorials/mmd-to-omsi-human.md).
+### 1. Clean up the materials
 
-**Arm rest pose and preview:** In **Human Configuration & Export**, opt in with **Normalize Arm Rest Pose**, then set **Rest Arm Angle (degrees)**: `0` retains the existing horizontal normalization, positive angles place the rest arms below horizontal, and negative angles place them above. With normalization off, the angle is ignored. Existing walking beta is unchanged and applies as additional game lowering after the chosen rest angle. Open the child **Diagnostic Arm Preview**, choose **Exported Rest**, **Standing Arms**, **Walking Arms** (with **Walking Cycle Phase**), or **Seated Arms**, and click **Refresh Arm Preview**; **Clear Arm Preview** removes the copies. These viewport copies never export and are cleared on Undo/Redo, save, load, or add-on unregister; click **Refresh Arm Preview** to rebuild them afterward. The diagnostic keeps torso and legs static, uses fixed seated lowering of 67°, and does not guarantee clothing clearance or game appearance.
+Select the character mesh. Missing toon textures (like `toon02.bmp`) can make MMD shaders look magenta.
 
-Conversion refuses active object constraints; apply/bake or disable them first. Existing target collections must be local, editable, visible in the active scene/view layer, and outside LOD collections. Generate LODs in Object mode with a local, unshared source mesh, the base selected, and old reduced levels deselected. Export paths must be distinct case-insensitively; conflicting or unsafe paths are rejected before files are written.
+- **Reset MMD Toon Factor** — disables missing toon texture contributions (sphere reset is on by default).
+- **Flatten MMD Materials** — replaces MMD shaders with exportable Principled materials, keeping the base texture and UV mapping.
+- By default, both tools work on a copy with private materials, select the copy for the next step, and leave your originals untouched. Nothing to change = no copy created.
+- Tick **Apply to every material in the file** to edit the original materials in place instead.
+
+### 2. Convert to an OMSI armature
+
+In **Convert to OMSI Armature**, set the source pointers manually if selection can't identify them.
+
+- **Auto from MMD joints** builds the standard OMSI rig; **Copy template** uses a separate copy of an armature you supply.
+- Defaults: keep 4 influences per vertex, remove shape keys, keep the source armature, and put the result in `OMSI_Converted`. Weights are merged and normalized.
+- **Keep unmapped MMD bones as extras** keeps extra bones under ASCII names, but they stay unbound — you'll need to assign human bindings yourself.
+- Conversion selects its output and updates the sidebar pointers.
+
+### 3. Human configuration and export
+
+Compatible `.hum` `[links]` and pivots are required for human animation. **Human Configuration & Export** (after **Mesh LODs**) derives these from supported canonical rest bones and preserved real neck/finger landmarks. Missing points need explicit numeric overrides — not collider positions. Physics, morph animation, and vehicle bindings are outside the scope of these tools.
+
+**Measurements:** Confirm the labeled target, click **Refresh Measurements**, and resolve any missing/stale findings using **Landmark Overrides** or explicit stale-point consent. Voice, mass (kg), seat height, feet distance, and optional height/advanced walking values are saved on that target rig.
+
+**Coordinate rules:**
+- Overrides are final scaled file coordinates — don't multiply them by the export scale again.
+- Enable **Turn 180°** to turn exported meshes/LODs and measured landmarks around the vertical axis without changing your Blender scene. Paired limb bindings follow their final exported side. Numeric overrides must already match the chosen direction.
+
+**Check Export Readiness** runs strict checks on serialized character limits, CP1252 bone names, weight normalization, helper groups, missing unpacked disk images, remaining shape keys, MMD shaders, and unbound extras. Results appear in Blender reports and the console. The check doesn't change the scene or source pointers.
+
+**Export Human** — pick `character.hum` and the tool writes `model/character.cfg`, O3D files under `model/`, and copies referenced textures into `textures/`, all with matching relative references, CP1252 text, and exactly 22 link values. Generic model export still needs textures arranged separately; **Export Human** packages them for you.
+
+**Texture options:**
+- **Max Texture Size:** **Keep Original**, or a longest-edge limit from 64 to 8192 pixels. Reduction keeps aspect ratio and alpha, and never upscales. The largest source texture dimensions are shown in the sidebar and file picker.
+- **Texture Format:** **Keep Source Format** (default), **PNG (.png)**, **Targa (.tga)**, or **DDS (.dds)**.
+  - Keep Source Format preserves supported PNG, Targa, BMP, and JPEG formats even when resizing. Unchanged supported disk/packed images are copied byte for byte.
+  - Targa uses Blender's native writer and keeps alpha.
+  - DDS uses `texconv` or ImageMagick's `magick` from PATH (or the executable chosen in **DDS Converter**) for legacy DXT5 output. Resized or edited DDS sources need that encoder to stay DDS; if conversion is unavailable or fails, you get the original/PNG with a warning. Unsupported source formats become PNG with a warning.
+- Resolution defaults to unchanged, and all re-encoding uses private image copies. Explicit overwrite consent covers the HUM, model files, and copied textures.
+
+**Arm rest pose and preview:** In **Human Configuration & Export**, opt in with **Normalize Arm Rest Pose** and set **Rest Arm Angle (degrees)**. `0` keeps the existing horizontal normalization, positive angles put the rest arms below horizontal, negative angles put them above. With normalization off, the angle is ignored. The existing walking beta is unchanged and applies as additional game lowering after the chosen rest angle.
+
+Open the child **Diagnostic Arm Preview**, choose **Exported Rest**, **Standing Arms**, **Walking Arms** (with **Walking Cycle Phase**), or **Seated Arms**, and click **Refresh Arm Preview**. **Clear Arm Preview** removes the copies. These viewport copies never export and are cleared on Undo/Redo, save, load, or add-on unregister — click **Refresh Arm Preview** to rebuild them. The diagnostic keeps torso and legs static, uses a fixed seated lowering of 67°, and doesn't guarantee clothing clearance or how the game will look.
+
+### Rules and limitations
+
+- Conversion refuses active object constraints — apply/bake or disable them first.
+- Existing target collections must be local, editable, visible in the active scene/view layer, and outside LOD collections.
+- Generate LODs in Object mode with a local, unshared source mesh: base level selected, old reduced levels deselected.
+- Export paths must be distinct case-insensitively; conflicting or unsafe paths are rejected before any files are written.
 
 ## Import diagnostics
 
-After the `Loaded ...` console line, each model import prints tallies of unreadable meshes and missing textures, grouped by filename with occurrence counts and unique-file totals. Repeated references are counted separately, the most frequent failures appear first, and counts reset for each imported model or configuration. Existing warnings still appear as files are processed.
+After the `Loaded ...` console line, each model import prints a tally of unreadable meshes and missing textures, grouped by filename with occurrence counts and unique-file totals. Repeated references are counted separately, the most frequent failures show first, and counts reset for each imported model or configuration. Existing warnings still appear as files are processed.
 
 ## Exporter Tips
-OMSI and Blender handle 3D models and materials fairly differently so there are a few areas where the conversion between 
-Blender and OMSI is a bit imprecise, this is most notable when exporting as there are a few assumptions the exporter 
-needs to make to export files correctly. The exporter is designed to try as closely as possible to export an imported 
-cfg file identically to the original. As such, the best way to learn the specifics of the exporter is to try importing 
-some files, and examine how the importer sets them up in Blender.
+
+OMSI and Blender handle 3D models and materials quite differently, so converting between them isn't always exact — mostly when exporting, where the exporter has to make some assumptions. The exporter tries to re-export an imported cfg file as close to the original as possible. The best way to learn the exporter's behavior is to import some files and see how the importer sets them up in Blender.
 
 ### How do I export CFG files instead of just O3D files?
-The exporter decides what to export based on the file extension of the exported file. To export a cfg along with all 
-its required o3d files, specify the `.cfg` file extension when exporting. When exporting a single mesh as an o3d, a 
-single o3d file is produced; if on the other hand you're exporting multiple Blender objects as an o3d then the exporter
-automatically creates separate o3d files for each Blender object, this behaviour can't be changed.
 
-For instance if the scene contains the following objects:
+The exporter decides what to export based on the file extension you type:
+
+- Exporting a **single mesh** as `.o3d` produces a single o3d file.
+- Exporting **multiple objects** as `.o3d` automatically creates a separate o3d file per object (this can't be changed).
+- Exporting as `.cfg` does the same as above, plus writes a cfg file — and the o3d files aren't prefixed with the file name.
+
+For example, with this scene:
+
 ```
 Scene Collection
 | > Body
@@ -110,18 +162,20 @@ Scene Collection
 | > Wheel_VL
 | > Wheel_VR
 ```
-If we enable the "Export selection" option in the export dialog, then we can control which objects are exported.
-With only the `Body` selected, if we export as `Body.o3d` we indeed end up with a single o3d file `Body.o3d`. If on the 
-other hand we select all the objects and export as `Car.o3d` the exporter will automatically export separate files for 
-each object:
+
+Enable the "Export selection" option in the export dialog to control which objects get exported.
+
+With only `Body` selected, exporting as `Body.o3d` gives you one file, `Body.o3d`. Selecting all objects and exporting as `Car.o3d` gives:
+
 ```
 Car-Body.o3d
 Car-Wheel_H.o3d
 Car-Wheel_VL.o3d
 Car-Wheel_VR.o3d
 ```
-If we export as `Car.cfg` then the behaviour is the same, except the o3d files are not prefixed with the file name and 
-a cfg file is also generated:
+
+Exporting as `Car.cfg` does the same but without the name prefix, plus a cfg file:
+
 ```
 Car.cfg
 Body.o3d
@@ -130,84 +184,81 @@ Wheel_VL.o3d
 Wheel_VR.o3d
 ```
 
-### Materials Don't Look Correct in OMSI
-Blender uses a completely different shading system to OMSI so there are some limitations to consider when exporting 
-materials:
- - Some material features require a cfg file to exported to work correctly (transparency, envmaps, lightmaps, etc...)
- - If textures aren't displaying in OMSI check the following:
-   - Blender supports image formats that OMSI doesn't, if possible use dds files for textures, these are best optimised 
-     for OMSI and will generally load faster. (OMSI only supports DXT compression in DDS files)
-   - Make sure the texture file exists in the correct textures directory in OMSI, the exporter converts all texture 
-     filepaths to relative paths, so the texture must be in the correct place relative to the o3d/cfg file for omsi to 
-     find it.
- - Only the following material fields are exported:
-   - Base Color/Diffuse Color
-   - Alpha
-   - Specular Color/Specular Intensity
-   - Roughness/Specular Hardness (when the roughness is set below 0.1, the envmap is automatically enabled)
-   - Emission Color
-   - 
-   - Base Color Texture
-   - Alpha Texture
-   - Specular Texture
-   - Normalmap (treated as a bumpmap)
-   - Emission Texture (exported as a `[matl_lightmap]` if the emission strength is greater than 1, otherwise it's 
-     exported as a `[matl_nightmap]`)
- - Animating material properties is not supported
- - When using shader nodes (the default in Blender >= 2.80), the **only** node supported as an input to the *Principled 
-   BSDF Node*, is the *Image Texture* node
+### Materials don't look correct in OMSI
 
-### How Does the Importer Handle OMSI Specific Data?
-The importer is designed to preserve as much data from the cfg file as possible, including metadata not used in Blender 
-such as `[CTC_Texture]`, these configuration items are stored in the "Custom Properties" section of the relevant object 
-in Blender. Scene specific config items are stored in the "Custom Properties" section of the Scene tab, the "Object 
-Properties", "Data Properties" (Mesh/Light tab), and "Material Properties" tabs also have configuration items stored in 
-their "Custom Properties" sections. This data can be added to or modified and will be exported in the correct place by 
-the exporter, but it's very easy to break it. I don't recommend modifying this data unless you know what you're doing.
+Blender's shading system is completely different from OMSI's, so there are some limitations when exporting materials:
 
-### Light Flares
-Blender doesn't support light flares, but to allow for easy positioning of flares `[light_enh_2]` the importer creates
-EMPTY objects in the correct position with the all of the properties of the flare available to modifiy in the "Custom 
-Properties" section of the "Object Properties" tab for that object (with the exception of colour, texture, and size 
-which are controlled from the object data properties (color is controlled from 
-"Object Properties->Viewport Display->Color")).
+- Some material features only work when a cfg file is exported too (transparency, envmaps, lightmaps, etc...).
+- If textures aren't showing in OMSI, check:
+  - Blender supports image formats OMSI doesn't. If possible, use **DDS files** for textures — they're best optimized for OMSI and load faster. (OMSI only supports DXT compression in DDS files.)
+  - Make sure the texture file exists in the right textures directory in OMSI. The exporter converts all texture paths to relative paths, so the texture must be in the correct place relative to the o3d/cfg file.
 
-For `[light_enh]` and `[light_enh_2]`, a blank or omitted texture uses `licht.bmp`, including when the flare is the final entry in the CFG.
+Only these material fields are exported:
+
+- Base Color / Diffuse Color
+- Alpha
+- Specular Color / Specular Intensity
+- Roughness / Specular Hardness (roughness below 0.1 automatically enables the envmap)
+- Emission Color
+- Base Color Texture
+- Alpha Texture
+- Specular Texture
+- Normalmap (treated as a bumpmap)
+- Emission Texture (exported as `[matl_lightmap]` if emission strength is above 1, otherwise as `[matl_nightmap]`)
+
+Also:
+
+- Animating material properties is not supported.
+- With shader nodes (default in Blender 2.80+), the **only** node supported as an input to the *Principled BSDF Node* is the *Image Texture* node.
+
+### How does the importer handle OMSI-specific data?
+
+The importer keeps as much cfg data as possible, including metadata Blender doesn't use (like `[CTC_Texture]`). This data is stored in each object's "Custom Properties" section:
+
+- Scene-specific config items → Scene tab's Custom Properties
+- Object config → Object Properties tab
+- Mesh/light config → Data Properties tab
+- Material config → Material Properties tab
+
+You can add or modify this data and the exporter will write it to the correct place — but it's easy to break. Don't modify it unless you know what you're doing.
+
+### Light flares
+
+Blender doesn't support light flares, so the importer creates EMPTY objects in the right position for `[light_enh_2]` flares. All flare properties are available in the "Custom Properties" section of the object's "Object Properties" tab — except colour, texture, and size, which are on the object data properties (colour is at "Object Properties -> Viewport Display -> Color").
+
+For `[light_enh]` and `[light_enh_2]`, a blank or omitted texture falls back to `licht.bmp`, even when the flare is the last entry in the CFG.
 
 ### Lights
-All point lights are exported as `[interiorlight]` objects. Only the following properties are exported:
- - Location
- - Light Energy (scaled down by a factor of 10 to be used as range) [Blender >= 2.80]
- - Light Distance [Blender <= 2.79]
- - Light Color
- - Light Variable (from "Custom Properties")
 
-All spotlights are exported as `[spotlight]` objects. Only the following properties are exported:
- - Location
- - Rotation (converted to spot direction vector)
- - Light Energy (scaled down by a factor of 10 to be used as range) [Blender >= 2.80]
- - Light Distance [Blender <= 2.79]
- - Light Color
- - Light Spot Size
- - Light Spot Blend (Converted to inner angle)
+All **point lights** export as `[interiorlight]` objects. Only these properties are exported:
 
-### How Do I Prevent Objects From Being Exported?
-There are two methods:
-#### 1:
-Enable the "Export selection" option in the export dialog (on the right-hand side of the file picker) and then select 
-all the objects you want to export.
+- Location
+- Light Energy (divided by 10 to use as range) [Blender 2.80+]
+- Light Distance [Blender 2.79 and older]
+- Light Color
+- Light Variable (from "Custom Properties")
 
-#### 2:
-For each object you want to prevent from being exported, go to it's "Object Properties" tab, and in the 
-"Custom Properties" section add a property with the name "skip_export" (the property type is unimportant as its value 
-is ignored).
+All **spotlights** export as `[spotlight]` objects. Only these properties are exported:
+
+- Location
+- Rotation (converted to the spot direction vector)
+- Light Energy (divided by 10 to use as range) [Blender 2.80+]
+- Light Distance [Blender 2.79 and older]
+- Light Color
+- Light Spot Size
+- Light Spot Blend (converted to inner angle)
+
+### How do I prevent objects from being exported?
+
+Two ways:
+
+1. Enable the "Export selection" option in the export dialog (right-hand side of the file picker), then select only the objects you want to export.
+2. For each object you want to skip, go to its "Object Properties" tab, and in "Custom Properties" add a property named `skip_export` (property type doesn't matter; the value is ignored).
 
 ### Animations
-Currently, these are not imported, if an imported cfg file contains animations they should be re-exported correctly 
-(they are preserved in "Custom Properties"). But no method currently exists to convert Blender animation to OMSI 
-animations. That being said, object pivot points are correctly exported, and setting these up correctly is vital to 
-animations working correctly in OMSI.
+
+Animations aren't imported. If an imported cfg file contains animations, they should re-export correctly (they're preserved in "Custom Properties"), but there's no way to convert Blender animations to OMSI animations yet. Object pivot points do export correctly — setting these up properly is vital for animations to work in OMSI.
 
 ### LODs
-LODs are automatically exported based on collection (or groups in Blender 2.79) names. Objects in a collection with a 
-name of the form `LOD_X`, where `X` is a decimal number representing the minimum screen size, are exported in that LOD.
+
+LODs export automatically based on collection names (or groups in Blender 2.79). Objects in a collection named `LOD_X` — where `X` is a decimal number for the minimum screen size — are exported in that LOD.
