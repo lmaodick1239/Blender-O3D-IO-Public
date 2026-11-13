@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from typing import Literal, Optional, Tuple, cast
 
 import bpy
+from mathutils import Matrix, Vector
 
 
 AlphaMode = Literal["OPAQUE", "CLIP", "HASHED", "BLEND"]
@@ -34,10 +35,19 @@ def prepare_import_mesh(
     mesh: bpy.types.Mesh,
     normals: Sequence[Sequence[float]],
     use_custom_normals: bool,
+    transform_matrix: Optional[Matrix] = None,
 ) -> None:
     mesh.validate(verbose=False, clean_customdata=True)
     mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
+    if transform_matrix is not None:
+        mesh.transform(transform_matrix)
+        if transform_matrix.is_negative:
+            mesh.flip_normals()
     if use_custom_normals and len(normals) == len(mesh.vertices):
+        if transform_matrix is not None:
+            normal_matrix = transform_matrix.to_3x3().inverted().transposed()
+            normals = [(normal_matrix @ Vector(normal)).normalized()
+                       for normal in normals]
         create_normals = getattr(mesh, "create_normals_split", None)
         if create_normals is not None:
             create_normals()

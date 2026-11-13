@@ -493,11 +493,9 @@ def load_o3d(object_directory, path_to_file, split_normals):
     # log("Inverted matrix: \n{0}".format(i_o3d_transform_matrix))
     # log("Mesh matrix: \n{0}".format(mesh_matrix))
 
-    blender_compat.prepare_import_mesh(mesh, normals, split_normals)
-
-    mesh.transform(mesh_matrix)
-    if mesh_matrix.is_negative:
-        mesh.flip_normals()
+    blender_compat.prepare_import_mesh(
+        mesh, normals, split_normals, transform_matrix=mesh_matrix
+    )
 
     for face in mesh.polygons:
         for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):

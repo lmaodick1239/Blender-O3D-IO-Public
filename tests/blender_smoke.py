@@ -11,6 +11,7 @@ if str(HERE) not in sys.path:
 import bpy
 
 import smoke_io
+import smoke_import_normals
 import smoke_paths
 import smoke_materials
 import smoke_character
@@ -83,6 +84,7 @@ CHECKS = [
     smoke_materials.assert_import_preserves_validated_face_materials,
     smoke_io.assert_armature_helper,
     smoke_io.assert_invalid_topology_guard,
+    *smoke_import_normals.CHECKS,
     smoke_paths.assert_leading_separator_mesh_path,
     smoke_io.assert_singular_transform_guard,
     smoke_io.assert_generic_smoothskin_cfg,
