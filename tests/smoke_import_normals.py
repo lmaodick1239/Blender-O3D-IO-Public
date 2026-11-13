@@ -6,6 +6,7 @@ blender --background --threads 2 --factory-startup --disable-autoexec
 import argparse
 from collections import Counter
 from contextlib import contextmanager
+import inspect
 import math
 from pathlib import Path
 import sys
@@ -142,6 +143,8 @@ def _assert_custom_directions(mesh, frame, vertices, case_name):
 
 def assert_import_custom_normals(addon):
     """Authored directions survive import transforms and winding correction."""
+    helper = addon.o3d_io.blender_compat.prepare_import_mesh
+    assert inspect.signature(helper).parameters['transform_matrix'].kind is inspect.Parameter.KEYWORD_ONLY
     with _fixture(addon) as (vertices, triangles, paths):
         for case_name, path in paths.items():
             with _imported(addon, path, True) as result:

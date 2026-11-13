@@ -35,6 +35,7 @@ def prepare_import_mesh(
     mesh: bpy.types.Mesh,
     normals: Sequence[Sequence[float]],
     use_custom_normals: bool,
+    *,
     transform_matrix: Optional[Matrix] = None,
 ) -> None:
     mesh.validate(verbose=False, clean_customdata=True)
